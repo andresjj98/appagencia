@@ -1,0 +1,53 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Build output
+build/
+dist/
+.next/
+frontend/build/
+frontend/dist/
+
+# Local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor directories and files
+.vscode/
+.idea/
+.DS_Store
+
+# Misc
+**/.cache/
+.eslintcache
+coverage/
+
+#Vite, Parcel u otros
+.parcel-cache/
+.turbo/
+out/
+
+#Ignorar artefactos de pruebas y coverage
+**/coverage/
+
+#Ignorar archivos grandes accidentales
+*.zip
+*.tar
+*.gz
+*.7z
+*.bak
+*.tmp
+*.swp
