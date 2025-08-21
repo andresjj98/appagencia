@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  X, 
-  Save, 
-  Calendar, 
+import {
+  X,
+  Save,
+  Calendar,
   MapPin, 
   Users, 
   Phone, 
@@ -23,9 +23,10 @@ import {
   PlusSquare,
   Info,
   Plane,
-  Calculator // For pricing details
+  Calculator, // For pricing details
+  CreditCard
 } from 'lucide-react';
-import { generateReservationId } from '../../utils/helpers';
+import { generateReservationId, formatDate } from '../../utils/helpers';
 
 const ReservationForm = ({ reservation = null, onSave, onClose }) => {
   const [formData, setFormData] = useState({
@@ -56,6 +57,8 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
     totalAmount: reservation?.totalAmount || 0, // Will be calculated
     status: reservation?.status || 'pending',
     paymentStatus: reservation?.paymentStatus || 'pending',
+    paymentType: reservation?.paymentType || 'cash',
+    installmentsNumber: reservation?.installmentsNumber || 1,
     notes: reservation?.notes || ''
   });
 
@@ -88,14 +91,29 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
 
   // Effect to calculate total amount based on passenger counts and prices
   useEffect(() => {
-    const calculatedTotal = 
+    const calculatedTotal =
       (totalPassengersCalculated.adt * (parseFloat(formData.pricePerADT) || 0)) +
       (totalPassengersCalculated.chd * (parseFloat(formData.pricePerCHD) || 0)) +
       (totalPassengersCalculated.inf * (parseFloat(formData.pricePerINF) || 0));
-    
+
     setFormData(prev => ({ ...prev, totalAmount: calculatedTotal.toFixed(2) }));
   }, [totalPassengersCalculated, formData.pricePerADT, formData.pricePerCHD, formData.pricePerINF]);
 
+  // Calculate installment values and payment schedule
+  const totalAmountNum = parseFloat(formData.totalAmount) || 0;
+  const installmentsNum = formData.paymentType === 'installments'
+    ? parseInt(formData.installmentsNumber) || 1
+    : 1;
+  const installmentValue = installmentsNum > 0 ? totalAmountNum / installmentsNum : 0;
+  const paymentSchedule = [];
+  if (formData.paymentType === 'installments') {
+    const today = new Date();
+    for (let i = 1; i <= installmentsNum; i++) {
+      const date = new Date(today);
+      date.setMonth(date.getMonth() + i);
+      paymentSchedule.push({ number: i, amount: installmentValue, dueDate: date });
+    }
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -105,6 +123,10 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
       id: reservation?.id || generateReservationId(),
       totalAmount: parseFloat(formData.totalAmount),
       passengers: totalPassengers, // This is the overall total, not from accommodation
+      paymentType: formData.paymentType,
+      installmentsNumber: installmentsNum,
+      installmentValue: parseFloat(installmentValue.toFixed(2)),
+      paymentSchedule,
       createdAt: reservation?.createdAt || new Date(),
       advisorId: '2',
       advisorName: 'Carlos Mendoza'
@@ -1318,15 +1340,82 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
                   <option value="paid">Pagado</option>
                   <option value="refunded">Reembolsado</option>
                 </select>
-              </div>
             </div>
           </div>
+        </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notas Adicionales
-            </label>
+        {/* Payment Type */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            Detalles de Pago
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Pago
+              </label>
+              <select
+                name="paymentType"
+                value={formData.paymentType}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="cash">De Contado</option>
+                <option value="installments">A Cuotas</option>
+              </select>
+            </div>
+            {formData.paymentType === 'installments' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Cuotas
+                </label>
+                <input
+                  type="number"
+                  name="installmentsNumber"
+                  min="1"
+                  value={formData.installmentsNumber}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            )}
+          </div>
+
+          {formData.paymentType === 'installments' && (
+            <>
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <h4 className="text-lg font-bold text-blue-800">Valor por Cuota:</h4>
+                <span className="text-2xl font-extrabold text-blue-800">
+                  €{parseFloat(installmentValue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Calendario de Pagos
+                </label>
+                <ul className="space-y-1">
+                  {paymentSchedule.map(item => (
+                    <li key={item.number} className="flex items-center justify-between text-sm text-gray-700">
+                      <span>
+                        Cuota {item.number}: {formatDate(item.dueDate)}
+                      </span>
+                      <span>
+                        €{parseFloat(item.amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Notas Adicionales
+          </label>
             <textarea
               name="notes"
               value={formData.notes}

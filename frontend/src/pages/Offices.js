@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MapPin, 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  MapPin,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
   Building,
   Phone,
   Mail,
@@ -14,35 +14,7 @@ import {
 } from 'lucide-react';
 import OfficeForm from '../components/Offices/OfficeForm'; // Import OfficeForm
 
-const mockOffices = [
-  {
-    id: '1',
-    name: 'Oficina Central Madrid',
-    address: 'Calle Gran Vía 10, 28001 Madrid, España',
-    phone: '+34 912 345 678',
-    email: 'madrid@travelagency.com',
-    manager: 'Ana García',
-    active: true
-  },
-  {
-    id: '2',
-    name: 'Oficina Barcelona',
-    address: 'Passeig de Gràcia 25, 08007 Barcelona, España',
-    phone: '+34 931 234 567',
-    email: 'barcelona@travelagency.com',
-    manager: 'Juan Pérez',
-    active: true
-  },
-  {
-    id: '3',
-    name: 'Oficina Sevilla',
-    address: 'Avenida de la Constitución 5, 41001 Sevilla, España',
-    phone: '+34 954 321 098',
-    email: 'sevilla@travelagency.com',
-    manager: 'María Rodríguez',
-    active: false
-  }
-];
+import { mockOffices } from '../mock/offices';
 
 const OfficeManagement = () => {
   const [offices, setOffices] = useState(mockOffices);

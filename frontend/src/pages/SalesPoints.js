@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Search
 } from 'lucide-react';
-import { mockUsers } from '../mock/users'; 
-import { mockOffices as importedMockOffices } from './Offices'; 
-import SalesPointForm from '../components/SalesPoints/SalesPointForm'; 
+import { mockUsers } from '../mock/users';
+import { mockOffices as importedMockOffices } from '../mock/offices';
+import SalesPointForm from '../components/SalesPoints/SalesPointForm';
 import SalesPointCard from '../components/SalesPoints/SalesPointCard'; // Import the new card component
 
 // Initial mock data for sales points
