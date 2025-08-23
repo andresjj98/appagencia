@@ -47,7 +47,13 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
     multiDestinations: reservation?.multiDestinations || [{ origin: '', destination: '', departureDate: '', returnDate: '', hotel: null }],
     hotel: reservation?.hotel || { name: '', roomCategory: '', accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }], mealPlan: '', hotelInclusions: [''] },
     inclusions: reservation?.inclusions || [''],
-    flightDetails: reservation?.flightDetails || { airline: '', flightCategory: '', baggageAllowance: '' },
+   flightDetails: reservation?.flightDetails
+      ? {
+          airlines: reservation.flightDetails.airlines || [reservation.flightDetails.airline || ''],
+          flightCategory: reservation.flightDetails.flightCategory || '',
+          baggageAllowance: reservation.flightDetails.baggageAllowance || ''
+        }
+      : { airlines: [''], flightCategory: '', baggageAllowance: '' },
     passengersADT: reservation?.passengersADT || 1,
     passengersCHD: reservation?.passengersCHD || 0,
     passengersINF: reservation?.passengersINF || 0,
@@ -274,6 +280,34 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
     setFormData(prev => ({
       ...prev,
       flightDetails: { ...prev.flightDetails, [name]: value }
+    }));
+  };
+
+  const handleAirlineChange = (index, e) => {
+    const newAirlines = [...formData.flightDetails.airlines];
+    newAirlines[index] = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      flightDetails: { ...prev.flightDetails, airlines: newAirlines }
+    }));
+  };
+
+  const addAirline = () => {
+    setFormData(prev => ({
+      ...prev,
+      flightDetails: {
+        ...prev.flightDetails,
+        airlines: [...prev.flightDetails.airlines, '']
+      }
+    }));
+  };
+
+  const removeAirline = (index) => {
+    const newAirlines = [...formData.flightDetails.airlines];
+    newAirlines.splice(index, 1);
+    setFormData(prev => ({
+      ...prev,
+      flightDetails: { ...prev.flightDetails, airlines: newAirlines }
     }));
   };
 
@@ -1199,18 +1233,44 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
                 <Plane className="w-5 h-5" />
                 Detalles Generales del Vuelo
               </h4>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Aerolínea
-                </label>
-                <input
-                  type="text"
-                  name="airline"
-                  value={formData.flightDetails.airline}
-                  onChange={handleFlightDetailsChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Ej: Iberia, Air France"
-                />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Aerolíneas
+                  </label>
+                  <motion.button
+                    type="button"
+                    onClick={addAirline}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Añadir Aerolínea
+                  </motion.button>
+                </div>
+                {formData.flightDetails.airlines.map((airline, index) => (
+                  <div key={index} className="flex items-center gap-2 relative">
+                    <input
+                      type="text"
+                      value={airline}
+                      onChange={(e) => handleAirlineChange(index, e)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ej: Iberia, Air France"
+                    />
+                    {formData.flightDetails.airlines.length > 1 && (
+                      <motion.button
+                        type="button"
+                        onClick={() => removeAirline(index)}
+                        className="p-1 bg-red-500 text-white rounded-full shadow-md"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <MinusCircle className="w-4 h-4" />
+                      </motion.button>
+                    )}
+                  </div>
+                ))}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
