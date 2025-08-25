@@ -11,7 +11,7 @@ import Settings from './pages/Settings';
 import ClientManagement from './pages/Clients'; 
 import Notifications from './pages/Notifications'; 
 import Reports from './pages/Reports'; 
-import Analytics from './pages/Analytics'; // Import Analytics
+import Analytics from './pages/Analytics'; 
 import Login from './pages/Login';
 import { mockUsers } from './mock/users'; 
 import { setCurrentUser } from './mock/users'; 
@@ -64,7 +64,7 @@ const App = () => {
       case 'reports':
         return <Reports />; 
       case 'analytics':
-        return <Analytics />; // Render Analytics
+        return <Analytics />; 
       case 'notifications':
         return <Notifications />; 
       case 'users':

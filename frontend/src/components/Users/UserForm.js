@@ -1,23 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, User, Mail, Lock, Image, Briefcase, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { X, Save, User, Mail, Phone, Lock, Check, Briefcase, IdCard, Eye, EyeOff } from 'lucide-react';
 import { USER_ROLES } from '../../utils/constants';
 
 const UserForm = ({ user = null, onSave, onClose }) => {
   const [formData, setFormData] = useState({
-    id: user?.id || '',
     name: user?.name || '',
+    lastName: user?.lastName || '', 
+    idCard: user?.idCard || '', 
+    username: user?.username || '', // New field
     email: user?.email || '',
-    password: user?.password || '', // Only for new users or if explicitly setting
     role: user?.role || 'advisor',
-    avatar: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cfd293ae?w=150&h=150&fit=crop&crop=face',
-    active: user?.active !== undefined ? user.active : true,
+    password: '', 
+    active: user?.active !== undefined ? user.active : true, 
+    avatar: user?.avatar || 'https://api.dicebear.com/7.x/lorelei/svg?seed=default' 
   });
-  const [showPassword, setShowPassword] = useState(false); // State for showing/hiding password
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name,
+        lastName: user.lastName || '',
+        idCard: user.idCard || '',
+        username: user.username || '',
+        email: user.email,
+        role: user.role,
+        password: '', 
+        active: user.active,
+        avatar: user.avatar
+      });
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        avatar: `https://api.dicebear.com/7.x/lorelei/svg?seed=${Date.now()}` 
+      }));
+    }
+  }, [user]);
+
+  const validatePassword = (password) => {
+    if (password.length < 8) {
+      return "La contraseña debe tener al menos 8 caracteres.";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "La contraseña debe contener al menos una letra mayúscula.";
+    }
+    if (!/[0-9]/.test(password)) {
+      return "La contraseña debe contener al menos un número.";
+    }
+    return ""; // No error
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    
+    if (!user || formData.password) { // Validate password only if new user or password field is not empty for existing user
+      const error = validatePassword(formData.password);
+      if (error) {
+        setPasswordError(error);
+        return;
+      }
+    }
+    setPasswordError(''); // Clear any previous errors
+
+    const userData = {
+      ...formData,
+      id: user?.id || String(Date.now()), 
+    };
+    onSave(userData);
   };
 
   const handleChange = (e) => {
@@ -26,6 +77,10 @@ const UserForm = ({ user = null, onSave, onClose }) => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+
+    if (name === 'password') {
+      setPasswordError(validatePassword(value));
+    }
   };
 
   return (
@@ -61,7 +116,7 @@ const UserForm = ({ user = null, onSave, onClose }) => {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre Completo
+              Nombre
             </label>
             <div className="relative">
               <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -79,7 +134,61 @@ const UserForm = ({ user = null, onSave, onClose }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
+              Apellido
+            </label>
+            <div className="relative">
+              <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Apellido del usuario"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Cédula
+            </label>
+            <div className="relative">
+              <IdCard className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <input
+                type="text"
+                name="idCard"
+                value={formData.idCard}
+                onChange={handleChange}
+                required
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Número de cédula"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Username
+            </label>
+            <div className="relative">
+              <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Nombre de usuario"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Correo Electrónico
             </label>
             <div className="relative">
               <Mail className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -90,39 +199,10 @@ const UserForm = ({ user = null, onSave, onClose }) => {
                 onChange={handleChange}
                 required
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="email@ejemplo.com"
+                placeholder="correo@ejemplo.com"
               />
             </div>
           </div>
-
-          {!user && ( // Only show password field for new users
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
-              <div className="relative">
-                <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Contraseña"
-                />
-                <motion.button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </motion.button>
-              </div>
-            </div>
-          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -134,10 +214,11 @@ const UserForm = ({ user = null, onSave, onClose }) => {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
+                required
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {Object.keys(USER_ROLES).map(roleKey => (
-                  <option key={roleKey} value={roleKey}>{USER_ROLES[roleKey].label}</option>
+                {Object.entries(USER_ROLES).map(([key, value]) => (
+                  <option key={key} value={key}>{value.label}</option>
                 ))}
               </select>
             </div>
@@ -145,22 +226,35 @@ const UserForm = ({ user = null, onSave, onClose }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              URL de Avatar
+              Contraseña
             </label>
             <div className="relative">
-              <Image className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
-                type="text"
-                name="avatar"
-                value={formData.avatar}
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://ejemplo.com/avatar.jpg"
+                required={!user} 
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder={user ? "Dejar en blanco para no cambiar" : "Contraseña"}
               />
+              <motion.button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </motion.button>
             </div>
+            {passwordError && (
+              <p className="text-red-500 text-sm mt-1">{passwordError}</p>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
             <input
               type="checkbox"
               id="active"

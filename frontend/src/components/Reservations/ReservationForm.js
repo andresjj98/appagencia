@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  X,
-  Save,
-  Calendar,
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  X, 
+  Save, 
+  Calendar, 
   MapPin, 
   Users, 
   Phone, 
@@ -23,103 +23,138 @@ import {
   PlusSquare,
   Info,
   Plane,
-  Calculator, // For pricing details
-  CreditCard
+  Calculator,
+  BriefcaseMedical, 
+  Car,
+  Bus, 
+  Train, 
+  Ship,
+  Minimize2,
+  Maximize2,
+  Ticket,
+  List,
+  Clock, 
+  Hash 
 } from 'lucide-react';
-import { generateReservationId, formatDate } from '../../utils/helpers';
+import { generateReservationId, formatCurrency } from '../../utils/helpers';
+
+// Helper to get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Reusable Collapsible Section Component
+const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = false }) => {
+  const [isMinimized, setIsMinimized] = useState(defaultMinimized);
+
+  return (
+    <motion.div 
+      className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <Icon className="w-5 h-5 text-blue-600" /> {title}
+        </h3>
+        <motion.button
+          onClick={() => setIsMinimized(!isMinimized)}
+          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          {isMinimized ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
+        </motion.button>
+      </div>
+      <AnimatePresence>
+        {!isMinimized && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
 
 const ReservationForm = ({ reservation = null, onSave, onClose }) => {
   const [formData, setFormData] = useState({
-    invoiceNumber: reservation?.invoiceNumber || '',
+    invoiceNumber: reservation?.invoiceNumber || `INV-${Date.now()}`,
     clientName: reservation?.clientName || '',
     clientEmail: reservation?.clientEmail || '',
     clientPhone: reservation?.clientPhone || '',
     clientAddress: reservation?.clientAddress || '',
-    emergencyContactName: reservation?.emergencyContactName || '',
-    emergencyContactPhone: reservation?.emergencyContactPhone || '',
-    origin: reservation?.origin || '',
-    destination: reservation?.destination || '',
-    departureDate: reservation?.departureDate ? 
-      new Date(reservation.departureDate).toISOString().split('T')[0] : '',
-    returnDate: reservation?.returnDate ? 
-      new Date(reservation.returnDate).toISOString().split('T')[0] : '',
-    isMultiDestination: reservation?.isMultiDestination || false,
-    multiDestinations: reservation?.multiDestinations || [{ origin: '', destination: '', departureDate: '', returnDate: '', hotel: null }],
-    hotel: reservation?.hotel || { name: '', roomCategory: '', accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }], mealPlan: '', hotelInclusions: [''] },
-    inclusions: reservation?.inclusions || [''],
-   flightDetails: reservation?.flightDetails
-      ? {
-          airlines: reservation.flightDetails.airlines || [reservation.flightDetails.airline || ''],
-          flightCategory: reservation.flightDetails.flightCategory || '',
-          baggageAllowance: reservation.flightDetails.baggageAllowance || ''
-        }
-      : { airlines: [''], flightCategory: '', baggageAllowance: '' },
+    emergencyContact: reservation?.emergencyContact || { name: '', phone: '' },
+    tripType: reservation?.tripType || 'round_trip', 
+    segments: reservation?.segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }], 
     passengersADT: reservation?.passengersADT || 1,
     passengersCHD: reservation?.passengersCHD || 0,
     passengersINF: reservation?.passengersINF || 0,
-    pricePerADT: reservation?.pricePerADT || 0, // New pricing field
-    pricePerCHD: reservation?.pricePerCHD || 0, // New pricing field
-    pricePerINF: reservation?.pricePerINF || 0, // New pricing field
-    totalAmount: reservation?.totalAmount || 0, // Will be calculated
-    status: reservation?.status || 'pending',
-    paymentStatus: reservation?.paymentStatus || 'pending',
-    paymentType: reservation?.paymentType || 'cash',
-    installmentsNumber: reservation?.installmentsNumber || 1,
-    notes: reservation?.notes || ''
+    pricePerADT: reservation?.pricePerADT || 0,
+    pricePerCHD: reservation?.pricePerCHD || 0,
+    pricePerINF: reservation?.pricePerINF || 0,
+    totalAmount: reservation?.totalAmount || 0,
+    paymentOption: reservation?.paymentOption || 'full_payment', 
+    installments: reservation?.installments || [{ amount: 0, dueDate: getTodayDate() }], 
+    status: reservation?.status || 'pending', 
+    notes: reservation?.notes || '',
+    
+    // Structured data for sections
+    flights: reservation?.flights || [{ 
+      airline: '', 
+      flightCategory: '', 
+      baggageAllowance: '', 
+      flightCycle: 'round_trip', 
+      hasItinerary: false, 
+      itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '' }], 
+      trackingCode: '' 
+    }],
+    hotels: reservation?.hotels || [{ name: '', roomCategory: '', accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }], mealPlan: '', hotelInclusions: [''] }],
+    tours: reservation?.tours || [{ name: '', date: getTodayDate(), cost: 0 }],
+    medicalAssistances: reservation?.medicalAssistances || [{ planType: 'traditional_tourism', startDate: getTodayDate(), endDate: getTodayDate() }], 
   });
 
-  // State for calculated passenger totals
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
-    total: 0,
-    adt: 0,
-    chd: 0,
-    inf: 0
+    total: 0, adt: 0, chd: 0, inf: 0
   });
 
-  // Effect to recalculate totals whenever accommodation changes
+  // Calculate trip start and end dates for medical assistance default
+  const tripDepartureDate = formData.tripType === 'multi_city' && formData.segments.length > 0 
+    ? formData.segments[0].departureDate 
+    : formData.segments[0]?.departureDate || ''; // Use first segment if multi-city, else main segment
+  const tripReturnDate = formData.tripType === 'multi_city' && formData.segments.length > 0 
+    ? formData.segments[formData.segments.length - 1].returnDate 
+    : formData.segments[0]?.returnDate || ''; // Use last segment if multi-city, else main segment
+
   useEffect(() => {
-    let totalADT = 0;
-    let totalCHD = 0;
-    let totalINF = 0;
-
-    // Calculate total passengers from the main passenger fields
-    totalADT = parseInt(formData.passengersADT) || 0;
-    totalCHD = parseInt(formData.passengersCHD) || 0;
-    totalINF = parseInt(formData.passengersINF) || 0;
-
+    const totalADT = parseInt(formData.passengersADT) || 0;
+    const totalCHD = parseInt(formData.passengersCHD) || 0;
+    const totalINF = parseInt(formData.passengersINF) || 0;
     setTotalPassengersCalculated({
       total: totalADT + totalCHD + totalINF,
-      adt: totalADT,
-      chd: totalCHD,
-      inf: totalINF
+      adt: totalADT, chd: totalCHD, inf: totalINF
     });
   }, [formData.passengersADT, formData.passengersCHD, formData.passengersINF]);
 
-  // Effect to calculate total amount based on passenger counts and prices
   useEffect(() => {
-    const calculatedTotal =
+    const calculatedTotal = 
       (totalPassengersCalculated.adt * (parseFloat(formData.pricePerADT) || 0)) +
       (totalPassengersCalculated.chd * (parseFloat(formData.pricePerCHD) || 0)) +
       (totalPassengersCalculated.inf * (parseFloat(formData.pricePerINF) || 0));
-
     setFormData(prev => ({ ...prev, totalAmount: calculatedTotal.toFixed(2) }));
   }, [totalPassengersCalculated, formData.pricePerADT, formData.pricePerCHD, formData.pricePerINF]);
-
-  // Calculate installment values and payment schedule
-  const totalAmountNum = parseFloat(formData.totalAmount) || 0;
-  const installmentsNum = formData.paymentType === 'installments'
-    ? parseInt(formData.installmentsNumber) || 1
-    : 1;
-  const installmentValue = installmentsNum > 0 ? totalAmountNum / installmentsNum : 0;
-  const paymentSchedule = [];
-  if (formData.paymentType === 'installments') {
-    const today = new Date();
-    for (let i = 1; i <= installmentsNum; i++) {
-      const date = new Date(today);
-      date.setMonth(date.getMonth() + i);
-      paymentSchedule.push({ number: i, amount: installmentValue, dueDate: date });
-    }
-  }
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -128,32 +163,11 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
       ...formData,
       id: reservation?.id || generateReservationId(),
       totalAmount: parseFloat(formData.totalAmount),
-      passengers: totalPassengers, // This is the overall total, not from accommodation
-      paymentType: formData.paymentType,
-      installmentsNumber: installmentsNum,
-      installmentValue: parseFloat(installmentValue.toFixed(2)),
-      paymentSchedule,
+      passengers: totalPassengers,
       createdAt: reservation?.createdAt || new Date(),
-      advisorId: '2',
-      advisorName: 'Carlos Mendoza'
+      advisorId: '2', 
+      advisorName: 'Carlos Mendoza' 
     };
-
-    if (!formData.isMultiDestination) {
-      reservationData.departureDate = new Date(formData.departureDate);
-      reservationData.returnDate = new Date(formData.returnDate);
-    } else {
-      reservationData.multiDestinations = formData.multiDestinations.map(segment => ({
-        ...segment,
-        departureDate: new Date(segment.departureDate),
-        returnDate: new Date(segment.returnDate)
-      }));
-      delete reservationData.origin;
-      delete reservationData.destination;
-      delete reservationData.departureDate;
-      delete reservationData.returnDate;
-      delete reservationData.hotel;
-    }
-    
     onSave(reservationData);
   };
 
@@ -165,245 +179,270 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
     }));
   };
 
-  const handleMultiDestinationChange = (index, e) => {
+  const handleEmergencyContactChange = (e) => {
     const { name, value } = e.target;
-    const newSegments = [...formData.multiDestinations];
+    setFormData(prev => ({
+      ...prev,
+      emergencyContact: { ...prev.emergencyContact, [name]: value }
+    }));
+  };
+
+  const handleSegmentChange = (index, e) => {
+    const { name, value } = e.target;
+    const newSegments = [...formData.segments];
     newSegments[index] = { ...newSegments[index], [name]: value };
-    setFormData(prev => ({ ...prev, multiDestinations: newSegments }));
+    
+    // Auto-set return date if departure date is set
+    if (name === 'departureDate' && !newSegments[index].returnDate) {
+      newSegments[index].returnDate = value;
+    }
+    setFormData(prev => ({ ...prev, segments: newSegments }));
   };
 
-  const addMultiDestinationSegment = () => {
+  const addSegment = () => {
     setFormData(prev => ({
       ...prev,
-      multiDestinations: [...prev.multiDestinations, { origin: '', destination: '', departureDate: '', returnDate: '', hotel: null }]
+      segments: [...prev.segments, { origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }]
     }));
   };
 
-  const removeMultiDestinationSegment = (index) => {
-    const newSegments = [...formData.multiDestinations];
+  const removeSegment = (index) => {
+    const newSegments = [...formData.segments];
     newSegments.splice(index, 1);
-    setFormData(prev => ({ ...prev, multiDestinations: newSegments }));
+    setFormData(prev => ({ ...prev, segments: newSegments }));
   };
 
-  const handleHotelChange = (e) => {
+  // --- Flight Handlers ---
+  const handleFlightChange = (index, e) => {
+    const { name, value, type, checked } = e.target;
+    const newFlights = [...formData.flights];
+    newFlights[index] = { ...newFlights[index], [name]: type === 'checkbox' ? checked : value };
+    setFormData(prev => ({ ...prev, flights: newFlights }));
+  };
+
+  const addFlight = () => {
+    setFormData(prev => ({
+      ...prev,
+      flights: [...prev.flights, { 
+        airline: '', 
+        flightCategory: '', 
+        baggageAllowance: '', 
+        flightCycle: 'round_trip', 
+        hasItinerary: false, 
+        itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '' }], 
+        trackingCode: '' 
+      }]
+    }));
+  };
+
+  const removeFlight = (index) => {
+    const newFlights = [...formData.flights];
+    newFlights.splice(index, 1);
+    setFormData(prev => ({ ...prev, flights: newFlights }));
+  };
+
+  const handleItineraryChange = (flightIndex, itineraryIndex, e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      hotel: { ...prev.hotel, [name]: value }
-    }));
+    const newFlights = [...formData.flights];
+    const newItineraries = [...(newFlights[flightIndex].itineraries || [])];
+    newItineraries[itineraryIndex] = { ...newItineraries[itineraryIndex], [name]: value };
+    newFlights[flightIndex] = { ...newFlights[flightIndex], itineraries: newItineraries };
+    setFormData(prev => ({ ...prev, flights: newFlights }));
   };
 
-  const handleAccommodationChange = (index, e) => {
+  const addItinerary = (flightIndex) => {
+    const newFlights = [...formData.flights];
+    newFlights[flightIndex].itineraries.push({ flightNumber: '', departureTime: '', arrivalTime: '' });
+    setFormData(prev => ({ ...prev, flights: newFlights }));
+  };
+
+  const removeItinerary = (flightIndex, itineraryIndex) => {
+    const newFlights = [...formData.flights];
+    newFlights[flightIndex].itineraries.splice(itineraryIndex, 1);
+    setFormData(prev => ({ ...prev, flights: newFlights }));
+  };
+
+  // --- Hotel Handlers ---
+  const handleHotelChange = (index, e) => {
     const { name, value } = e.target;
-    const newAccommodation = [...formData.hotel.accommodation];
-    newAccommodation[index] = { ...newAccommodation[index], [name]: parseInt(value) || 0 };
+    const newHotels = [...formData.hotels];
+    newHotels[index] = { ...newHotels[index], [name]: value };
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
+  };
+
+  const addHotel = () => {
     setFormData(prev => ({
       ...prev,
-      hotel: { ...prev.hotel, accommodation: newAccommodation }
+      hotels: [...prev.hotels, { name: '', roomCategory: '', accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }], mealPlan: '', hotelInclusions: [''] }]
     }));
   };
 
-  const addAccommodationRoom = () => {
-    setFormData(prev => ({
-      ...prev,
-      hotel: {
-        ...prev.hotel,
-        accommodation: [...prev.hotel.accommodation, { rooms: 1, adt: 0, chd: 0, inf: 0 }]
-      }
-    }));
+  const removeHotel = (index) => {
+    const newHotels = [...formData.hotels];
+    newHotels.splice(index, 1);
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
   };
 
-  const removeAccommodationRoom = (index) => {
-    const newAccommodation = [...formData.hotel.accommodation];
-    newAccommodation.splice(index, 1);
-    setFormData(prev => ({
-      ...prev,
-      hotel: { ...prev.hotel, accommodation: newAccommodation }
-    }));
-  };
-
-  const handleHotelInclusionChange = (index, e) => {
-    const newHotelInclusions = [...formData.hotel.hotelInclusions];
-    newHotelInclusions[index] = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      hotel: { ...prev.hotel, hotelInclusions: newHotelInclusions }
-    }));
-  };
-
-  const addHotelInclusion = () => {
-    setFormData(prev => ({
-      ...prev,
-      hotel: {
-        ...prev.hotel,
-        hotelInclusions: [...prev.hotel.hotelInclusions, '']
-      }
-    }));
-  };
-
-  const removeHotelInclusion = (index) => {
-    const newHotelInclusions = [...formData.hotel.hotelInclusions];
-    newHotelInclusions.splice(index, 1);
-    setFormData(prev => ({
-      ...prev,
-      hotel: { ...prev.hotel, hotelInclusions: newHotelInclusions }
-    }));
-  };
-
-  const handleInclusionChange = (index, e) => {
-    const newInclusions = [...formData.inclusions];
-    newInclusions[index] = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      inclusions: newInclusions
-    }));
-  };
-
-  const addInclusion = () => {
-    setFormData(prev => ({
-      ...prev,
-      inclusions: [...prev.inclusions, '']
-    }));
-  };
-
-  const removeInclusion = (index) => {
-    const newInclusions = [...formData.inclusions];
-    newInclusions.splice(index, 1);
-    setFormData(prev => ({
-      ...prev,
-      inclusions: newInclusions
-    }));
-  };
-
-  const handleFlightDetailsChange = (e) => {
+  const handleAccommodationChange = (hotelIndex, roomIndex, e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      flightDetails: { ...prev.flightDetails, [name]: value }
-    }));
-  };
-
-  const handleAirlineChange = (index, e) => {
-    const newAirlines = [...formData.flightDetails.airlines];
-    newAirlines[index] = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      flightDetails: { ...prev.flightDetails, airlines: newAirlines }
-    }));
-  };
-
-  const addAirline = () => {
-    setFormData(prev => ({
-      ...prev,
-      flightDetails: {
-        ...prev.flightDetails,
-        airlines: [...prev.flightDetails.airlines, '']
-      }
-    }));
-  };
-
-  const removeAirline = (index) => {
-    const newAirlines = [...formData.flightDetails.airlines];
-    newAirlines.splice(index, 1);
-    setFormData(prev => ({
-      ...prev,
-      flightDetails: { ...prev.flightDetails, airlines: newAirlines }
-    }));
-  };
-
-  const handleMultiDestinationHotelChange = (segmentIndex, e) => {
-    const { name, value } = e.target;
-    const newMultiDestinations = [...formData.multiDestinations];
-    // Initialize hotel object if it doesn't exist
-    if (!newMultiDestinations[segmentIndex].hotel) {
-      newMultiDestinations[segmentIndex].hotel = { name: '', roomCategory: '', accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }], mealPlan: '', hotelInclusions: [''] };
-    }
-    newMultiDestinations[segmentIndex].hotel = {
-      ...newMultiDestinations[segmentIndex].hotel,
-      [name]: value
-    };
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
-  };
-
-  const handleMultiDestinationAccommodationChange = (segmentIndex, roomIndex, e) => {
-    const { name, value } = e.target;
-    const newMultiDestinations = [...formData.multiDestinations];
-    const newAccommodation = [...(newMultiDestinations[segmentIndex].hotel?.accommodation || [])];
+    const newHotels = [...formData.hotels];
+    const newAccommodation = [...(newHotels[hotelIndex].accommodation || [])];
     newAccommodation[roomIndex] = { ...newAccommodation[roomIndex], [name]: parseInt(value) || 0 };
-    newMultiDestinations[segmentIndex].hotel = {
-      ...newMultiDestinations[segmentIndex].hotel,
-      accommodation: newAccommodation
-    };
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
+    newHotels[hotelIndex] = { ...newHotels[hotelIndex], accommodation: newAccommodation };
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
   };
 
-  const addMultiDestinationAccommodationRoom = (segmentIndex) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    if (!newMultiDestinations[segmentIndex].hotel) {
-      newMultiDestinations[segmentIndex].hotel = { name: '', roomCategory: '', accommodation: [], mealPlan: '', hotelInclusions: [''] };
-    }
-    newMultiDestinations[segmentIndex].hotel.accommodation.push({ rooms: 1, adt: 0, chd: 0, inf: 0 });
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
+  const addAccommodationRoom = (hotelIndex) => {
+    const newHotels = [...formData.hotels];
+    newHotels[hotelIndex].accommodation.push({ rooms: 1, adt: 0, chd: 0, inf: 0 });
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
   };
 
-  const removeMultiDestinationAccommodationRoom = (segmentIndex, roomIndex) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    newMultiDestinations[segmentIndex].hotel.accommodation.splice(roomIndex, 1);
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
+  const removeAccommodationRoom = (hotelIndex, roomIndex) => {
+    const newHotels = [...formData.hotels];
+    newHotels[hotelIndex].accommodation.splice(roomIndex, 1);
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
   };
 
-  const handleMultiDestinationHotelInclusionChange = (segmentIndex, inclusionIndex, e) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    const newHotelInclusions = [...(newMultiDestinations[segmentIndex].hotel?.hotelInclusions || [])];
+  const handleHotelInclusionChange = (hotelIndex, inclusionIndex, e) => {
+    const newHotels = [...formData.hotels];
+    const newHotelInclusions = [...(newHotels[hotelIndex].hotelInclusions || [])];
     newHotelInclusions[inclusionIndex] = e.target.value;
-    newMultiDestinations[segmentIndex].hotel = {
-      ...newMultiDestinations[segmentIndex].hotel,
-      hotelInclusions: newHotelInclusions
-    };
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
+    newHotels[hotelIndex] = { ...newHotels[hotelIndex], hotelInclusions: newHotelInclusions };
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
   };
 
-  const addMultiDestinationHotelInclusion = (segmentIndex) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    if (!newMultiDestinations[segmentIndex].hotel) {
-      newMultiDestinations[segmentIndex].hotel = { name: '', roomCategory: '', accommodation: [], mealPlan: '', hotelInclusions: [''] };
+  const addHotelInclusion = (hotelIndex) => {
+    const newHotels = [...formData.hotels];
+    newHotels[hotelIndex].hotelInclusions.push('');
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
+  };
+
+  const removeHotelInclusion = (hotelIndex, inclusionIndex) => {
+    const newHotels = [...formData.hotels];
+    newHotels[hotelIndex].hotelInclusions.splice(inclusionIndex, 1);
+    setFormData(prev => ({ ...prev, hotels: newHotels }));
+  };
+
+  // --- Tour Handlers ---
+  const handleTourChange = (index, e) => {
+    const { name, value } = e.target;
+    const newTours = [...formData.tours];
+    newTours[index] = { ...newTours[index], [name]: name === 'cost' ? parseFloat(value) || 0 : value };
+    setFormData(prev => ({ ...prev, tours: newTours }));
+  };
+
+  const addTour = () => {
+    setFormData(prev => ({
+      ...prev,
+      tours: [...prev.tours, { name: '', date: getTodayDate(), cost: 0 }]
+    }));
+  };
+
+  const removeTour = (index) => {
+    const newTours = [...formData.tours];
+    newTours.splice(index, 1);
+    setFormData(prev => ({ ...prev, tours: newTours }));
+  };
+
+  // --- Medical Assistance Handlers ---
+  const handleMedicalAssistanceChange = (index, e) => {
+    const { name, value } = e.target;
+    const newMedicalAssistances = [...formData.medicalAssistances];
+    newMedicalAssistances[index] = { ...newMedicalAssistances[index], [name]: value };
+    setFormData(prev => ({ ...prev, medicalAssistances: newMedicalAssistances }));
+  };
+
+  const addMedicalAssistance = () => {
+    setFormData(prev => ({
+      ...prev,
+      medicalAssistances: [...prev.medicalAssistances, { planType: 'traditional_tourism', startDate: tripDepartureDate, endDate: tripReturnDate }]
+    }));
+  };
+
+  const removeMedicalAssistance = (index) => {
+    const newMedicalAssistances = [...formData.medicalAssistances];
+    newMedicalAssistances.splice(index, 1);
+    setFormData(prev => ({ ...prev, medicalAssistances: newMedicalAssistances }));
+  };
+
+  const calculateDaysBetweenDates = (start, end) => {
+    if (!start || !end) return 0;
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffTime = Math.abs(endDate - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    return diffDays + 1; // +1 to include both start and end day
+  };
+
+  // --- Installments Handlers ---
+  const handleInstallmentChange = (index, e) => {
+    const { name, value } = e.target;
+    const newInstallments = [...formData.installments];
+    newInstallments[index] = { ...newInstallments[index], [name]: name === 'amount' ? parseFloat(value) || 0 : value };
+    setFormData(prev => ({ ...prev, installments: newInstallments }));
+  };
+
+  const addInstallment = () => {
+    setFormData(prev => ({
+      ...prev,
+      installments: [...prev.installments, { amount: 0, dueDate: getTodayDate() }]
+    }));
+  };
+
+  const removeInstallment = (index) => {
+    const newInstallments = [...formData.installments];
+    newInstallments.splice(index, 1);
+    setFormData(prev => ({ ...prev, installments: newInstallments }));
+  };
+
+  const calculateInstallments = () => {
+    const numInstallments = parseInt(prompt("¿En cuántas cuotas quieres dividir el pago?"));
+    if (isNaN(numInstallments) || numInstallments <= 0) {
+      alert("Por favor, introduce un número válido de cuotas.");
+      return;
     }
-    newMultiDestinations[segmentIndex].hotel.hotelInclusions.push('');
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
-  };
 
-  const removeMultiDestinationHotelInclusion = (segmentIndex, inclusionIndex) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    newMultiDestinations[segmentIndex].hotel.hotelInclusions.splice(inclusionIndex, 1);
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
-  };
-
-  const handleMultiDestinationInclusionChange = (segmentIndex, inclusionIndex, e) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    const newInclusions = [...(newMultiDestinations[segmentIndex].inclusions || [])];
-    newInclusions[inclusionIndex] = e.target.value;
-    newMultiDestinations[segmentIndex] = {
-      ...newMultiDestinations[segmentIndex],
-      inclusions: newInclusions
-    };
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
-  };
-
-  const addMultiDestinationInclusion = (segmentIndex) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    if (!newMultiDestinations[segmentIndex].inclusions) {
-      newMultiDestinations[segmentIndex].inclusions = [''];
-    } else {
-      newMultiDestinations[segmentIndex].inclusions.push('');
+    const totalAmount = parseFloat(formData.totalAmount);
+    if (isNaN(totalAmount) || totalAmount <= 0) {
+      alert("El monto total del plan debe ser mayor a 0 para calcular cuotas.");
+      return;
     }
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
+
+    const amountPerInstallment = totalAmount / numInstallments;
+    const newInstallments = [];
+    let currentDate = new Date();
+    const departureDateObj = new Date(tripDepartureDate);
+
+    for (let i = 0; i < numInstallments; i++) {
+      let dueDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, currentDate.getDate());
+      
+      // Ensure due date is not after trip departure date
+      if (dueDate > departureDateObj) {
+        dueDate = new Date(departureDateObj);
+        dueDate.setDate(departureDateObj.getDate() - 1); // One day before departure
+        if (dueDate < currentDate) { // If even one day before departure is in the past, set to today
+          dueDate = new Date();
+        }
+      }
+
+      newInstallments.push({
+        amount: parseFloat(amountPerInstallment.toFixed(2)),
+        dueDate: dueDate.toISOString().split('T')[0]
+      });
+    }
+    setFormData(prev => ({ ...prev, installments: newInstallments }));
   };
 
-  const removeMultiDestinationInclusion = (segmentIndex, inclusionIndex) => {
-    const newMultiDestinations = [...formData.multiDestinations];
-    newMultiDestinations[segmentIndex].inclusions.splice(inclusionIndex, 1);
-    setFormData(prev => ({ ...prev, multiDestinations: newMultiDestinations }));
-  };
+  const totalInstallmentsAmount = formData.installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
+
+  // Calculate total passengers in accommodation
+  const totalAccommodationPassengers = formData.hotels.reduce((acc, hotel) => {
+    return acc + (hotel.accommodation || []).reduce((hotelAcc, room) => {
+      return hotelAcc + (room.rooms * (room.adt || 0)) + (room.rooms * (room.chd || 0)) + (room.rooms * (room.inf || 0));
+    }, 0);
+  }, 0);
+
 
   return (
     <motion.div
@@ -413,7 +452,7 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
@@ -436,214 +475,70 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Invoice Number */}
+          {/* Basic Reservation Info */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              Detalles de la Factura
+              Información Básica de la Reserva
             </h3>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Número de Factura
-              </label>
-              <input
-                type="text"
-                name="invoiceNumber"
-                value={formData.invoiceNumber}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="INV-2025-001"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Número de Factura</label>
+              <input type="text" name="invoiceNumber" value={formData.invoiceNumber} readOnly className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" />
             </div>
-          </div>
-
-          {/* Client Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Información del Cliente
-            </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre Completo
-                </label>
-                <input
-                  type="text"
-                  name="clientName"
-                  value={formData.clientName}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Nombre del cliente"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Completo del Titular</label>
+                <input type="text" name="clientName" value={formData.clientName} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre del titular" />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="email"
-                    name="clientEmail"
-                    value={formData.clientEmail}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="email@ejemplo.com"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email del Titular</label>
+                <input type="email" name="clientEmail" value={formData.clientEmail} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="email@ejemplo.com" />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono
-                </label>
-                <div className="relative">
-                  <Phone className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="tel"
-                    name="clientPhone"
-                    value={formData.clientPhone}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="+34 600 000 000"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono del Titular</label>
+                <input type="tel" name="clientPhone" value={formData.clientPhone} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="+34 600 000 000" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dirección
-                </label>
-                <div className="relative">
-                  <Home className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="text"
-                    name="clientAddress"
-                    value={formData.clientAddress}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Calle, Ciudad, Código Postal"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Dirección del Titular</label>
+                <input type="text" name="clientAddress" value={formData.clientAddress} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Calle, Ciudad, Código Postal" />
               </div>
             </div>
-          </div>
 
-          {/* Emergency Contact */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <HeartHandshake className="w-5 h-5" />
-              Contacto de Emergencia
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre del Contacto
-                </label>
-                <input
-                  type="text"
-                  name="emergencyContactName"
-                  value={formData.emergencyContactName}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Nombre del contacto de emergencia"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono del Contacto
-                </label>
-                <div className="relative">
-                  <Phone className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="tel"
-                    name="emergencyContactPhone"
-                    value={formData.emergencyContactPhone}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="+34 600 000 000"
-                  />
+            {/* Emergency Contact (Sub-section) */}
+            <div className="space-y-4 border border-gray-200 rounded-lg p-4">
+              <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+                <HeartHandshake className="w-5 h-5" /> Contacto de Emergencia
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Contacto</label>
+                  <input type="text" name="name" value={formData.emergencyContact.name} onChange={handleEmergencyContactChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre del contacto de emergencia" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono del Contacto</label>
+                  <input type="tel" name="phone" value={formData.emergencyContact.phone} onChange={handleEmergencyContactChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="+34 600 000 000" />
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Trip Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              Información del Viaje
-            </h3>
-            
-            {/* Multi-destination Toggle */}
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <Globe className="w-5 h-5 text-blue-600" />
-              <label htmlFor="isMultiDestination" className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
-                ¿Es un viaje multidestino?
-              </label>
-              <input
-                type="checkbox"
-                id="isMultiDestination"
-                name="isMultiDestination"
-                checked={formData.isMultiDestination}
-                onChange={handleChange}
-                className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-              />
             </div>
 
             {/* Passengers Section */}
             <div className="space-y-4 border border-gray-200 rounded-lg p-4">
               <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Cantidad de Pasajeros
+                <Users className="w-5 h-5" /> Cantidad de Pasajeros
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Adultos (ADT)
-                  </label>
-                  <input
-                    type="number"
-                    name="passengersADT"
-                    value={formData.passengersADT}
-                    onChange={handleChange}
-                    min="0"
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Adultos (ADT)</label>
+                  <input type="number" name="passengersADT" value={formData.passengersADT} onChange={handleChange} min="0" required className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Niños (CHD)
-                  </label>
-                  <input
-                    type="number"
-                    name="passengersCHD"
-                    value={formData.passengersCHD}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Niños (CHD)</label>
+                  <input type="number" name="passengersCHD" value={formData.passengersCHD} onChange={handleChange} min="0" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Infantes (INF)
-                  </label>
-                  <input
-                    type="number"
-                    name="passengersINF"
-                    value={formData.passengersINF}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Infantes (INF)</label>
+                  <input type="number" name="passengersINF" value={formData.passengersINF} onChange={handleChange} min="0" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
                 </div>
               </div>
               <p className="text-sm text-gray-600 font-medium mt-2">
@@ -651,264 +546,60 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
               </p>
             </div>
 
+            {/* Trip Cycle, Origin, Destination, Dates */}
+            <div className="space-y-4 border border-gray-200 rounded-lg p-4">
+              <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+                <Globe className="w-5 h-5" /> Detalles del Itinerario
+              </h4>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Viaje</label>
+                <select name="tripType" value={formData.tripType} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                  <option value="round_trip">Ida y Vuelta</option>
+                  <option value="one_way">Solo Ida</option>
+                  <option value="multi_city">Múltiples Ciudades</option>
+                </select>
+              </div>
 
-            {!formData.isMultiDestination ? (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Origen
-                    </label>
-                    <div className="relative">
-                      <PlaneTakeoff className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                      <input
-                        type="text"
-                        name="origin"
-                        value={formData.origin}
-                        onChange={handleChange}
-                        required
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Madrid, España"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Destino
-                    </label>
-                    <div className="relative">
-                      <PlaneLanding className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                      <input
-                        type="text"
-                        name="destination"
-                        value={formData.destination}
-                        onChange={handleChange}
-                        required
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="París, Francia"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Salida
-                    </label>
-                    <div className="relative">
-                      <Calendar className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                      <input
-                        type="date"
-                        name="departureDate"
-                        value={formData.departureDate}
-                        onChange={handleChange}
-                        required
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha de Regreso
-                    </label>
-                    <div className="relative">
-                      <Calendar className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                      <input
-                        type="date"
-                        name="returnDate"
-                        value={formData.returnDate}
-                        onChange={handleChange}
-                        required
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Single Hotel Section */}
-                <div className="space-y-4 border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                    <Hotel className="w-5 h-5" />
-                    Detalles del Hotel
-                  </h4>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombre del Hotel
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.hotel.name}
-                      onChange={handleHotelChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Ej: Hotel Gran Via"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Categoría de Habitación
-                    </label>
-                    <input
-                      type="text"
-                      name="roomCategory"
-                      value={formData.hotel.roomCategory}
-                      onChange={handleHotelChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Ej: Doble Estándar, Suite"
-                    />
-                  </div>
-                  
-                  {/* Accommodation Details */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                        <Bed className="w-4 h-4" />
-                        Acomodación
-                      </h5>
-                      <motion.button
-                        type="button"
-                        onClick={addAccommodationRoom}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                        Añadir Habitación
-                      </motion.button>
-                    </div>
-                    {formData.hotel.accommodation.map((room, roomIndex) => (
-                      <div key={roomIndex} className="grid grid-cols-4 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
+              {formData.tripType === 'multi_city' ? (
+                <div className="space-y-4">
+                  {formData.segments.map((segment, index) => (
+                    <div key={index} className="p-4 border border-gray-300 rounded-lg relative">
+                      <h5 className="font-bold text-gray-900 mb-3">Segmento {index + 1}</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Habitaciones</label>
-                          <input
-                            type="number"
-                            name="rooms"
-                            value={room.rooms}
-                            onChange={(e) => handleAccommodationChange(roomIndex, e)}
-                            min="1"
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Origen</label>
+                          <input type="text" name="origin" value={segment.origin} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de origen" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">ADT</label>
-                          <input
-                            type="number"
-                            name="adt"
-                            value={room.adt}
-                            onChange={(e) => handleAccommodationChange(roomIndex, e)}
-                            min="0"
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Destino</label>
+                          <input type="text" name="destination" value={segment.destination} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de destino" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">CHD</label>
-                          <input
-                            type="number"
-                            name="chd"
-                            value={room.chd}
-                            onChange={(e) => handleAccommodationChange(roomIndex, e)}
-                            min="0"
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Salida</label>
+                          <input type="date" name="departureDate" value={segment.departureDate} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={getTodayDate()} />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">INF</label>
-                          <input
-                            type="number"
-                            name="inf"
-                            value={room.inf}
-                            onChange={(e) => handleAccommodationChange(roomIndex, e)}
-                            min="0"
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
+                          <input type="date" name="returnDate" value={segment.returnDate} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={segment.departureDate || getTodayDate()} />
                         </div>
-                        {formData.hotel.accommodation.length > 1 && (
-                          <motion.button
-                            type="button"
-                            onClick={() => removeAccommodationRoom(roomIndex)}
-                            className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <MinusCircle className="w-4 h-4" />
-                          </motion.button>
-                        )}
                       </div>
-                    ))}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de Alimentación
-                    </label>
-                    <select
-                      name="mealPlan"
-                      value={formData.hotel.mealPlan}
-                      onChange={handleHotelChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="solo_alojamiento">Solo Alojamiento (SA)</option>
-                      <option value="desayuno">Desayuno (AD)</option>
-                      <option value="media_pension">Media Pensión (MP)</option>
-                      <option value="pension_completa">Pensión Completa (PC)</option>
-                      <option value="todo_incluido">Todo Incluido (TI)</option>
-                    </select>
-                  </div>
-                  
-                  {/* Hotel Inclusions */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                        <Info className="w-4 h-4" />
-                        Inclusiones del Hotel
-                      </h5>
-                      <motion.button
-                        type="button"
-                        onClick={addHotelInclusion}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                        Añadir Inclusión
-                      </motion.button>
+                      {formData.segments.length > 1 && (
+                        <motion.button
+                          type="button"
+                          onClick={() => removeSegment(index)}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <MinusCircle className="w-5 h-5" />
+                        </motion.button>
+                      )}
                     </div>
-                    {formData.hotel.hotelInclusions.map((inclusion, inclusionIndex) => (
-                      <div key={inclusionIndex} className="flex items-center gap-2 relative">
-                        <input
-                          type="text"
-                          value={inclusion}
-                          onChange={(e) => handleHotelInclusionChange(inclusionIndex, e)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Ej: Wifi, Piscina, Gimnasio..."
-                        />
-                        {formData.hotel.hotelInclusions.length > 1 && (
-                          <motion.button
-                            type="button"
-                            onClick={() => removeHotelInclusion(inclusionIndex)}
-                            className="p-1 bg-red-500 text-white rounded-full shadow-md"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <MinusCircle className="w-4 h-4" />
-                          </motion.button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-4 border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-md font-semibold text-gray-800">Segmentos de Viaje</h4>
+                  ))}
                   <motion.button
                     type="button"
-                    onClick={addMultiDestinationSegment}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                    onClick={addSegment}
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium mt-4"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -916,394 +607,362 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
                     Agregar Segmento
                   </motion.button>
                 </div>
-                {formData.multiDestinations.map((segment, index) => (
-                  <motion.div
-                    key={index}
-                    className="space-y-4 p-4 bg-gray-50 rounded-lg relative border border-gray-200"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <h5 className="font-bold text-gray-900">Segmento {index + 1}</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Origen
-                        </label>
-                        <div className="relative">
-                          <PlaneTakeoff className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                          <input
-                            type="text"
-                            name="origin"
-                            value={segment.origin}
-                            onChange={(e) => handleMultiDestinationChange(index, e)}
-                            required
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Ciudad, País"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Destino
-                        </label>
-                        <div className="relative">
-                          <PlaneLanding className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                          <input
-                            type="text"
-                            name="destination"
-                            value={segment.destination}
-                            onChange={(e) => handleMultiDestinationChange(index, e)}
-                            required
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Ciudad, País"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Fecha Salida
-                        </label>
-                        <div className="relative">
-                          <Calendar className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                          <input
-                            type="date"
-                            name="departureDate"
-                            value={segment.departureDate}
-                            onChange={(e) => handleMultiDestinationChange(index, e)}
-                            required
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Fecha Regreso
-                        </label>
-                        <div className="relative">
-                          <Calendar className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                          <input
-                            type="date"
-                            name="returnDate"
-                            value={segment.returnDate}
-                            onChange={(e) => handleMultiDestinationChange(index, e)}
-                            required
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Origen</label>
+                    <input type="text" name="origin" value={formData.origin} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de origen" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Destino</label>
+                    <input type="text" name="destination" value={formData.destination} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de destino" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Salida</label>
+                    <input type="date" name="departureDate" value={formData.departureDate} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={getTodayDate()} />
+                  </div>
+                  {formData.tripType === 'round_trip' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
+                      <input type="date" name="returnDate" value={formData.returnDate} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={formData.departureDate || getTodayDate()} />
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
-                    {/* Multi-Destination Hotel Section */}
-                    <div className="space-y-4 border border-gray-200 rounded-lg p-4 bg-white">
-                      <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                        <Hotel className="w-5 h-5" />
-                        Detalles del Hotel para {segment.destination || 'este segmento'}
-                      </h4>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Nombre del Hotel
-                        </label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={segment.hotel?.name || ''}
-                          onChange={(e) => handleMultiDestinationHotelChange(index, e)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Ej: Hotel Gran Via"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Categoría de Habitación
-                        </label>
-                        <input
-                          type="text"
-                          name="roomCategory"
-                          value={segment.hotel?.roomCategory || ''}
-                          onChange={(e) => handleMultiDestinationHotelChange(index, e)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Ej: Doble Estándar, Suite"
-                        />
-                      </div>
-                      
-                      {/* Accommodation Details for Multi-Destination */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                            <Bed className="w-4 h-4" />
-                            Acomodación
-                          </h5>
-                          <motion.button
-                            type="button"
-                            onClick={() => addMultiDestinationAccommodationRoom(index)}
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <PlusCircle className="w-4 h-4" />
-                            Añadir Habitación
-                          </motion.button>
-                        </div>
-                        {(segment.hotel?.accommodation || []).map((room, roomIndex) => (
-                          <div key={roomIndex} className="grid grid-cols-4 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Habitaciones</label>
-                              <input
-                                type="number"
-                                name="rooms"
-                                value={room.rooms}
-                                onChange={(e) => handleMultiDestinationAccommodationChange(index, roomIndex, e)}
-                                min="1"
-                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">ADT</label>
-                              <input
-                                type="number"
-                                name="adt"
-                                value={room.adt}
-                                onChange={(e) => handleMultiDestinationAccommodationChange(index, roomIndex, e)}
-                                min="0"
-                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">CHD</label>
-                              <input
-                                type="number"
-                                name="chd"
-                                value={room.chd}
-                                onChange={(e) => handleMultiDestinationAccommodationChange(index, roomIndex, e)}
-                                min="0"
-                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">INF</label>
-                              <input
-                                type="number"
-                                name="inf"
-                                value={room.inf}
-                                onChange={(e) => handleMultiDestinationAccommodationChange(index, roomIndex, e)}
-                                min="0"
-                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                              />
-                            </div>
-                            {(segment.hotel?.accommodation || []).length > 1 && (
-                              <motion.button
-                                type="button"
-                                onClick={() => removeMultiDestinationAccommodationRoom(index, roomIndex)}
-                                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                <MinusCircle className="w-4 h-4" />
-                              </motion.button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Tipo de Alimentación
-                        </label>
-                        <select
-                          name="mealPlan"
-                          value={segment.hotel?.mealPlan || ''}
-                          onChange={(e) => handleMultiDestinationHotelChange(index, e)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="">Seleccionar</option>
-                          <option value="solo_alojamiento">Solo Alojamiento (SA)</option>
-                          <option value="desayuno">Desayuno (AD)</option>
-                          <option value="media_pension">Media Pensión (MP)</option>
-                          <option value="pension_completa">Pensión Completa (PC)</option>
-                          <option value="todo_incluido">Todo Incluido (TI)</option>
-                        </select>
-                      </div>
-                      
-                      {/* Hotel Inclusions for Multi-Destination */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                            <Info className="w-4 h-4" />
-                            Inclusiones del Hotel
-                          </h5>
-                          <motion.button
-                            type="button"
-                            onClick={() => addMultiDestinationHotelInclusion(index)}
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <PlusCircle className="w-4 h-4" />
-                            Añadir Inclusión
-                          </motion.button>
-                        </div>
-                        {(segment.hotel?.hotelInclusions || []).map((inclusion, inclusionIndex) => (
-                          <div key={inclusionIndex} className="flex items-center gap-2 relative">
-                            <input
-                              type="text"
-                              value={inclusion}
-                              onChange={(e) => handleMultiDestinationHotelInclusionChange(index, inclusionIndex, e)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="Ej: Wifi, Piscina, Gimnasio..."
-                            />
-                            {(segment.hotel?.hotelInclusions || []).length > 1 && (
-                              <motion.button
-                                type="button"
-                                onClick={() => removeMultiDestinationHotelInclusion(index, inclusionIndex)}
-                                className="p-1 bg-red-500 text-white rounded-full shadow-md"
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                <MinusCircle className="w-4 h-4" />
-                              </motion.button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+          {/* Flights Section */}
+          <CollapsibleSection title="Detalles de Vuelos" icon={Plane}>
+            <div className="space-y-4">
+              {formData.flights.map((flight, index) => (
+                <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">Vuelo {index + 1}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Aerolínea</label>
+                      <input type="text" name="airline" value={flight.airline} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Iberia" />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Categoría del Vuelo</label>
+                      <select name="flightCategory" value={flight.flightCategory} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                        <option value="">Seleccionar</option>
+                        <option value="economica">Económica</option>
+                        <option value="premium_economica">Premium Económica</option>
+                        <option value="business">Business</option>
+                        <option value="primera_clase">Primera Clase</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Ciclo del Vuelo</label>
+                      <select name="flightCycle" value={flight.flightCycle} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                        <option value="round_trip">Ida y Vuelta</option>
+                        <option value="one_way">Solo Ida</option>
+                        <option value="return_only">Solo Regreso</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Equipaje Permitido</label>
+                      <select name="baggageAllowance" value={flight.baggageAllowance} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                        <option value="">Seleccionar</option>
+                        <option value="carry_on">Solo equipaje de mano</option>
+                        <option value="1_checked_bag">1 maleta facturada (hasta 23kg)</option>
+                        <option value="2_checked_bags">2 maletas facturadas (hasta 23kg c/u)</option>
+                        <option value="heavy_bag">1 maleta facturada (hasta 32kg)</option>
+                        <option value="no_baggage">Sin equipaje</option>
+                        <option value="other">Otro (especificar en notas)</option>
+                      </select>
+                    </div>
+                  </div>
 
-                    {formData.multiDestinations.length > 1 && (
-                      <motion.button
-                        type="button"
-                        onClick={() => removeMultiDestinationSegment(index)}
-                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
+                  <div className="flex items-center gap-2 p-3 bg-gray-100 rounded-lg mt-4">
+                    <Info className="w-5 h-5 text-gray-600" />
+                    <label htmlFor={`hasItinerary-${index}`} className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
+                      ¿Ya tienes los detalles de itinerario y PNR?
+                    </label>
+                    <input
+                      type="checkbox"
+                      id={`hasItinerary-${index}`}
+                      name="hasItinerary"
+                      checked={flight.hasItinerary}
+                      onChange={(e) => handleFlightChange(index, e)}
+                      className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <AnimatePresence>
+                    {flight.hasItinerary && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden mt-4 space-y-4"
                       >
-                        <MinusCircle className="w-5 h-5" />
-                      </motion.button>
+                        <div className="space-y-3 border border-gray-200 rounded-lg p-4 bg-white">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                              <List className="w-4 h-4" /> Itinerarios de Vuelo
+                            </h5>
+                            <motion.button type="button" onClick={() => addItinerary(index)} className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                              <PlusCircle className="w-4 h-4" /> Añadir Itinerario
+                            </motion.button>
+                          </div>
+                          {(flight.itineraries || []).map((itinerary, itIndex) => (
+                            <div key={itIndex} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Número de Vuelo</label>
+                                <input type="text" name="flightNumber" value={itinerary.flightNumber} onChange={(e) => handleItineraryChange(index, itIndex, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="Ej: IB3100" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Hora Salida</label>
+                                <input type="time" name="departureTime" value={itinerary.departureTime} onChange={(e) => handleItineraryChange(index, itIndex, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Hora Llegada</label>
+                                <input type="time" name="arrivalTime" value={itinerary.arrivalTime} onChange={(e) => handleItineraryChange(index, itIndex, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                              </div>
+                              {(flight.itineraries || []).length > 1 && (
+                                <motion.button type="button" onClick={() => removeItinerary(index, itIndex)} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                  <MinusCircle className="w-4 h-4" />
+                                </motion.button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Código de Rastreo (PNR)</label>
+                          <input type="text" name="trackingCode" value={flight.trackingCode} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="PNR" />
+                        </div>
+                      </motion.div>
                     )}
-                  </motion.div>
-                ))}
-              </div>
-            )}
+                  </AnimatePresence>
 
-            {/* Other Inclusions Section (Moved to top level of Trip Information) */}
-            <div className="space-y-4 border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                  <PlusSquare className="w-5 h-5" />
-                  Otras Inclusiones del Viaje
-                </h4>
-                <motion.button
-                  type="button"
-                  onClick={addInclusion}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  Añadir Inclusión
-                </motion.button>
-              </div>
-              {formData.inclusions.map((inclusion, inclusionIndex) => (
-                <div key={inclusionIndex} className="flex items-center gap-2 relative">
-                  <input
-                    type="text"
-                    value={inclusion}
-                    onChange={(e) => handleInclusionChange(inclusionIndex, e)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Ej: Traslados aeropuerto, excursión, seguro de viaje..."
-                  />
-                  {formData.inclusions.length > 1 && (
+                  {formData.flights.length > 1 && (
                     <motion.button
                       type="button"
-                      onClick={() => removeInclusion(inclusionIndex)}
-                      className="p-1 bg-red-500 text-white rounded-full shadow-md"
+                      onClick={() => removeFlight(index)}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
-                      <MinusCircle className="w-4 h-4" />
+                      <MinusCircle className="w-5 h-5" />
                     </motion.button>
                   )}
                 </div>
               ))}
+              <motion.button
+                type="button"
+                onClick={addFlight}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium mt-4"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <PlusCircle className="w-5 h-5" />
+                Añadir Vuelo
+              </motion.button>
             </div>
+          </CollapsibleSection>
 
-            {/* Flight Details Section */}
-            <div className="space-y-4 border border-gray-200 rounded-lg p-4">
-              <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                <Plane className="w-5 h-5" />
-                Detalles Generales del Vuelo
-              </h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Aerolíneas
-                  </label>
-                  <motion.button
-                    type="button"
-                    onClick={addAirline}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    Añadir Aerolínea
-                  </motion.button>
-                </div>
-                {formData.flightDetails.airlines.map((airline, index) => (
-                  <div key={index} className="flex items-center gap-2 relative">
-                    <input
-                      type="text"
-                      value={airline}
-                      onChange={(e) => handleAirlineChange(index, e)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Ej: Iberia, Air France"
-                    />
-                    {formData.flightDetails.airlines.length > 1 && (
-                      <motion.button
-                        type="button"
-                        onClick={() => removeAirline(index)}
-                        className="p-1 bg-red-500 text-white rounded-full shadow-md"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        <MinusCircle className="w-4 h-4" />
-                      </motion.button>
-                    )}
+          {/* Hotels Section */}
+          <CollapsibleSection title="Detalles de Hoteles" icon={Hotel}>
+            <div className="space-y-4">
+              {formData.hotels.map((hotel, index) => (
+                <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">Hotel {index + 1}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Hotel</label>
+                      <input type="text" name="name" value={hotel.name} onChange={(e) => handleHotelChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Hotel Gran Via" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Categoría de Habitación</label>
+                      <input type="text" name="roomCategory" value={hotel.roomCategory} onChange={(e) => handleHotelChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Doble Estándar, Suite" />
+                    </div>
                   </div>
-                ))}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Categoría del Vuelo
-                </label>
-                <select
-                  name="flightCategory"
-                  value={formData.flightDetails.flightCategory}
-                  onChange={handleFlightDetailsChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="economica">Económica</option>
-                  <option value="premium_economica">Premium Económica</option>
-                  <option value="business">Business</option>
-                  <option value="primera_clase">Primera Clase</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Equipaje Permitido (por defecto)
-                </label>
-                <input
-                  type="text"
-                  name="baggageAllowance"
-                  value={formData.flightDetails.baggageAllowance}
-                  onChange={handleFlightDetailsChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Ej: 1 maleta de 23kg, 2 maletas de 32kg"
-                />
-              </div>
+                  
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                        <Bed className="w-4 h-4" /> Acomodación
+                      </h5>
+                      <motion.button type="button" onClick={() => addAccommodationRoom(index)} className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <PlusCircle className="w-4 h-4" /> Añadir Habitación
+                      </motion.button>
+                    </div>
+                    {(hotel.accommodation || []).map((room, roomIndex) => (
+                      <div key={roomIndex} className="grid grid-cols-4 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
+                        <div><label className="block text-xs font-medium text-gray-600 mb-1">Habitaciones</label><input type="number" name="rooms" value={room.rooms} onChange={(e) => handleAccommodationChange(index, roomIndex, e)} min="1" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" /></div>
+                        <div><label className="block text-xs font-medium text-gray-600 mb-1">ADT</label><input type="number" name="adt" value={room.adt} onChange={(e) => handleAccommodationChange(index, roomIndex, e)} min="0" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" /></div>
+                        <div><label className="block text-xs font-medium text-gray-600 mb-1">CHD</label><input type="number" name="chd" value={room.chd} onChange={(e) => handleAccommodationChange(index, roomIndex, e)} min="0" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" /></div>
+                        <div><label className="block text-xs font-medium text-gray-600 mb-1">INF</label><input type="number" name="inf" value={room.inf} onChange={(e) => handleAccommodationChange(index, roomIndex, e)} min="0" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" /></div>
+                        {(hotel.accommodation || []).length > 1 && (
+                          <motion.button type="button" onClick={() => removeAccommodationRoom(index, roomIndex)} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                            <MinusCircle className="w-4 h-4" />
+                          </motion.button>
+                        )}
+                      </div>
+                    ))}
+                    <p className={`text-sm font-medium mt-2 ${totalAccommodationPassengers === totalPassengersCalculated.total ? 'text-gray-600' : 'text-red-600'}`}>
+                      Total de personas en acomodación: <span className="font-bold">
+                        {(hotel.accommodation || []).reduce((acc, room) => acc + (room.rooms * (room.adt || 0)) + (room.rooms * (room.chd || 0)) + (room.rooms * (room.inf || 0)), 0)}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Alimentación</label>
+                    <select name="mealPlan" value={hotel.mealPlan} onChange={(e) => handleHotelChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                      <option value="">Seleccionar</option><option value="solo_alojamiento">Solo Alojamiento (SA)</option><option value="desayuno">Desayuno (AD)</option><option value="media_pension">Media Pensión (MP)</option><option value="pension_completa">Pensión Completa (PC)</option><option value="todo_incluido">Todo Incluido (TI)</option>
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                        <Info className="w-4 h-4" /> Inclusiones del Hotel
+                      </h5>
+                      <motion.button type="button" onClick={() => addHotelInclusion(index)} className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <PlusCircle className="w-4 h-4" /> Añadir Inclusión
+                      </motion.button>
+                    </div>
+                    {(hotel.hotelInclusions || []).map((inclusion, inclusionIndex) => (
+                      <div key={inclusionIndex} className="flex items-center gap-2 relative">
+                        <input type="text" value={inclusion} onChange={(e) => handleHotelInclusionChange(index, inclusionIndex, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Wifi, Piscina, Gimnasio..." />
+                        {(hotel.hotelInclusions || []).length > 1 && (
+                          <motion.button type="button" onClick={() => removeHotelInclusion(index, inclusionIndex)} className="p-1 bg-red-500 text-white rounded-full shadow-md" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                            <MinusCircle className="w-4 h-4" />
+                          </motion.button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {formData.hotels.length > 1 && (
+                    <motion.button
+                      type="button"
+                      onClick={() => removeHotel(index)}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <MinusCircle className="w-5 h-5" />
+                    </motion.button>
+                  )}
+                </div>
+              ))}
+              <motion.button
+                type="button"
+                onClick={addHotel}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium mt-4"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <PlusCircle className="w-5 h-5" />
+                Añadir Hotel
+              </motion.button>
             </div>
-          </div>
+          </CollapsibleSection>
+
+          {/* Tours Section */}
+          <CollapsibleSection title="Detalles de Tours" icon={Ticket}>
+            <div className="space-y-4">
+              {formData.tours.map((tour, index) => (
+                <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">Tour {index + 1}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Tour</label>
+                      <input type="text" name="name" value={tour.name} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Tour por la ciudad" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
+                      <input type="date" name="date" value={tour.date} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate || getTodayDate()} max={tripReturnDate || ''} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Costo (€)</label>
+                      <input type="number" name="cost" value={tour.cost} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="0.00" />
+                    </div>
+                  </div>
+                  {formData.tours.length > 1 && (
+                    <motion.button
+                      type="button"
+                      onClick={() => removeTour(index)}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <MinusCircle className="w-5 h-5" />
+                    </motion.button>
+                  )}
+                </div>
+              ))}
+              <motion.button
+                type="button"
+                onClick={addTour}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium mt-4"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <PlusCircle className="w-5 h-5" />
+                Añadir Tour
+              </motion.button>
+            </div>
+          </CollapsibleSection>
+
+          {/* Medical Assistance Section */}
+          <CollapsibleSection title="Asistencias Médicas" icon={BriefcaseMedical}>
+            <div className="space-y-4">
+              {formData.medicalAssistances.map((ma, index) => (
+                <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">Asistencia Médica {index + 1}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Plan</label>
+                      <select name="planType" value={ma.planType} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                        <option value="traditional_tourism">Turismo Tradicional</option>
+                        <option value="international_assistance">Asistencia Internacional</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio Cobertura</label>
+                      <input type="date" name="startDate" value={ma.startDate || tripDepartureDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate || getTodayDate()} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin Cobertura</label>
+                      <input type="date" name="endDate" value={ma.endDate || tripReturnDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={ma.startDate || tripDepartureDate || getTodayDate()} />
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                    <p className="font-semibold">Resumen de Cobertura:</p>
+                    <p>Tipo: {ma.planType === 'traditional_tourism' ? 'Turismo Tradicional' : 'Asistencia Internacional'}</p>
+                    <p>Duración: {calculateDaysBetweenDates(ma.startDate || tripDepartureDate, ma.endDate || tripReturnDate)} días</p>
+                  </div>
+                  {formData.medicalAssistances.length > 1 && (
+                    <motion.button
+                      type="button"
+                      onClick={() => removeMedicalAssistance(index)}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <MinusCircle className="w-5 h-5" />
+                    </motion.button>
+                  )}
+                </div>
+              ))}
+              <motion.button
+                type="button"
+                onClick={addMedicalAssistance}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium mt-4"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <PlusCircle className="w-5 h-5" />
+                Añadir Asistencia Médica
+              </motion.button>
+            </div>
+          </CollapsibleSection>
+
 
           {/* Booking Details */}
           <div className="space-y-4">
@@ -1327,6 +986,7 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
                   placeholder="0.00"
                 />
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Precio por Niño (CHD) (€)
@@ -1367,115 +1027,65 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
               </span>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Payment Option */}
+            <div className="space-y-4 border border-gray-200 rounded-lg p-4">
+              <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+                <Euro className="w-5 h-5" /> Opciones de Pago
+              </h4>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estado de la Reserva
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="pending">Pendiente</option>
-                  <option value="confirmed">Confirmada</option>
-                  <option value="cancelled">Cancelada</option>
-                  <option value="completed">Completada</option>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Pago</label>
+                <select name="paymentOption" value={formData.paymentOption} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                  <option value="full_payment">Pago Total</option>
+                  <option value="installments">Pago a Cuotas</option>
                 </select>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estado del Pago
-                </label>
-                <select
-                  name="paymentStatus"
-                  value={formData.paymentStatus}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="pending">Pendiente</option>
-                  <option value="partial">Parcial</option>
-                  <option value="paid">Pagado</option>
-                  <option value="refunded">Reembolsado</option>
-                </select>
-            </div>
-          </div>
-        </div>
 
-        {/* Payment Type */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <CreditCard className="w-5 h-5" />
-            Detalles de Pago
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Pago
-              </label>
-              <select
-                name="paymentType"
-                value={formData.paymentType}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="cash">De Contado</option>
-                <option value="installments">A Cuotas</option>
-              </select>
-            </div>
-            {formData.paymentType === 'installments' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Número de Cuotas
-                </label>
-                <input
-                  type="number"
-                  name="installmentsNumber"
-                  min="1"
-                  value={formData.installmentsNumber}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            )}
-          </div>
-
-          {formData.paymentType === 'installments' && (
-            <>
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                <h4 className="text-lg font-bold text-blue-800">Valor por Cuota:</h4>
-                <span className="text-2xl font-extrabold text-blue-800">
-                  €{parseFloat(installmentValue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Calendario de Pagos
-                </label>
-                <ul className="space-y-1">
-                  {paymentSchedule.map(item => (
-                    <li key={item.number} className="flex items-center justify-between text-sm text-gray-700">
-                      <span>
-                        Cuota {item.number}: {formatDate(item.dueDate)}
-                      </span>
-                      <span>
-                        €{parseFloat(item.amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </li>
+              {formData.paymentOption === 'installments' && (
+                <div className="space-y-4 mt-4">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                      <List className="w-4 h-4" /> Cuotas
+                    </h5>
+                    <motion.button type="button" onClick={addInstallment} className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <PlusCircle className="w-4 h-4" /> Añadir Cuota
+                    </motion.button>
+                    <motion.button type="button" onClick={calculateInstallments} className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Calculator className="w-4 h-4" /> Calcular Cuotas
+                    </motion.button>
+                  </div>
+                  {formData.installments.map((installment, index) => (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Monto (€)</label>
+                        <input type="number" name="amount" value={installment.amount} onChange={(e) => handleInstallmentChange(index, e)} step="0.01" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="0.00" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de Vencimiento</label>
+                        <input type="date" name="dueDate" value={installment.dueDate} onChange={(e) => handleInstallmentChange(index, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" min={getTodayDate()} />
+                      </div>
+                      {formData.installments.length > 1 && (
+                        <motion.button type="button" onClick={() => removeInstallment(index)} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                          <MinusCircle className="w-4 h-4" />
+                        </motion.button>
+                      )}
+                    </div>
                   ))}
-                </ul>
-              </div>
-            </>
-          )}
-        </div>
+                  <p className="text-sm font-semibold text-gray-800 mt-4">Total Cuotas: {formatCurrency(totalInstallmentsAmount)}</p>
+                  {totalInstallmentsAmount !== parseFloat(formData.totalAmount) && (
+                    <p className="text-sm text-red-600 flex items-center gap-1">
+                      <Info className="w-4 h-4" /> El total de las cuotas no coincide con el total del plan.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
-        {/* Notes */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Notas Adicionales
-          </label>
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notas Adicionales
+            </label>
             <textarea
               name="notes"
               value={formData.notes}

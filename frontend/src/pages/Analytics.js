@@ -12,9 +12,9 @@ import {
   Filter,
   RefreshCcw
 } from 'lucide-react';
-import { mockReservations } from '../mock/reservations';
-import { mockUsers } from '../mock/users';
-import { mockOffices } from '../mock/offices';
+import { mockReservations } from '../mock/reservations'; 
+import { mockUsers } from '../mock/users'; 
+import { mockOffices } from './Offices'; 
 import { formatCurrency } from '../utils/helpers'; // Import formatCurrency
 
 // Mock data for charts (simplified for demonstration)
