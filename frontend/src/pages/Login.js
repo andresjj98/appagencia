@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plane, User, Lock, Eye, EyeOff } from 'lucide-react'; // Import Eye and EyeOff
-import { mockUsers } from '../mock/users';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -9,13 +8,29 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false); // State for showing/hiding password
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = mockUsers.find(u => u.email === email && u.password === password);
-    if (user) {
-      onLogin(user);
-    } else {
-      setError('Credenciales incorrectas. ¿Olvidaste tu contraseña o tu cerebro?');
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:4000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Credenciales incorrectas');
+        return;
+      }
+
+      onLogin(data.user);
+    } catch (err) {
+      setError('Error al conectar con el servidor');
     }
   };
 
