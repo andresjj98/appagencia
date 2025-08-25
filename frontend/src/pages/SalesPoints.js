@@ -11,15 +11,15 @@ import {
   Users,
   MapPin
 } from 'lucide-react';
-import { mockUsers } from '../mock/users'; // Assuming mockUsers is available
-import { mockOffices as importedMockOffices } from './Offices'; // Assuming mockOffices is available
+import { mockUsers } from '../mock/users';
+import { mockOffices } from '../mock/offices';
 import SalesPointForm from '../components/SalesPoints/SalesPointForm'; // Form for associating users
 
 // Mock data for sales points (offices with associated users)
-const mockSalesPoints = importedMockOffices && importedMockOffices.length > 0 ? importedMockOffices.map(office => ({
+const mockSalesPoints = mockOffices.map(office => ({
   ...office,
   associatedUsers: mockUsers.filter(user => user.role === 'advisor' && user.id === office.id) // Example association
-})) : []; // Provide an empty array if importedMockOffices is undefined or empty
+}));
 
 
 const SalesPointManagement = () => {
