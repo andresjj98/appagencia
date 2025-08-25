@@ -13,8 +13,7 @@ import Notifications from './pages/Notifications';
 import Reports from './pages/Reports'; 
 import Analytics from './pages/Analytics'; 
 import Login from './pages/Login';
-import { mockUsers } from './mock/users'; 
-import { setCurrentUser } from './mock/users'; 
+import { setCurrentUser } from './mock/users' 
 
 const App = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
