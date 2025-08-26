@@ -172,19 +172,40 @@ app.delete('/api/users/:id', async (req, res) => {
 
 app.get('/api/offices', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, name, address, phone, email, manager, active FROM offices'
-    );
-    const offices = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      address: row.address,
-      phone: row.phone,
-      email: row.email,
-      manager: row.manager,
-      active: row.active === 1,
-    }));
-    res.json(offices);
+    const [rows] = await pool.query(`
+      SELECT o.id, o.name, o.address, o.phone, o.email, o.manager, o.active,
+             u.id AS user_id, u.name AS user_name, u.last_name AS user_last_name,
+             u.email AS user_email, u.avatar AS user_avatar
+      FROM offices o
+      LEFT JOIN sales_point_users spu ON o.id = spu.office_id
+      LEFT JOIN users u ON spu.user_id = u.id
+    `);
+
+    const officesMap = new Map();
+    for (const row of rows) {
+      if (!officesMap.has(row.id)) {
+        officesMap.set(row.id, {
+          id: row.id,
+          name: row.name,
+          address: row.address,
+          phone: row.phone,
+          email: row.email,
+          manager: row.manager,
+          active: row.active === 1,
+          associatedUsers: [],
+        });
+      }
+      if (row.user_id) {
+        officesMap.get(row.id).associatedUsers.push({
+          id: row.user_id,
+          name: row.user_name,
+          lastName: row.user_last_name,
+          email: row.user_email,
+          avatar: row.user_avatar,
+        });
+      }
+    }
+    res.json(Array.from(officesMap.values()));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -260,6 +281,36 @@ app.delete('/api/offices/:id', async (req, res) => {
       return res.status(404).json({ message: 'Oficina no encontrada' });
     }
     res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.put('/api/offices/:id/users', async (req, res) => {
+  const { id } = req.params;
+  const { userIds } = req.body;
+  if (!Array.isArray(userIds)) {
+    return res.status(400).json({ message: 'userIds debe ser un arreglo' });
+  }
+  try {
+    await pool.query('DELETE FROM sales_point_users WHERE office_id = ?', [id]);
+    if (userIds.length > 0) {
+      const values = userIds.map((userId) => [id, userId]);
+      await pool.query('INSERT INTO sales_point_users (office_id, user_id) VALUES ?', [values]);
+    }
+    const [rows] = await pool.query(
+      'SELECT u.id, u.name, u.last_name, u.email, u.avatar FROM users u JOIN sales_point_users spu ON u.id = spu.user_id WHERE spu.office_id = ?',
+      [id]
+    );
+    const users = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      lastName: row.last_name,
+      email: row.email,
+      avatar: row.avatar,
+    }));
+    res.json({ officeId: Number(id), users });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });

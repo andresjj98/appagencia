@@ -1,20 +1,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Home, 
-  Calendar, 
-  Users, 
-  Settings, 
-  BarChart3, 
+import {
+  Home,
+  Calendar,
+  Users,
+  Settings,
+  BarChart3,
   Plane,
   LogOut,
   User,
-  MapPin, // For Offices
-  FileText, // For Documentation
-  DollarSign, // For Finance
-  ClipboardList, // For Reports
-  ShoppingBag, // For Sales Points
-  Bell // For Notifications
+  MapPin,
+  FileText,
+  DollarSign,
+  ClipboardList,
+  Bell
 } from 'lucide-react';
 import { currentUser } from '../../mock/users';
 import { USER_ROLES } from '../../utils/constants';
@@ -24,7 +23,6 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
     { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['admin', 'manager', 'advisor'] },
     { id: 'reservations', label: 'Reservas', icon: Calendar, roles: ['admin', 'manager', 'advisor'] },
     { id: 'clients', label: 'Clientes', icon: Users, roles: ['admin', 'manager', 'advisor'] },
-    { id: 'salesPoints', label: 'Puntos de Venta', icon: ShoppingBag, roles: ['admin', 'manager'] },
     { id: 'documentation', label: 'Documentación', icon: FileText, roles: ['admin', 'manager', 'advisor'] },
     { id: 'offices', label: 'Oficinas', icon: MapPin, roles: ['admin', 'manager'] },
     { id: 'finance', label: 'Finanzas', icon: DollarSign, roles: ['admin', 'manager'] },

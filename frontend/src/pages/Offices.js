@@ -9,16 +9,22 @@ import {
   Building,
   Phone,
   Mail,
-  Globe as GlobeIcon, // Renamed to avoid conflict with Globe in ReservationForm
-  User // Import User icon
+  Globe as GlobeIcon,
+  User,
+  Link,
+  Users
 } from 'lucide-react';
-import OfficeForm from '../components/Offices/OfficeForm'; // Import OfficeForm
+import OfficeForm from '../components/Offices/OfficeForm';
+import OfficeUsersForm from '../components/Offices/OfficeUsersForm';
 
 const OfficeManagement = () => {
   const [offices, setOffices] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOfficeForm, setShowOfficeForm] = useState(false);
   const [editingOffice, setEditingOffice] = useState(null);
+  const [showUsersForm, setShowUsersForm] = useState(false);
+  const [officeForUsers, setOfficeForUsers] = useState(null);
 
   useEffect(() => {
     const fetchOffices = async () => {
@@ -30,7 +36,17 @@ const OfficeManagement = () => {
         console.error('Error fetching offices', error);
       }
     };
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/users');
+        const data = await response.json();
+        setAllUsers(data);
+      } catch (error) {
+        console.error('Error fetching users', error);
+      }
+    };
     fetchOffices();
+    fetchUsers();
   }, []);
 
   const filteredOffices = offices.filter(office => {
@@ -67,6 +83,29 @@ const OfficeManagement = () => {
         console.error(error);
       }
     }
+  };
+const handleAssociateUsers = (office) => {
+    setOfficeForUsers(office);
+    setShowUsersForm(true);
+  };
+
+  const handleSaveAssociation = async (userIds) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/offices/${officeForUsers.id}/users`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds }),
+      });
+      if (!response.ok) {
+        throw new Error('Error al asociar usuarios');
+      }
+      const data = await response.json();
+      setOffices(prev => prev.map(o => o.id === officeForUsers.id ? { ...o, associatedUsers: data.users } : o));
+    } catch (error) {
+      console.error(error);
+    }
+    setShowUsersForm(false);
+    setOfficeForUsers(null);
   };
 
   const handleSaveOffice = async (officeData) => {
@@ -165,6 +204,14 @@ const OfficeManagement = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <motion.button
+                      onClick={() => handleAssociateUsers(office)}
+                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <Link className="w-4 h-4" />
+                    </motion.button>
+                    <motion.button
                       onClick={() => handleEditOffice(office)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                       whileHover={{ scale: 1.1 }}
@@ -205,6 +252,22 @@ const OfficeManagement = () => {
                     )}
                   </p>
                 </div>
+                <div className="mt-4">
+                  <p className="font-semibold text-gray-800 flex items-center gap-2 mb-2">
+                    <Users className="w-5 h-5" /> Usuarios Asociados:
+                  </p>
+                  {office.associatedUsers && office.associatedUsers.length > 0 ? (
+                    <ul className="list-disc list-inside ml-4 space-y-1">
+                      {office.associatedUsers.map(user => (
+                        <li key={user.id} className="flex items-center gap-2">
+                          <User className="w-4 h-4" /> {user.name} ({user.email})
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500 ml-4">Ningún usuario asociado.</p>
+                  )}
+                </div>
               </motion.div>
             ))
           ) : (
@@ -217,6 +280,14 @@ const OfficeManagement = () => {
               No se encontraron oficinas.
             </motion.div>
           )}
+          {showUsersForm && officeForUsers && (
+          <OfficeUsersForm
+            office={officeForUsers}
+            allUsers={allUsers}
+            onSave={handleSaveAssociation}
+            onClose={() => setShowUsersForm(false)}
+          />
+        )}
         </AnimatePresence>
       </div>
 

@@ -5,8 +5,7 @@ import Header from './components/Layout/Header';
 import Dashboard from './pages/Dashboard';
 import Reservations from './pages/Reservations';
 import UserManagement from './pages/Users'; 
-import OfficeManagement from './pages/Offices'; 
-import SalesPointManagement from './pages/SalesPoints'; 
+import OfficeManagement from './pages/Offices';
 import Settings from './pages/Settings'; 
 import ClientManagement from './pages/Clients'; 
 import Notifications from './pages/Notifications'; 
@@ -42,8 +41,6 @@ const App = () => {
         return <Reservations />;
       case 'clients':
         return <ClientManagement />; 
-      case 'salesPoints':
-        return <SalesPointManagement />; 
       case 'documentation':
         return (
           <div className="p-6">
@@ -80,7 +77,6 @@ const App = () => {
       dashboard: 'Dashboard',
       reservations: 'Gestión de Reservas',
       clients: 'Gestión de Clientes',
-      salesPoints: 'Puntos de Venta',
       documentation: 'Documentación',
       offices: 'Oficinas',
       finance: 'Finanzas',
