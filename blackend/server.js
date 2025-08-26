@@ -47,6 +47,8 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+
+
 app.get('/api/users', async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -93,6 +95,75 @@ app.post('/api/users', async (req, res) => {
       avatar,
     };
     res.status(201).json(newUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, lastName, idCard, username, email, role, password, active, avatar } = req.body;
+  try {
+    const [existingRows] = await pool.query(
+      'SELECT name, last_name, id_card, username, email, role, active, avatar FROM users WHERE id = ?',
+      [id]
+    );
+    if (existingRows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    const existing = existingRows[0];
+    if (
+      existing.name === name &&
+      existing.last_name === lastName &&
+      existing.id_card === idCard &&
+      existing.username === username &&
+      existing.email === email &&
+      existing.role === role &&
+      existing.active === (active ? 1 : 0) &&
+      existing.avatar === avatar &&
+      !password
+    ) {
+      return res.status(400).json({ message: 'No hay cambios para actualizar' });
+    }
+
+    let query =
+      'UPDATE users SET name = ?, last_name = ?, id_card = ?, username = ?, email = ?, role = ?, active = ?, avatar = ?';
+    const params = [
+      name,
+      lastName,
+      idCard,
+      username,
+      email,
+      role,
+      active ? 1 : 0,
+      avatar,
+    ];
+    if (password) {
+      const hashedPassword = await hashPassword(password);
+      query += ', password = ?';
+      params.push(hashedPassword);
+    }
+    query += ' WHERE id = ?';
+    params.push(id);
+
+    await pool.query(query, params);
+
+    res.json({ id: Number(id), name, lastName, idCard, username, email, role, active, avatar });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query('DELETE FROM users WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    res.status(204).send();
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });

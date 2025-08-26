@@ -52,15 +52,50 @@ const UserManagement = () => {
     setShowUserForm(true);
   };
 
-  const handleDeleteUser = (userToDelete) => {
+  const handleDeleteUser = async (userToDelete) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar a ${userToDelete.name} ${userToDelete.lastName}?`)) {
-      setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
+      try {
+        const response = await fetch(`http://localhost:4000/api/users/${userToDelete.id}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          throw new Error('Error al eliminar usuario');
+        }
+        setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
   const handleSaveUser = async (userData) => {
     if (editingUser) {
-      setUsers(prevUsers => prevUsers.map(user => user.id === userData.id ? userData : user));
+      const hasChanges = ['name','lastName','idCard','username','email','role','active','avatar'].some(
+        key => userData[key] !== editingUser[key]
+      ) || (userData.password && userData.password.length > 0);
+
+      if (!hasChanges) {
+        setShowUserForm(false);
+        setEditingUser(null);
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:4000/api/users/${userData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(userData),
+        });
+        if (!response.ok) {
+          throw new Error('Error al actualizar usuario');
+        }
+        const updatedUser = await response.json();
+        setUsers(prevUsers => prevUsers.map(user => user.id === updatedUser.id ? updatedUser : user));
+      } catch (error) {
+        console.error(error);
+      }
     } else {
       try {
         const response = await fetch('http://localhost:4000/api/users', {
