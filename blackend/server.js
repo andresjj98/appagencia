@@ -170,6 +170,102 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+app.get('/api/offices', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, name, address, phone, email, manager, active FROM offices'
+    );
+    const offices = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      address: row.address,
+      phone: row.phone,
+      email: row.email,
+      manager: row.manager,
+      active: row.active === 1,
+    }));
+    res.json(offices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.post('/api/offices', async (req, res) => {
+  const { name, address, phone, email, manager, active } = req.body;
+  if (!name || !address) {
+    return res.status(400).json({ message: 'Faltan datos de la oficina' });
+  }
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO offices (name, address, phone, email, manager, active) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, address, phone, email, manager, active ? 1 : 0]
+    );
+    const newOffice = {
+      id: result.insertId,
+      name,
+      address,
+      phone,
+      email,
+      manager,
+      active,
+    };
+    res.status(201).json(newOffice);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.put('/api/offices/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, address, phone, email, manager, active } = req.body;
+  try {
+    const [existingRows] = await pool.query(
+      'SELECT name, address, phone, email, manager, active FROM offices WHERE id = ?',
+      [id]
+    );
+    if (existingRows.length === 0) {
+      return res.status(404).json({ message: 'Oficina no encontrada' });
+    }
+    const existing = existingRows[0];
+    if (
+      existing.name === name &&
+      existing.address === address &&
+      existing.phone === phone &&
+      existing.email === email &&
+      existing.manager === manager &&
+      existing.active === (active ? 1 : 0)
+    ) {
+      return res.status(400).json({ message: 'No hay cambios para actualizar' });
+    }
+
+    await pool.query(
+      'UPDATE offices SET name = ?, address = ?, phone = ?, email = ?, manager = ?, active = ? WHERE id = ?',
+      [name, address, phone, email, manager, active ? 1 : 0, id]
+    );
+
+    res.json({ id: Number(id), name, address, phone, email, manager, active });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/offices/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query('DELETE FROM offices WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Oficina no encontrada' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en el puerto ${PORT}`);

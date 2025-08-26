@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin,
@@ -14,13 +14,24 @@ import {
 } from 'lucide-react';
 import OfficeForm from '../components/Offices/OfficeForm'; // Import OfficeForm
 
-import { mockOffices } from '../mock/offices';
-
 const OfficeManagement = () => {
-  const [offices, setOffices] = useState(mockOffices);
+  const [offices, setOffices] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOfficeForm, setShowOfficeForm] = useState(false);
   const [editingOffice, setEditingOffice] = useState(null);
+
+  useEffect(() => {
+    const fetchOffices = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/offices');
+        const data = await response.json();
+        setOffices(data);
+      } catch (error) {
+        console.error('Error fetching offices', error);
+      }
+    };
+    fetchOffices();
+  }, []);
 
   const filteredOffices = offices.filter(office => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -42,17 +53,61 @@ const OfficeManagement = () => {
     setShowOfficeForm(true);
   };
 
-  const handleDeleteOffice = (officeToDelete) => {
+  const handleDeleteOffice = async (officeToDelete) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar la oficina ${officeToDelete.name}?`)) {
-      setOffices(prevOffices => prevOffices.filter(office => office.id !== officeToDelete.id));
+      try {
+        const response = await fetch(`http://localhost:4000/api/offices/${officeToDelete.id}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          throw new Error('Error al eliminar oficina');
+        }
+        setOffices(prevOffices => prevOffices.filter(office => office.id !== officeToDelete.id));
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
-  const handleSaveOffice = (officeData) => {
+  const handleSaveOffice = async (officeData) => {
     if (editingOffice) {
-      setOffices(prevOffices => prevOffices.map(office => office.id === officeData.id ? officeData : office));
+      const hasChanges = ['name', 'address', 'phone', 'email', 'manager', 'active'].some(
+        key => officeData[key] !== editingOffice[key]
+      );
+      if (!hasChanges) {
+        setShowOfficeForm(false);
+        setEditingOffice(null);
+        return;
+      }
+      try {
+        const response = await fetch(`http://localhost:4000/api/offices/${officeData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(officeData),
+        });
+        if (!response.ok) {
+          throw new Error('Error al actualizar oficina');
+        }
+        const updatedOffice = await response.json();
+        setOffices(prevOffices => prevOffices.map(office => office.id === updatedOffice.id ? updatedOffice : office));
+      } catch (error) {
+        console.error(error);
+      }
     } else {
-      setOffices(prevOffices => [...prevOffices, { ...officeData, id: String(prevOffices.length + 1) }]);
+      try {
+        const response = await fetch('http://localhost:4000/api/offices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(officeData),
+        });
+        if (!response.ok) {
+          throw new Error('Error al crear oficina');
+        }
+        const newOffice = await response.json();
+        setOffices(prevOffices => [...prevOffices, newOffice]);
+      } catch (error) {
+        console.error(error);
+      }
     }
     setShowOfficeForm(false);
     setEditingOffice(null);
