@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const pool = require('./db');
+const { hashPassword } = require('./passwordUtils');
 
 dotenv.config();
 
@@ -40,6 +41,58 @@ app.post('/api/login', async (req, res) => {
 
     delete user.password;
     res.json({ user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.get('/api/users', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, name, last_name, id_card, username, email, role, active, avatar FROM users'
+    );
+    const users = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      lastName: row.last_name,
+      idCard: row.id_card,
+      username: row.username,
+      email: row.email,
+      role: row.role,
+      active: row.active === 1,
+      avatar: row.avatar,
+    }));
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  const { name, lastName, idCard, username, email, role, password, active, avatar } = req.body;
+  if (!name || !lastName || !idCard || !username || !email || !role || !password) {
+    return res.status(400).json({ message: 'Faltan datos del usuario' });
+  }
+  try {
+    const hashedPassword = await hashPassword(password);
+    const [result] = await pool.query(
+      'INSERT INTO users (name, last_name, id_card, username, email, role, password, active, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, lastName, idCard, username, email, role, hashedPassword, active ? 1 : 0, avatar]
+    );
+    const newUser = {
+      id: result.insertId,
+      name,
+      lastName,
+      idCard,
+      username,
+      email,
+      role,
+      active,
+      avatar,
+    };
+    res.status(201).json(newUser);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });

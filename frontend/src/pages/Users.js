@@ -1,29 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  CheckCircle, 
+import {
+  User,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  CheckCircle,
   XCircle,
   Filter,
   UserPlus
 } from 'lucide-react';
-import { mockUsers } from '../mock/users';
 import { USER_ROLES } from '../utils/constants';
 import UserForm from '../components/Users/UserForm'; // Import UserForm
 
 const UserManagement = () => {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [showUserForm, setShowUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/users');
+        const data = await response.json();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users', error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const fullName = `${user.name} ${user.lastName}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     return matchesSearch && matchesRole;
@@ -40,16 +53,31 @@ const UserManagement = () => {
   };
 
   const handleDeleteUser = (userToDelete) => {
-    if (window.confirm(`¿Estás seguro de que quieres eliminar a ${userToDelete.name}?`)) {
+    if (window.confirm(`¿Estás seguro de que quieres eliminar a ${userToDelete.name} ${userToDelete.lastName}?`)) {
       setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
     }
   };
 
-  const handleSaveUser = (userData) => {
+  const handleSaveUser = async (userData) => {
     if (editingUser) {
       setUsers(prevUsers => prevUsers.map(user => user.id === userData.id ? userData : user));
     } else {
-      setUsers(prevUsers => [...prevUsers, { ...userData, id: String(prevUsers.length + 1) }]);
+      try {
+        const response = await fetch('http://localhost:4000/api/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(userData),
+        });
+        if (!response.ok) {
+          throw new Error('Error al crear usuario');
+        }
+        const newUser = await response.json();
+        setUsers(prevUsers => [...prevUsers, newUser]);
+      } catch (error) {
+        console.error(error);
+      }
     }
     setShowUserForm(false);
     setEditingUser(null);
@@ -144,7 +172,7 @@ const UserManagement = () => {
                           <img className="h-10 w-10 rounded-full object-cover" src={user.avatar} alt="" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-sm font-medium text-gray-900">{`${user.name} ${user.lastName}`}</div>
                         </div>
                       </div>
                     </td>
