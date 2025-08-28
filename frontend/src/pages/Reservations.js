@@ -7,6 +7,7 @@ import ReservationCard from '../components/Reservations/ReservationCard';
 import ReservationForm from '../components/Reservations/ReservationForm';
 import ReservationTypeSelector from '../components/Reservations/ReservationTypeSelector';
 import ReservationPostCreation from '../components/Reservations/ReservationPostCreation';
+import ReservationSummary from '../components/Reservations/ReservationSummary';
 import { mockReservations } from '../mock/reservations';
 
 const Reservations = () => {
@@ -17,6 +18,8 @@ const Reservations = () => {
   const [editingReservation, setEditingReservation] = useState(null);
   const [newlyCreatedReservation, setNewlyCreatedReservation] = useState(null);
   const [selectedReservationType, setSelectedReservationType] = useState(null);
+  const [reservationToConfirm, setReservationToConfirm] = useState(null);
+  const [showSummary, setShowSummary] = useState(false);
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
 
@@ -36,10 +39,10 @@ const Reservations = () => {
     setSelectedReservationType(reservation.isMultiDestination ? 'all_inclusive' : 'all_inclusive');
     setShowForm(true);
   };
-
-  const handleSaveReservation = (reservationData) => {
+  
+    const handleFinalSaveReservation = (reservationData) => {
     if (editingReservation) {
-      setReservations(prev => 
+      setReservations(prev =>
         prev.map(r => r.id === editingReservation.id ? reservationData : r)
       );
       setShowForm(false);
@@ -51,6 +54,27 @@ const Reservations = () => {
       setShowForm(false);
       setShowPostCreation(true);
     }
+  };
+
+  const handleReservationSubmit = (reservationData) => {
+    if (editingReservation) {
+      handleFinalSaveReservation(reservationData);
+    } else {
+      setReservationToConfirm(reservationData);
+      setShowSummary(true);
+    }
+  };
+
+  const handleConfirmReservation = () => {
+    if (reservationToConfirm) {
+      handleFinalSaveReservation(reservationToConfirm);
+      setReservationToConfirm(null);
+      setShowSummary(false);
+    }
+  };
+
+  const handleCancelSummary = () => {
+    setShowSummary(false);
   };
 
   const handleUpdateReservationAfterPostCreation = (updatedReservation) => {
@@ -187,12 +211,23 @@ const Reservations = () => {
             <ReservationForm
               reservation={editingReservation}
               reservationType={selectedReservationType}
-              onSave={handleSaveReservation}
+              onSave={handleReservationSubmit}
               onClose={() => {
                 setShowForm(false);
                 setEditingReservation(null);
                 setSelectedReservationType(null);
               }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Reservation Summary Modal */}
+        <AnimatePresence>
+          {showSummary && reservationToConfirm && (
+            <ReservationSummary
+              reservation={reservationToConfirm}
+              onConfirm={handleConfirmReservation}
+              onCancel={handleCancelSummary}
             />
           )}
         </AnimatePresence>
