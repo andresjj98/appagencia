@@ -95,6 +95,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     clientName: reservation?.clientName || '',
     clientEmail: reservation?.clientEmail || '',
     clientPhone: reservation?.clientPhone || '',
+    clientId: reservation?.clientId || '',
     clientAddress: reservation?.clientAddress || '',
     emergencyContact: reservation?.emergencyContact || { name: '', phone: '' },
     tripType: reservation?.tripType || 'round_trip',
@@ -527,6 +528,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono del Titular</label>
                 <input type="tel" name="clientPhone" value={formData.clientPhone} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="+34 600 000 000" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Identificación del Titular</label>
+                <input type="text" name="clientId" value={formData.clientId} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="DNI / Pasaporte" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Dirección del Titular</label>
