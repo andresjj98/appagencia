@@ -89,7 +89,7 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = fa
 };
 
 
-const ReservationForm = ({ reservation = null, onSave, onClose }) => {
+const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose }) => {
   const [formData, setFormData] = useState({
     invoiceNumber: reservation?.invoiceNumber || `INV-${Date.now()}`,
     clientName: reservation?.clientName || '',
@@ -97,8 +97,8 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
     clientPhone: reservation?.clientPhone || '',
     clientAddress: reservation?.clientAddress || '',
     emergencyContact: reservation?.emergencyContact || { name: '', phone: '' },
-    tripType: reservation?.tripType || 'round_trip', 
-    segments: reservation?.segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }], 
+    tripType: reservation?.tripType || 'round_trip',
+    segments: reservation?.segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
     passengersADT: reservation?.passengersADT || 1,
     passengersCHD: reservation?.passengersCHD || 0,
     passengersINF: reservation?.passengersINF || 0,
@@ -106,25 +106,53 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
     pricePerCHD: reservation?.pricePerCHD || 0,
     pricePerINF: reservation?.pricePerINF || 0,
     totalAmount: reservation?.totalAmount || 0,
-    paymentOption: reservation?.paymentOption || 'full_payment', 
-    installments: reservation?.installments || [{ amount: 0, dueDate: getTodayDate() }], 
-    status: reservation?.status || 'pending', 
+    paymentOption: reservation?.paymentOption || 'full_payment',
+    installments: reservation?.installments || [{ amount: 0, dueDate: getTodayDate() }],
+    status: reservation?.status || 'pending',
     notes: reservation?.notes || '',
-    
+    notes: reservation?.notes || '',
+
     // Structured data for sections
-    flights: reservation?.flights || [{ 
-      airline: '', 
-      flightCategory: '', 
-      baggageAllowance: '', 
-      flightCycle: 'round_trip', 
-      hasItinerary: false, 
-      itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '' }], 
-      trackingCode: '' 
-    }],
-    hotels: reservation?.hotels || [{ name: '', roomCategory: '', accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }], mealPlan: '', hotelInclusions: [''] }],
-    tours: reservation?.tours || [{ name: '', date: getTodayDate(), cost: 0 }],
-    medicalAssistances: reservation?.medicalAssistances || [{ planType: 'traditional_tourism', startDate: getTodayDate(), endDate: getTodayDate() }], 
+    flights: reservation?.flights || (
+      reservationType === 'all_inclusive' || reservationType === 'flights_only'
+        ? [{
+            airline: '',
+            flightCategory: '',
+            baggageAllowance: '',
+            flightCycle: 'round_trip',
+            hasItinerary: false,
+            itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '' }],
+            trackingCode: ''
+          }]
+        : []
+    ),
+    hotels: reservation?.hotels || (
+      reservationType === 'all_inclusive' || reservationType === 'hotel_only'
+        ? [{
+            name: '',
+            roomCategory: '',
+            accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }],
+            mealPlan: '',
+            hotelInclusions: ['']
+          }]
+        : []
+    ),
+    tours: reservation?.tours || (
+      reservationType === 'all_inclusive' || reservationType === 'tours_only'
+        ? [{ name: '', date: getTodayDate(), cost: 0 }]
+        : []
+    ),
+    medicalAssistances: reservation?.medicalAssistances || (
+      reservationType === 'all_inclusive' || reservationType === 'medical_assistance'
+        ? [{ planType: 'traditional_tourism', startDate: getTodayDate(), endDate: getTodayDate() }]
+        : []
+    ),
   });
+
+  const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
+  const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
+  const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
+  const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
 
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
     total: 0, adt: 0, chd: 0, inf: 0
@@ -161,11 +189,12 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
     const totalPassengers = parseInt(formData.passengersADT) + parseInt(formData.passengersCHD) + parseInt(formData.passengersINF);
     const reservationData = {
       ...formData,
+      reservationType,
       id: reservation?.id || generateReservationId(),
       totalAmount: parseFloat(formData.totalAmount),
       passengers: totalPassengers,
       createdAt: reservation?.createdAt || new Date(),
-      advisorId: '2', 
+      advisorId: '2',
       advisorName: 'Carlos Mendoza' 
     };
     onSave(reservationData);
@@ -633,10 +662,11 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
           </div>
 
           {/* Flights Section */}
-          <CollapsibleSection title="Detalles de Vuelos" icon={Plane}>
-            <div className="space-y-4">
-              {formData.flights.map((flight, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
+          {showFlights && (
+            <CollapsibleSection title="Detalles de Vuelos" icon={Plane}>
+              <div className="space-y-4">
+                {formData.flights.map((flight, index) => (
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
                   <h4 className="text-md font-semibold text-gray-800 mb-3">Vuelo {index + 1}</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -763,8 +793,10 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
               </motion.button>
             </div>
           </CollapsibleSection>
+          )}
 
           {/* Hotels Section */}
+          {showHotels && (
           <CollapsibleSection title="Detalles de Hoteles" icon={Hotel}>
             <div className="space-y-4">
               {formData.hotels.map((hotel, index) => (
@@ -862,8 +894,10 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
               </motion.button>
             </div>
           </CollapsibleSection>
+           )}
 
           {/* Tours Section */}
+          {showTours && (
           <CollapsibleSection title="Detalles de Tours" icon={Ticket}>
             <div className="space-y-4">
               {formData.tours.map((tour, index) => (
@@ -908,8 +942,10 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
               </motion.button>
             </div>
           </CollapsibleSection>
+          )}
 
           {/* Medical Assistance Section */}
+          {showMedical && (
           <CollapsibleSection title="Asistencias Médicas" icon={BriefcaseMedical}>
             <div className="space-y-4">
               {formData.medicalAssistances.map((ma, index) => (
@@ -962,7 +998,7 @@ const ReservationForm = ({ reservation = null, onSave, onClose }) => {
               </motion.button>
             </div>
           </CollapsibleSection>
-
+          )}
 
           {/* Booking Details */}
           <div className="space-y-4">
