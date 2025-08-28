@@ -14,8 +14,21 @@ import { formatCurrency, formatDate, calculateDays } from '../../utils/helpers';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
 
 const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) => {
-  const statusConfig = RESERVATION_STATUS[reservation.status];
-  const paymentConfig = PAYMENT_STATUS[reservation.paymentStatus];
+  // Safely get status and payment configuration objects. If an unknown status
+  // is provided we fall back to a neutral configuration to avoid runtime
+  // errors accessing properties on `undefined`.
+  const statusConfig =
+    RESERVATION_STATUS[reservation?.status] || {
+      label: reservation?.status || 'Desconocido',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-800'
+    };
+  const paymentConfig =
+    PAYMENT_STATUS[reservation?.paymentStatus] || {
+      label: reservation?.paymentStatus || 'Desconocido',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-800'
+    };
   const tripDays = calculateDays(reservation.departureDate, reservation.returnDate);
 
   return (
