@@ -118,6 +118,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     totalAmount: reservation?.totalAmount || 0,
     paymentOption: reservation?.paymentOption || 'full_payment',
     installments: reservation?.installments || [{ amount: 0, dueDate: getTodayDate() }],
+    installmentsCount: reservation?.installmentsCount || 1,
     status: reservation?.status || 'pending',
     notes: reservation?.notes || '',
     notes: reservation?.notes || '',
@@ -508,7 +509,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   };
 
   const calculateInstallments = () => {
-    const numInstallments = parseInt(prompt("¿En cuántas cuotas quieres dividir el pago?"));
+    const numInstallments = parseInt(formData.installmentsCount);
     if (isNaN(numInstallments) || numInstallments <= 0) {
       alert("Por favor, introduce un número válido de cuotas.");
       return;
@@ -1203,16 +1204,40 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
               {formData.paymentOption === 'installments' && (
                 <div className="space-y-4 mt-4">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                      <List className="w-4 h-4" /> Cuotas
-                    </h5>
-                    <motion.button type="button" onClick={addInstallment} className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <PlusCircle className="w-4 h-4" /> Añadir Cuota
-                    </motion.button>
-                    <motion.button type="button" onClick={calculateInstallments} className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Calculator className="w-4 h-4" /> Calcular Cuotas
-                    </motion.button>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                        <List className="w-4 h-4" /> Cuotas
+                      </h5>
+                      <input
+                        type="number"
+                        name="installmentsCount"
+                        value={formData.installmentsCount}
+                        onChange={handleChange}
+                        min="1"
+                        className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <motion.button
+                        type="button"
+                        onClick={addInstallment}
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <PlusCircle className="w-4 h-4" /> Añadir Cuota
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        onClick={calculateInstallments}
+                        className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Calculator className="w-4 h-4" /> Calcular Cuotas
+                      </motion.button>
+                    </div>
                   </div>
                   {formData.installments.map((installment, index) => (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
