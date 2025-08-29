@@ -90,6 +90,15 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = fa
 
 
 const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose }) => {
+  const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
+  const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
+  const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
+  const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
+
+  const initialSegments = reservation?.segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }];
+  const initialTripDepartureDate = initialSegments[0]?.departureDate || getTodayDate();
+  const initialTripReturnDate = initialSegments[initialSegments.length - 1]?.returnDate || initialTripDepartureDate;
+
   const [formData, setFormData] = useState({
     invoiceNumber: reservation?.invoiceNumber || `INV-${Date.now()}`,
     clientName: reservation?.clientName || '',
@@ -99,7 +108,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     clientAddress: reservation?.clientAddress || '',
     emergencyContact: reservation?.emergencyContact || { name: '', phone: '' },
     tripType: reservation?.tripType || 'round_trip',
-    segments: reservation?.segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
+    segments: initialSegments,
     passengersADT: reservation?.passengersADT || 1,
     passengersCHD: reservation?.passengersCHD || 0,
     passengersINF: reservation?.passengersINF || 0,
@@ -115,7 +124,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
     // Structured data for sections
     flights: reservation?.flights || (
-      reservationType === 'all_inclusive' || reservationType === 'flights_only'
+      showFlights
         ? [{
             airline: '',
             flightCategory: '',
@@ -128,7 +137,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         : []
     ),
     hotels: reservation?.hotels || (
-      reservationType === 'all_inclusive' || reservationType === 'hotel_only'
+      showHotels
         ? [{
             name: '',
             roomCategory: '',
@@ -139,21 +148,16 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         : []
     ),
     tours: reservation?.tours || (
-      reservationType === 'all_inclusive' || reservationType === 'tours_only'
-        ? [{ name: '', date: getTodayDate(), cost: 0 }]
+      showTours
+        ? [{ name: '', date: initialTripDepartureDate, cost: 0 }]
         : []
     ),
     medicalAssistances: reservation?.medicalAssistances || (
-      reservationType === 'all_inclusive' || reservationType === 'medical_assistance'
-        ? [{ planType: 'traditional_tourism', startDate: getTodayDate(), endDate: getTodayDate() }]
+      showMedical
+        ? [{ planType: 'traditional_tourism', startDate: initialTripDepartureDate, endDate: initialTripReturnDate }]
         : []
     ),
   });
-
-  const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
-  const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
-  const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
-  const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
 
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
     total: 0, adt: 0, chd: 0, inf: 0
@@ -163,9 +167,25 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const tripDepartureDate = formData.tripType === 'multi_city' && formData.segments.length > 0 
     ? formData.segments[0].departureDate 
     : formData.segments[0]?.departureDate || ''; // Use first segment if multi-city, else main segment
-  const tripReturnDate = formData.tripType === 'multi_city' && formData.segments.length > 0 
-    ? formData.segments[formData.segments.length - 1].returnDate 
+  const tripReturnDate = formData.tripType === 'multi_city' && formData.segments.length > 0
+    ? formData.segments[formData.segments.length - 1].returnDate
     : formData.segments[0]?.returnDate || ''; // Use last segment if multi-city, else main segment
+
+  useEffect(() => {
+    setFormData(prev => {
+      const updated = prev.medicalAssistances.map(ma => ({
+        ...ma,
+        startDate: tripDepartureDate,
+        endDate: tripReturnDate,
+      }));
+      const isSame = updated.every((ma, idx) =>
+        ma.startDate === prev.medicalAssistances[idx].startDate &&
+        ma.endDate === prev.medicalAssistances[idx].endDate
+      );
+      if (isSame) return prev;
+      return { ...prev, medicalAssistances: updated };
+    });
+  }, [tripDepartureDate, tripReturnDate]);
 
   useEffect(() => {
     const totalADT = parseInt(formData.passengersADT) || 0;
@@ -365,7 +385,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const addTour = () => {
     setFormData(prev => ({
       ...prev,
-      tours: [...prev.tours, { name: '', date: getTodayDate(), cost: 0 }]
+      tours: [...prev.tours, { name: '', date: tripDepartureDate, cost: 0 }]
     }));
   };
 
@@ -915,7 +935,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
-                      <input type="date" name="date" value={tour.date} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate || getTodayDate()} max={tripReturnDate || ''} />
+                      <input type="date" name="date" value={tour.date} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate} max={tripReturnDate} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Costo (€)</label>
@@ -966,11 +986,11 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio Cobertura</label>
-                      <input type="date" name="startDate" value={ma.startDate || tripDepartureDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate || getTodayDate()} />
+                      <input type="date" name="startDate" value={ma.startDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate} max={tripReturnDate} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin Cobertura</label>
-                      <input type="date" name="endDate" value={ma.endDate || tripReturnDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={ma.startDate || tripDepartureDate || getTodayDate()} />
+                      <input type="date" name="endDate" value={ma.endDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={ma.startDate || tripDepartureDate} max={tripReturnDate} />
                     </div>
                   </div>
                   <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
