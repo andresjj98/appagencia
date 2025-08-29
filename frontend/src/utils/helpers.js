@@ -5,15 +5,27 @@ export const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-// Parse a "YYYY-MM-DD" date string in the local timezone.
+// Parse a date value (Date instance or "YYYY-MM-DD" string) in the local timezone.
 // Returns `null` when the input is falsy or invalid.
-const parseLocalDate = (dateString) => {
-  if (!dateString) return null;
-  const parts = dateString.split('-').map(Number);
-  if (parts.length < 3) return null;
-  const [year, month, day] = parts;
-  const date = new Date(year, month - 1, day);
-  return isNaN(date.getTime()) ? null : date;
+const parseLocalDate = (value) => {
+  if (!value) return null;
+
+  // If it's already a Date instance, validate and return it
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+
+  // If it's a string (e.g. "YYYY-MM-DD") parse it manually to avoid timezone issues
+  if (typeof value === 'string') {
+    const parts = value.split('-').map(Number);
+    if (parts.length < 3) return null;
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  // Unsupported type
+  return null;
 };
 
 export const formatDate = (date) => {
