@@ -162,28 +162,39 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
     total: 0, adt: 0, chd: 0, inf: 0
   });
+  const [errors, setErrors] = useState({});
 
-  // Calculate trip start and end dates for medical assistance default
-  const tripDepartureDate = formData.tripType === 'multi_city' && formData.segments.length > 0 
-    ? formData.segments[0].departureDate 
-    : formData.segments[0]?.departureDate || ''; // Use first segment if multi-city, else main segment
-  const tripReturnDate = formData.tripType === 'multi_city' && formData.segments.length > 0
-    ? formData.segments[formData.segments.length - 1].returnDate
-    : formData.segments[0]?.returnDate || ''; // Use last segment if multi-city, else main segment
+  const isDateWithinRange = (date, start, end) => {
+    if (!date || !start || !end) return false;
+    const d = new Date(date);
+    const s = new Date(start);
+    const e = new Date(end);
+    return d >= s && d <= e;
+  };
 
+  // Calculate trip start and end dates
+  const tripDepartureDate = formData.segments[0]?.departureDate || '';
+  const tripReturnDate =
+    formData.tripType === 'one_way'
+      ? formData.segments[0]?.departureDate || ''
+      : formData.segments[formData.segments.length - 1]?.returnDate || '';
   useEffect(() => {
     setFormData(prev => {
-      const updated = prev.medicalAssistances.map(ma => ({
+      const updatedMA = prev.medicalAssistances.map(ma => ({
         ...ma,
         startDate: tripDepartureDate,
         endDate: tripReturnDate,
       }));
-      const isSame = updated.every((ma, idx) =>
+      const maSame = updatedMA.every((ma, idx) =>
         ma.startDate === prev.medicalAssistances[idx].startDate &&
         ma.endDate === prev.medicalAssistances[idx].endDate
       );
-      if (isSame) return prev;
-      return { ...prev, medicalAssistances: updated };
+      const filteredTours = prev.tours.filter(t =>
+        isDateWithinRange(t.date, tripDepartureDate, tripReturnDate)
+      );
+      const toursSame = filteredTours.length === prev.tours.length;
+      if (maSame && toursSame) return prev;
+      return { ...prev, medicalAssistances: updatedMA, tours: filteredTours };
     });
   }, [tripDepartureDate, tripReturnDate]);
 
@@ -198,15 +209,55 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   }, [formData.passengersADT, formData.passengersCHD, formData.passengersINF]);
 
   useEffect(() => {
-    const calculatedTotal = 
+    const calculatedTotal =
       (totalPassengersCalculated.adt * (parseFloat(formData.pricePerADT) || 0)) +
       (totalPassengersCalculated.chd * (parseFloat(formData.pricePerCHD) || 0)) +
       (totalPassengersCalculated.inf * (parseFloat(formData.pricePerINF) || 0));
     setFormData(prev => ({ ...prev, totalAmount: calculatedTotal.toFixed(2) }));
   }, [totalPassengersCalculated, formData.pricePerADT, formData.pricePerCHD, formData.pricePerINF]);
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!tripDepartureDate) {
+      newErrors.departureDate = 'La fecha de salida es obligatoria.';
+    }
+    if (formData.tripType !== 'one_way') {
+      if (!tripReturnDate) {
+        newErrors.returnDate = 'La fecha de regreso es obligatoria.';
+      } else if (new Date(tripReturnDate) <= new Date(tripDepartureDate)) {
+        newErrors.returnDate = 'La fecha de regreso debe ser posterior a la fecha de salida.';
+      }
+    }
+
+    formData.segments.forEach((seg, idx) => {
+      if (!seg.departureDate || (!seg.returnDate && formData.tripType !== 'one_way')) {
+        newErrors[`segment-${idx}`] = 'Debe indicar fechas de salida y regreso.';
+      } else if (new Date(seg.returnDate) < new Date(seg.departureDate)) {
+        newErrors[`segment-${idx}`] = 'La fecha de regreso debe ser posterior a la fecha de salida.';
+      }
+    });
+
+    const toursOutOfRange = formData.tours.some(t => !isDateWithinRange(t.date, tripDepartureDate, tripReturnDate));
+    if (toursOutOfRange) {
+      newErrors.tours = 'Los tours deben estar dentro del rango del itinerario.';
+    }
+
+    const assistOutOfRange = formData.medicalAssistances.some(ma =>
+      !isDateWithinRange(ma.startDate, tripDepartureDate, tripReturnDate) ||
+      !isDateWithinRange(ma.endDate, tripDepartureDate, tripReturnDate)
+    );
+    if (assistOutOfRange) {
+      newErrors.medicalAssistances = 'Las asistencias médicas deben coincidir con las fechas del itinerario.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+     if (!validateForm()) return;
     const totalPassengers = parseInt(formData.passengersADT) + parseInt(formData.passengersCHD) + parseInt(formData.passengersINF);
     const reservationData = {
       ...formData,
@@ -241,10 +292,14 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     const { name, value } = e.target;
     const newSegments = [...formData.segments];
     newSegments[index] = { ...newSegments[index], [name]: value };
-    
-    // Auto-set return date if departure date is set
-    if (name === 'departureDate' && !newSegments[index].returnDate) {
-      newSegments[index].returnDate = value;
+
+    // Auto-set return date if departure date changes
+    if (name === 'departureDate') {
+      if (formData.tripType === 'one_way') {
+        newSegments[index].returnDate = value;
+      } else if (!newSegments[index].returnDate) {
+        newSegments[index].returnDate = value;
+      }
     }
     setFormData(prev => ({ ...prev, segments: newSegments }));
   };
@@ -636,6 +691,9 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                           <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
                           <input type="date" name="returnDate" value={segment.returnDate} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={segment.departureDate || getTodayDate()} />
                         </div>
+                        {errors[`segment-${index}`] && (
+                          <p className="text-red-600 text-sm md:col-span-2">{errors[`segment-${index}`]}</p>
+                        )}
                       </div>
                       {formData.segments.length > 1 && (
                         <motion.button
@@ -665,20 +723,26 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Origen</label>
-                    <input type="text" name="origin" value={formData.origin} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de origen" />
+                    <input type="text" name="origin" value={formData.segments[0].origin} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de origen" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Destino</label>
-                    <input type="text" name="destination" value={formData.destination} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de destino" />
+                    <input type="text" name="destination" value={formData.segments[0].destination} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de destino" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Salida</label>
-                    <input type="date" name="departureDate" value={formData.departureDate} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={getTodayDate()} />
+                    <input type="date" name="departureDate" value={formData.segments[0].departureDate} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={getTodayDate()} />
+                    {errors.departureDate && (
+                      <p className="text-red-600 text-sm mt-1">{errors.departureDate}</p>
+                    )}
                   </div>
                   {formData.tripType === 'round_trip' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
-                      <input type="date" name="returnDate" value={formData.returnDate} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={formData.departureDate || getTodayDate()} />
+                      <input type="date" name="returnDate" value={formData.segments[0].returnDate} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={formData.segments[0].departureDate || getTodayDate()} />
+                      {errors.returnDate && (
+                        <p className="text-red-600 text-sm mt-1">{errors.returnDate}</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -925,6 +989,9 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           {showTours && (
           <CollapsibleSection title="Detalles de Tours" icon={Ticket}>
             <div className="space-y-4">
+              {errors.tours && (
+                <p className="text-red-600 text-sm">{errors.tours}</p>
+              )}
               {formData.tours.map((tour, index) => (
                 <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
                   <h4 className="text-md font-semibold text-gray-800 mb-3">Tour {index + 1}</h4>
@@ -941,7 +1008,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         value={tour.date}
                         onChange={(e) => handleTourChange(index, e)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                        min={getTodayDate()}
+                        min={tripDepartureDate}
+                        max={tripReturnDate}
                       />
                     </div>
                     <div>
@@ -980,6 +1048,9 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           {showMedical && (
           <CollapsibleSection title="Asistencias Médicas" icon={BriefcaseMedical}>
             <div className="space-y-4">
+              {errors.medicalAssistances && (
+                <p className="text-red-600 text-sm">{errors.medicalAssistances}</p>
+              )}
               {formData.medicalAssistances.map((ma, index) => (
                 <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
                   <h4 className="text-md font-semibold text-gray-800 mb-3">Asistencia Médica {index + 1}</h4>
@@ -999,7 +1070,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         value={ma.startDate}
                         onChange={(e) => handleMedicalAssistanceChange(index, e)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                        min={getTodayDate()}
+                        min={tripDepartureDate}
+                        max={tripReturnDate}
                       />
                     </div>
                     <div>
@@ -1010,7 +1082,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         value={ma.endDate}
                         onChange={(e) => handleMedicalAssistanceChange(index, e)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                        min={ma.startDate || getTodayDate()}
+                        min={ma.startDate || tripDepartureDate}
+                        max={tripReturnDate}
                       />
                     </div>
                   </div>
