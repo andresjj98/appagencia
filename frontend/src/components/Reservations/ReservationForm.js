@@ -189,12 +189,18 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         ma.startDate === prev.medicalAssistances[idx].startDate &&
         ma.endDate === prev.medicalAssistances[idx].endDate
       );
-      const filteredTours = prev.tours.filter(t =>
+      const updatedTours = prev.tours.map(t =>
         isDateWithinRange(t.date, tripDepartureDate, tripReturnDate)
+          ? t
+          : { ...t, date: tripDepartureDate }
       );
-      const toursSame = filteredTours.length === prev.tours.length;
+      const toursSame = updatedTours.every((t, idx) =>
+        t.date === prev.tours[idx].date &&
+        t.name === prev.tours[idx].name &&
+        t.cost === prev.tours[idx].cost
+      );
       if (maSame && toursSame) return prev;
-      return { ...prev, medicalAssistances: updatedMA, tours: filteredTours };
+      return { ...prev, medicalAssistances: updatedMA, tours: updatedTours };
     });
   }, [tripDepartureDate, tripReturnDate]);
 
