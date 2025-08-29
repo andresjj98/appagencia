@@ -935,7 +935,14 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
-                      <input type="date" name="date" value={tour.date} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate} max={tripReturnDate} />
+                      <input
+                        type="date"
+                        name="date"
+                        value={tour.date}
+                        onChange={(e) => handleTourChange(index, e)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        min={getTodayDate()}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Costo (€)</label>
@@ -986,11 +993,25 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio Cobertura</label>
-                      <input type="date" name="startDate" value={ma.startDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={tripDepartureDate} max={tripReturnDate} />
+                      <input
+                        type="date"
+                        name="startDate"
+                        value={ma.startDate}
+                        onChange={(e) => handleMedicalAssistanceChange(index, e)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        min={getTodayDate()}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin Cobertura</label>
-                      <input type="date" name="endDate" value={ma.endDate} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={ma.startDate || tripDepartureDate} max={tripReturnDate} />
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={ma.endDate}
+                        onChange={(e) => handleMedicalAssistanceChange(index, e)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                        min={ma.startDate || getTodayDate()}
+                      />
                     </div>
                   </div>
                   <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
