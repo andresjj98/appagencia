@@ -5,19 +5,34 @@ export const formatCurrency = (amount) => {
   }).format(amount);
 };
 
+// Parse a "YYYY-MM-DD" date string in the local timezone.
+// Returns `null` when the input is falsy or invalid.
+const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+  const parts = dateString.split('-').map(Number);
+  if (parts.length < 3) return null;
+  const [year, month, day] = parts;
+  const date = new Date(year, month - 1, day);
+  return isNaN(date.getTime()) ? null : date;
+};
+
 export const formatDate = (date) => {
+  const d = parseLocalDate(date);
+  if (!d) return '';
   return new Intl.DateTimeFormat('es-ES', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
-  }).format(new Date(date));
+ }).format(d);
 };
 
 export const formatShortDate = (date) => {
+  const d = parseLocalDate(date);
+  if (!d) return '';
   return new Intl.DateTimeFormat('es-ES', {
     month: 'short',
     day: 'numeric'
-  }).format(new Date(date));
+   }).format(d);
 };
 
 export const generateReservationId = () => {
@@ -25,8 +40,9 @@ export const generateReservationId = () => {
 };
 
 export const calculateDays = (startDate, endDate) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
+  if (!start || !end) return 0;
   const diffTime = Math.abs(end - start);
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
