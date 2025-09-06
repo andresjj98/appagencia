@@ -1,3 +1,5 @@
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -5,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('./db');
 const { hashPassword } = require('./passwordUtils');
 const { supabaseAdmin } = require('./supabase');
+
 
 dotenv.config();
 
