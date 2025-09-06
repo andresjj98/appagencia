@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { USER_ROLES } from '../utils/constants';
 import UserForm from '../components/Users/UserForm'; // Import UserForm
+import { supabase } from '../utils/supabaseClient';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -21,14 +22,37 @@ const UserManagement = () => {
   const [showUserForm, setShowUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
 
+  const mapFromSupabase = (user) => ({
+    id: user.id,
+    name: user.name,
+    lastName: user.last_name,
+    idCard: user.id_card,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    active: user.active,
+    avatar: user.avatar,
+  });
+
+  const mapToSupabase = (user) => ({
+    name: user.name,
+    last_name: user.lastName,
+    id_card: user.idCard,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    active: user.active,
+    avatar: user.avatar,
+    ...(user.password ? { password: user.password } : {}),
+  });
+
   useEffect(() => {
     const fetchUsers = async () => {
-      try {
-        const response = await fetch('http://localhost:4000/api/users');
-        const data = await response.json();
-        setUsers(data);
-      } catch (error) {
+      const { data, error } = await supabase.from('users').select('*');
+      if (error) {
         console.error('Error fetching users', error);
+      } else {
+        setUsers(data.map(mapFromSupabase));
       }
     };
     fetchUsers();
@@ -54,16 +78,11 @@ const UserManagement = () => {
 
   const handleDeleteUser = async (userToDelete) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar a ${userToDelete.name} ${userToDelete.lastName}?`)) {
-      try {
-        const response = await fetch(`http://localhost:4000/api/users/${userToDelete.id}`, {
-          method: 'DELETE',
-        });
-        if (!response.ok) {
-          throw new Error('Error al eliminar usuario');
-        }
-        setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
-      } catch (error) {
+      const { error } = await supabase.from('users').delete().eq('id', userToDelete.id);
+      if (error) {
         console.error(error);
+      } else {
+        setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
       }
     }
   };
@@ -80,38 +99,29 @@ const UserManagement = () => {
         return;
       }
 
-      try {
-        const response = await fetch(`http://localhost:4000/api/users/${userData.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(userData),
-        });
-        if (!response.ok) {
-          throw new Error('Error al actualizar usuario');
-        }
-        const updatedUser = await response.json();
-        setUsers(prevUsers => prevUsers.map(user => user.id === updatedUser.id ? updatedUser : user));
-      } catch (error) {
+      const { error } = await supabase
+        .from('users')
+        .update(mapToSupabase(userData))
+        .eq('id', userData.id);
+
+      if (error) {
         console.error(error);
+      } else {
+        setUsers(prevUsers =>
+          prevUsers.map(user => (user.id === userData.id ? { ...userData } : user))
+        );
       }
     } else {
-      try {
-        const response = await fetch('http://localhost:4000/api/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(userData),
-        });
-        if (!response.ok) {
-          throw new Error('Error al crear usuario');
-        }
-        const newUser = await response.json();
-        setUsers(prevUsers => [...prevUsers, newUser]);
-      } catch (error) {
+      const { data, error } = await supabase
+        .from('users')
+        .insert(mapToSupabase(userData))
+        .select()
+        .single();
+
+      if (error) {
         console.error(error);
+      } else {
+        setUsers(prevUsers => [...prevUsers, mapFromSupabase(data)]);
       }
     }
     setShowUserForm(false);

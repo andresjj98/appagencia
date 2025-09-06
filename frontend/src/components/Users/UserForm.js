@@ -67,7 +67,7 @@ const UserForm = ({ user = null, onSave, onClose }) => {
 
     const userData = {
       ...formData,
-      id: user?.id || String(Date.now()), 
+      ...(user ? { id: user.id } : {}),
     };
     onSave(userData);
   };
