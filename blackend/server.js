@@ -58,7 +58,8 @@ app.get('/api/users', async (req, res) => {
     const [rows] = await pool.query(
       'SELECT id, name, last_name, id_card, username, email, role, active, avatar FROM users'
     );
-    const users = rows.map((row) => ({
+
+    const mysqlUsers = rows.map((row) => ({
       id: row.id,
       name: row.name,
       lastName: row.last_name,
@@ -69,7 +70,31 @@ app.get('/api/users', async (req, res) => {
       active: row.active === 1,
       avatar: row.avatar,
     }));
-    res.json(users);
+
+    const { data: supabaseData, error: supabaseError } = await supabaseAdmin
+      .from('users')
+      .select('id, name, last_name, id_card, username, email, role, active, avatar');
+    if (supabaseError) {
+      console.error('Error al obtener usuarios de Supabase:', supabaseError);
+    }
+
+    const supabaseUsers = (supabaseData || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      lastName: row.last_name,
+      idCard: row.id_card,
+      username: row.username,
+      email: row.email,
+      role: row.role,
+      active: row.active,
+      avatar: row.avatar,
+    }));
+
+    const usersMap = new Map();
+    mysqlUsers.forEach((u) => usersMap.set(u.id, u));
+    supabaseUsers.forEach((u) => usersMap.set(u.id, u));
+
+    res.json(Array.from(usersMap.values()));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -88,9 +113,10 @@ app.post('/api/users', async (req, res) => {
       [name, lastName, idCard, username, email, role, hashedPassword, active ? 1 : 0, avatar]
     );
     const { error: supabaseError } = await supabaseAdmin
-      .from('usuarios')
+      .from('users')
       .insert([
         {
+          id: result.insertId,
           name,
           last_name: lastName,
           id_card: idCard,
@@ -161,8 +187,10 @@ app.put('/api/users/:id', async (req, res) => {
       active ? 1 : 0,
       avatar,
     ];
+
+    let hashedPassword;
     if (password) {
-      const hashedPassword = await hashPassword(password);
+      hashedPassword = await hashPassword(password);
       query += ', password = ?';
       params.push(hashedPassword);
     }
@@ -170,6 +198,28 @@ app.put('/api/users/:id', async (req, res) => {
     params.push(id);
 
     await pool.query(query, params);
+
+    const supabaseUpdate = {
+      name,
+      last_name: lastName,
+      id_card: idCard,
+      username,
+      email,
+      role,
+      active,
+      avatar,
+    };
+    if (password) {
+      supabaseUpdate.password = hashedPassword;
+    }
+
+    const { error: supabaseError } = await supabaseAdmin
+      .from('users')
+      .update(supabaseUpdate)
+      .eq('id', id);
+    if (supabaseError) {
+      console.error('Error al actualizar en Supabase:', supabaseError);
+    }
 
     res.json({ id: Number(id), name, lastName, idCard, username, email, role, active, avatar });
   } catch (error) {
@@ -185,6 +235,15 @@ app.delete('/api/users/:id', async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
+
+    const { error: supabaseError } = await supabaseAdmin
+      .from('users')
+      .delete()
+      .eq('id', id);
+    if (supabaseError) {
+      console.error('Error al eliminar en Supabase:', supabaseError);
+    }
+
     res.status(204).send();
   } catch (error) {
     console.error(error);
