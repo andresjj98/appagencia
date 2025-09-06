@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const pool = require('./db');
 const { hashPassword } = require('./passwordUtils');
-const { supabase } = require('./supabase');
+const { supabaseAdmin } = require('./supabase');
 
 dotenv.config();
 
@@ -84,7 +84,7 @@ app.post('/api/users', async (req, res) => {
       'INSERT INTO users (name, last_name, id_card, username, email, role, password, active, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [name, lastName, idCard, username, email, role, hashedPassword, active ? 1 : 0, avatar]
     );
-    const { error: supabaseError } = await supabase
+    const { error: supabaseError } = await supabaseAdmin
       .from('usuarios')
       .insert([
         {

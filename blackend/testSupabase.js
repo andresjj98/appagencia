@@ -1,8 +1,8 @@
-const { supabase } = require('./supabase');
+const { supabaseAdmin } = require('./supabase');
 
 (async () => {
-  const { data, error } = await supabase
-    .from('usuarios_public')        // o 'usuarios_public' si tienes la vista
+  const { data, error } = await supabaseAdmin
+    .from('usuarios')
     .select('*')
     .limit(1);
 
