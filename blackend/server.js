@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const pool = require('./db');
 const { hashPassword } = require('./passwordUtils');
+const { supabase } = require('./supabase');
 
 dotenv.config();
 
@@ -83,6 +84,24 @@ app.post('/api/users', async (req, res) => {
       'INSERT INTO users (name, last_name, id_card, username, email, role, password, active, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [name, lastName, idCard, username, email, role, hashedPassword, active ? 1 : 0, avatar]
     );
+    const { error: supabaseError } = await supabase
+      .from('usuarios')
+      .insert([
+        {
+          name,
+          last_name: lastName,
+          id_card: idCard,
+          username,
+          email,
+          role,
+          password: hashedPassword,
+          active,
+          avatar,
+        },
+      ]);
+    if (supabaseError) {
+      console.error('Error al insertar en Supabase:', supabaseError);
+    }
     const newUser = {
       id: result.insertId,
       name,
