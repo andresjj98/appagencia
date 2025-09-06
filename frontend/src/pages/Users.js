@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { USER_ROLES } from '../utils/constants';
 import UserForm from '../components/Users/UserForm'; // Import UserForm
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -48,6 +48,10 @@ const UserManagement = () => {
 
   useEffect(() => {
     const fetchUsers = async () => {
+      if (!supabase) {
+        console.error('Supabase client not initialized');
+        return;
+      }
       const { data, error } = await supabase.from('users').select('*');
       if (error) {
         console.error('Error fetching users', error);
@@ -77,6 +81,10 @@ const UserManagement = () => {
   };
 
   const handleDeleteUser = async (userToDelete) => {
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return;
+    }
     if (window.confirm(`¿Estás seguro de que quieres eliminar a ${userToDelete.name} ${userToDelete.lastName}?`)) {
       const { error } = await supabase.from('users').delete().eq('id', userToDelete.id);
       if (error) {
@@ -88,6 +96,10 @@ const UserManagement = () => {
   };
 
   const handleSaveUser = async (userData) => {
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return;
+    }
     if (editingUser) {
       const hasChanges = ['name','lastName','idCard','username','email','role','active','avatar'].some(
         key => userData[key] !== editingUser[key]
