@@ -19,7 +19,7 @@ import OfficeUsersForm from '../components/Offices/OfficeUsersForm';
 
 const OfficeManagement = () => {
   const [offices, setOffices] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
+  const [usersForForm, setUsersForForm] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOfficeForm, setShowOfficeForm] = useState(false);
   const [editingOffice, setEditingOffice] = useState(null);
@@ -36,17 +36,7 @@ const OfficeManagement = () => {
         console.error('Error fetching offices', error);
       }
     };
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch('http://localhost:4000/api/users');
-        const data = await response.json();
-        setAllUsers(data);
-      } catch (error) {
-        console.error('Error fetching users', error);
-      }
-    };
     fetchOffices();
-    fetchUsers();
   }, []);
 
   const filteredOffices = offices.filter(office => {
@@ -84,14 +74,29 @@ const OfficeManagement = () => {
       }
     }
   };
-const handleAssociateUsers = (office) => {
+
+  const handleAssociateUsers = async (office) => {
     setOfficeForUsers(office);
-    setShowUsersForm(true);
+    try {
+      const response = await fetch('http://localhost:4000/api/unassociated-users');
+      const unassociatedUsers = await response.json();
+      
+      const associatedUserIds = office.associatedUsers.map(u => u.id);
+      const combinedUsers = [
+        ...office.associatedUsers,
+        ...unassociatedUsers.filter(u => !associatedUserIds.includes(u.id))
+      ];
+
+      setUsersForForm(combinedUsers);
+      setShowUsersForm(true);
+    } catch (error) {
+      console.error('Error fetching unassociated users', error);
+    }
   };
 
   const handleSaveAssociation = async (userIds) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/offices/${officeForUsers.id}/users`, {
+      const response = await fetch(`http://localhost:4000/api/offices/${officeForUsers.id}/usuarios`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userIds }),
@@ -100,7 +105,7 @@ const handleAssociateUsers = (office) => {
         throw new Error('Error al asociar usuarios');
       }
       const data = await response.json();
-      setOffices(prev => prev.map(o => o.id === officeForUsers.id ? { ...o, associatedUsers: data.users } : o));
+      setOffices(prev => prev.map(o => o.id === officeForUsers.id ? { ...o, associatedUsers: data.associatedUsers } : o));
     } catch (error) {
       console.error(error);
     }
@@ -283,7 +288,7 @@ const handleAssociateUsers = (office) => {
           {showUsersForm && officeForUsers && (
           <OfficeUsersForm
             office={officeForUsers}
-            allUsers={allUsers}
+            allUsers={usersForForm}
             onSave={handleSaveAssociation}
             onClose={() => setShowUsersForm(false)}
           />

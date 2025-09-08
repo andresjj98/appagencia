@@ -7,7 +7,7 @@ import Reservations from './pages/Reservations';
 import UserManagement from './pages/Users'; 
 import OfficeManagement from './pages/Offices';
 import Settings from './pages/Settings'; 
-import ClientManagement from './pages/Clients'; 
+import Gestion from './pages/Gestion'; 
 import Notifications from './pages/Notifications'; 
 import Reports from './pages/Reports'; 
 import Analytics from './pages/Analytics'; 
@@ -39,8 +39,8 @@ const App = () => {
         return <Dashboard />;
       case 'reservations':
         return <Reservations />;
-      case 'clients':
-        return <ClientManagement />; 
+      case 'gestion':
+        return <Gestion />; 
       case 'documentation':
         return (
           <div className="p-6">
@@ -76,7 +76,7 @@ const App = () => {
     const titles = {
       dashboard: 'Dashboard',
       reservations: 'Gestión de Reservas',
-      clients: 'Gestión de Clientes',
+      gestion: 'Gestión de Reservas',
       documentation: 'Documentación',
       offices: 'Oficinas',
       finance: 'Finanzas',

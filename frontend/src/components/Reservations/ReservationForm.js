@@ -100,7 +100,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const initialTripReturnDate = initialSegments[initialSegments.length - 1]?.returnDate || initialTripDepartureDate;
 
   const [formData, setFormData] = useState({
-    invoiceNumber: reservation?.invoiceNumber || `INV-${Date.now()}`,
+    
     clientName: reservation?.clientName || '',
     clientEmail: reservation?.clientEmail || '',
     clientPhone: reservation?.clientPhone || '',
@@ -593,10 +593,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               <FileText className="w-5 h-5" />
               Información Básica de la Reserva
             </h3>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Número de Factura</label>
-              <input type="text" name="invoiceNumber" value={formData.invoiceNumber} readOnly className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" />
-            </div>
+            
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

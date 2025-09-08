@@ -22,7 +22,7 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['admin', 'manager', 'advisor'] },
     { id: 'reservations', label: 'Reservas', icon: Calendar, roles: ['admin', 'manager', 'advisor'] },
-    { id: 'clients', label: 'Clientes', icon: Users, roles: ['admin', 'manager', 'advisor'] },
+    { id: 'gestion', label: 'Gestion', icon: Users, roles: ['admin', 'manager', 'advisor'] },
     { id: 'documentation', label: 'Documentación', icon: FileText, roles: ['admin', 'manager', 'advisor'] },
     { id: 'offices', label: 'Oficinas', icon: MapPin, roles: ['admin', 'manager'] },
     { id: 'finance', label: 'Finanzas', icon: DollarSign, roles: ['admin', 'manager'] },

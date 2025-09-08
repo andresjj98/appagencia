@@ -23,7 +23,7 @@ import {
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
 
-const ClientReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
+const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedReservation, setEditedReservation] = useState(reservation);
   const [uploadMessage, setUploadMessage] = useState('');
@@ -125,7 +125,7 @@ const ClientReservationDetail = ({ reservation, onBack, onUpdateReservation }) =
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-gray-600" /> Resumen de la Reserva
           </h3>
-          <p><strong>ID Factura:</strong> {editedReservation.invoiceNumber}</p>
+          
           <p><strong>Destino:</strong> {editedReservation.destination}</p>
           <p><strong>Fechas:</strong> {formatDate(editedReservation.departureDate)} - {formatDate(editedReservation.returnDate)}</p>
           <p><strong>Pasajeros:</strong> ADT: {editedReservation.passengersADT}, CHD: {editedReservation.passengersCHD}, INF: {editedReservation.passengersINF}</p>
@@ -272,4 +272,4 @@ const ClientReservationDetail = ({ reservation, onBack, onUpdateReservation }) =
   );
 };
 
-export default ClientReservationDetail;
+export default ReservationDetail;

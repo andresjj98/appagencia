@@ -236,6 +236,37 @@ app.delete('/api/usuarios/:id', async (req, res) => {
   }
 });
 
+app.get('/api/unassociated-users', async (req, res) => {
+  try {
+    const { data: associatedUserData, error: associatedUserError } = await supabaseAdmin
+      .from('sales_point_users')
+      .select('user_id');
+
+    if (associatedUserError) {
+      throw associatedUserError;
+    }
+
+    const associatedUserIds = associatedUserData.map(u => u.user_id);
+
+    let query = supabaseAdmin.from('usuarios').select('*');
+
+    if (associatedUserIds.length > 0) {
+      query = query.not('id', 'in', `(${associatedUserIds.join(',')})`);
+    }
+    
+    const { data: unassociatedUsers, error: unassociatedUsersError } = await query;
+
+    if (unassociatedUsersError) {
+      throw unassociatedUsersError;
+    }
+
+    res.json(unassociatedUsers);
+  } catch (error) {
+    console.error('Error fetching unassociated users:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
 app.get('/api/offices', async (req, res) => {
   try {
     const { data: officesData, error } = await supabaseAdmin
