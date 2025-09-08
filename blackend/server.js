@@ -2,14 +2,8 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
-const bcrypt = require('bcryptjs');
-const pool = require('./db');
-const { hashPassword } = require('./passwordUtils');
+const { hashPassword, comparePassword } = require('./passwordUtils');
 const { supabaseAdmin } = require('./supabase');
-
-
-dotenv.config();
 
 const app = express();
 app.use(cors());
@@ -22,29 +16,39 @@ app.post('/api/login', async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.query(
-      'SELECT name, last_name, id_card, username, email, role, password, active, avatar FROM users WHERE email = ?',
-      [email]
-    );
+    const { data: user, error } = await supabaseAdmin
+      .from('usuarios')
+      .select('id, name, last_name, id_card, username, email, role, password, active, avatar')
+      .eq('email', email)
+      .single();
 
-    if (rows.length === 0) {
+    if (error || !user) {
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user from Supabase:', error);
+        return res.status(500).json({ message: 'Error del servidor' });
+      }
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    const user = rows[0];
-    let match;
-    try {
-      match = await bcrypt.compare(password, user.password);
-    } catch {
-      match = password === user.password;
-    }
+    const match = await comparePassword(password, user.password);
 
     if (!match) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
     delete user.password;
-    res.json({ user });
+    const userResponse = {
+      id: user.id,
+      name: user.name,
+      lastName: user.last_name,
+      idCard: user.id_card,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+      avatar: user.avatar,
+    };
+    res.json({ user: userResponse });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -53,32 +57,17 @@ app.post('/api/login', async (req, res) => {
 
 
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/usuarios', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, name, last_name, id_card, username, email, role, active, avatar FROM users'
-    );
-
-    const mysqlUsers = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      lastName: row.last_name,
-      idCard: row.id_card,
-      username: row.username,
-      email: row.email,
-      role: row.role,
-      active: row.active === 1,
-      avatar: row.avatar,
-    }));
-
     const { data: supabaseData, error: supabaseError } = await supabaseAdmin
-      .from('users')
+      .from('usuarios')
       .select('id, name, last_name, id_card, username, email, role, active, avatar');
     if (supabaseError) {
       console.error('Error al obtener usuarios de Supabase:', supabaseError);
+      return res.status(500).json({ message: 'Error del servidor' });
     }
 
-    const supabaseUsers = (supabaseData || []).map((row) => ({
+    const usuarios = (supabaseData || []).map((row) => ({
       id: row.id,
       name: row.name,
       lastName: row.last_name,
@@ -90,33 +79,23 @@ app.get('/api/users', async (req, res) => {
       avatar: row.avatar,
     }));
 
-    const usersMap = new Map();
-    mysqlUsers.forEach((u) => usersMap.set(u.id, u));
-    supabaseUsers.forEach((u) => usersMap.set(u.id, u));
-
-    res.json(Array.from(usersMap.values()));
+    res.json(usuarios);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
-app.post('/api/users', async (req, res) => {
+app.post('/api/usuarios', async (req, res) => {
   const { name, lastName, idCard, username, email, role, password, active, avatar } = req.body;
   if (!name || !lastName || !idCard || !username || !email || !role || !password) {
     return res.status(400).json({ message: 'Faltan datos del usuario' });
   }
   try {
     const hashedPassword = await hashPassword(password);
-    const [result] = await pool.query(
-      'INSERT INTO users (name, last_name, id_card, username, email, role, password, active, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, lastName, idCard, username, email, role, hashedPassword, active ? 1 : 0, avatar]
-    );
-    const { error: supabaseError } = await supabaseAdmin
-      .from('users')
-      .insert([
-        {
-          id: result.insertId,
+    const { data, error: supabaseError } = await supabaseAdmin
+      .from('usuarios')
+      .insert({
           name,
           last_name: lastName,
           id_card: idCard,
@@ -126,21 +105,27 @@ app.post('/api/users', async (req, res) => {
           password: hashedPassword,
           active,
           avatar,
-        },
-      ]);
+        })
+      .select('id, name, last_name, id_card, username, email, role, active, avatar')
+      .single();
+
     if (supabaseError) {
       console.error('Error al insertar en Supabase:', supabaseError);
+      if (supabaseError.code === '23505') {
+        return res.status(409).json({ message: 'El email o nombre de usuario ya existe.' });
+      }
+      return res.status(500).json({ message: 'Error del servidor' });
     }
     const newUser = {
-      id: result.insertId,
-      name,
-      lastName,
-      idCard,
-      username,
-      email,
-      role,
-      active,
-      avatar,
+      id: data.id,
+      name: data.name,
+      lastName: data.last_name,
+      idCard: data.id_card,
+      username: data.username,
+      email: data.email,
+      role: data.role,
+      active: data.active,
+      avatar: data.avatar,
     };
     res.status(201).json(newUser);
   } catch (error) {
@@ -149,55 +134,37 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/usuarios/:id', async (req, res) => {
   const { id } = req.params;
   const { name, lastName, idCard, username, email, role, password, active, avatar } = req.body;
   try {
-    const [existingRows] = await pool.query(
-      'SELECT name, last_name, id_card, username, email, role, active, avatar FROM users WHERE id = ?',
-      [id]
-    );
-    if (existingRows.length === 0) {
+    const { data: existingUser, error: fetchError } = await supabaseAdmin
+      .from('usuarios')
+      .select('name, last_name, id_card, username, email, role, active, avatar')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingUser) {
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching user from Supabase:', fetchError);
+        return res.status(500).json({ message: 'Error del servidor' });
+      }
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-    const existing = existingRows[0];
+
     if (
-      existing.name === name &&
-      existing.last_name === lastName &&
-      existing.id_card === idCard &&
-      existing.username === username &&
-      existing.email === email &&
-      existing.role === role &&
-      existing.active === (active ? 1 : 0) &&
-      existing.avatar === avatar &&
+      existingUser.name === name &&
+      existingUser.last_name === lastName &&
+      existingUser.id_card === idCard &&
+      existingUser.username === username &&
+      existingUser.email === email &&
+      existingUser.role === role &&
+      existingUser.active === active &&
+      existingUser.avatar === avatar &&
       !password
     ) {
       return res.status(400).json({ message: 'No hay cambios para actualizar' });
     }
-
-    let query =
-      'UPDATE users SET name = ?, last_name = ?, id_card = ?, username = ?, email = ?, role = ?, active = ?, avatar = ?';
-    const params = [
-      name,
-      lastName,
-      idCard,
-      username,
-      email,
-      role,
-      active ? 1 : 0,
-      avatar,
-    ];
-
-    let hashedPassword;
-    if (password) {
-      hashedPassword = await hashPassword(password);
-      query += ', password = ?';
-      params.push(hashedPassword);
-    }
-    query += ' WHERE id = ?';
-    params.push(id);
-
-    await pool.query(query, params);
 
     const supabaseUpdate = {
       name,
@@ -210,40 +177,58 @@ app.put('/api/users/:id', async (req, res) => {
       avatar,
     };
     if (password) {
-      supabaseUpdate.password = hashedPassword;
+      supabaseUpdate.password = await hashPassword(password);
     }
 
-    const { error: supabaseError } = await supabaseAdmin
-      .from('users')
+    const { data, error: supabaseError } = await supabaseAdmin
+      .from('usuarios')
       .update(supabaseUpdate)
-      .eq('id', id);
+      .eq('id', id)
+      .select('id, name, last_name, id_card, username, email, role, active, avatar')
+      .single();
+
     if (supabaseError) {
       console.error('Error al actualizar en Supabase:', supabaseError);
+      if (supabaseError.code === '23505') {
+        return res.status(409).json({ message: 'El email o nombre de usuario ya existe.' });
+      }
+      return res.status(500).json({ message: 'Error del servidor' });
     }
 
-    res.json({ id: Number(id), name, lastName, idCard, username, email, role, active, avatar });
+    res.json({
+      id: data.id,
+      name: data.name,
+      lastName: data.last_name,
+      idCard: data.id_card,
+      username: data.username,
+      email: data.email,
+      role: data.role,
+      active: data.active,
+      avatar: data.avatar,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/usuarios/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await pool.query('DELETE FROM users WHERE id = ?', [id]);
-    if (result.affectedRows === 0) {
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .delete()
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('Error al eliminar en Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    if (!data || data.length === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-
-    const { error: supabaseError } = await supabaseAdmin
-      .from('users')
-      .delete()
-      .eq('id', id);
-    if (supabaseError) {
-      console.error('Error al eliminar en Supabase:', supabaseError);
-    }
-
     res.status(204).send();
   } catch (error) {
     console.error(error);
@@ -253,40 +238,33 @@ app.delete('/api/users/:id', async (req, res) => {
 
 app.get('/api/offices', async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT o.id, o.name, o.address, o.phone, o.email, o.manager, o.active,
-             u.id AS user_id, u.name AS user_name, u.last_name AS user_last_name,
-             u.email AS user_email, u.avatar AS user_avatar
-      FROM offices o
-      LEFT JOIN sales_point_users spu ON o.id = spu.office_id
-      LEFT JOIN users u ON spu.user_id = u.id
-    `);
+    const { data: officesData, error } = await supabaseAdmin
+      .from('offices')
+      .select('*, sales_point_users(usuarios(id, name, last_name, email, avatar))');
 
-    const officesMap = new Map();
-    for (const row of rows) {
-      if (!officesMap.has(row.id)) {
-        officesMap.set(row.id, {
-          id: row.id,
-          name: row.name,
-          address: row.address,
-          phone: row.phone,
-          email: row.email,
-          manager: row.manager,
-          active: row.active === 1,
-          associatedUsers: [],
-        });
-      }
-      if (row.user_id) {
-        officesMap.get(row.id).associatedUsers.push({
-          id: row.user_id,
-          name: row.user_name,
-          lastName: row.user_last_name,
-          email: row.user_email,
-          avatar: row.user_avatar,
-        });
-      }
+    if (error) {
+      console.error('Error al obtener oficinas de Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
     }
-    res.json(Array.from(officesMap.values()));
+
+    const offices = officesData.map((office) => ({
+      id: office.id,
+      name: office.name,
+      address: office.address,
+      phone: office.phone,
+      email: office.email,
+      manager: office.manager,
+      active: office.active,
+      associatedUsers: office.sales_point_users.map((spu) => ({
+        id: spu.usuarios.id,
+        name: spu.usuarios.name,
+        lastName: spu.usuarios.last_name,
+        email: spu.usuarios.email,
+        avatar: spu.usuarios.avatar,
+      })),
+    }));
+
+    res.json(offices);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -299,20 +277,18 @@ app.post('/api/offices', async (req, res) => {
     return res.status(400).json({ message: 'Faltan datos de la oficina' });
   }
   try {
-    const [result] = await pool.query(
-      'INSERT INTO offices (name, address, phone, email, manager, active) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, address, phone, email, manager, active ? 1 : 0]
-    );
-    const newOffice = {
-      id: result.insertId,
-      name,
-      address,
-      phone,
-      email,
-      manager,
-      active,
-    };
-    res.status(201).json(newOffice);
+    const { data, error } = await supabaseAdmin
+      .from('offices')
+      .insert({ name, address, phone, email, manager, active })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error al insertar oficina en Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    res.status(201).json(data);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -323,31 +299,45 @@ app.put('/api/offices/:id', async (req, res) => {
   const { id } = req.params;
   const { name, address, phone, email, manager, active } = req.body;
   try {
-    const [existingRows] = await pool.query(
-      'SELECT name, address, phone, email, manager, active FROM offices WHERE id = ?',
-      [id]
-    );
-    if (existingRows.length === 0) {
+    const { data: existingOffice, error: fetchError } = await supabaseAdmin
+      .from('offices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching office from Supabase:', fetchError);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+    
+    if (!existingOffice) {
       return res.status(404).json({ message: 'Oficina no encontrada' });
     }
-    const existing = existingRows[0];
+
     if (
-      existing.name === name &&
-      existing.address === address &&
-      existing.phone === phone &&
-      existing.email === email &&
-      existing.manager === manager &&
-      existing.active === (active ? 1 : 0)
+      existingOffice.name === name &&
+      existingOffice.address === address &&
+      existingOffice.phone === phone &&
+      existingOffice.email === email &&
+      existingOffice.manager === manager &&
+      existingOffice.active === active
     ) {
       return res.status(400).json({ message: 'No hay cambios para actualizar' });
     }
 
-    await pool.query(
-      'UPDATE offices SET name = ?, address = ?, phone = ?, email = ?, manager = ?, active = ? WHERE id = ?',
-      [name, address, phone, email, manager, active ? 1 : 0, id]
-    );
+    const { data, error } = await supabaseAdmin
+      .from('offices')
+      .update({ name, address, phone, email, manager, active })
+      .eq('id', id)
+      .select()
+      .single();
 
-    res.json({ id: Number(id), name, address, phone, email, manager, active });
+    if (error) {
+      console.error('Error al actualizar oficina en Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    res.json(data);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -357,10 +347,21 @@ app.put('/api/offices/:id', async (req, res) => {
 app.delete('/api/offices/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await pool.query('DELETE FROM offices WHERE id = ?', [id]);
-    if (result.affectedRows === 0) {
+    const { data, error } = await supabaseAdmin
+      .from('offices')
+      .delete()
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('Error al eliminar oficina en Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    if (!data || data.length === 0) {
       return res.status(404).json({ message: 'Oficina no encontrada' });
     }
+    
     res.status(204).send();
   } catch (error) {
     console.error(error);
@@ -368,32 +369,52 @@ app.delete('/api/offices/:id', async (req, res) => {
   }
 });
 
-app.put('/api/offices/:id/users', async (req, res) => {
+app.put('/api/offices/:id/usuarios', async (req, res) => {
   const { id } = req.params;
   const { userIds } = req.body;
   if (!Array.isArray(userIds)) {
     return res.status(400).json({ message: 'userIds debe ser un arreglo' });
   }
   try {
-    await pool.query('DELETE FROM sales_point_users WHERE office_id = ?', [id]);
+    // Eliminar asociaciones existentes
+    const { error: deleteError } = await supabaseAdmin
+      .from('sales_point_users')
+      .delete()
+      .eq('office_id', id);
+
+    if (deleteError) throw deleteError;
+
+    // Insertar nuevas asociaciones si las hay
     if (userIds.length > 0) {
-      const values = userIds.map((userId) => [id, userId]);
-      await pool.query('INSERT INTO sales_point_users (office_id, user_id) VALUES ?', [values]);
+      const newAssociations = userIds.map((userId) => ({
+        office_id: id,
+        user_id: userId,
+      }));
+      const { error: insertError } = await supabaseAdmin
+        .from('sales_point_users')
+        .insert(newAssociations);
+
+      if (insertError) throw insertError;
     }
-    const [rows] = await pool.query(
-      'SELECT u.id, u.name, u.last_name, u.email, u.avatar FROM users u JOIN sales_point_users spu ON u.id = spu.user_id WHERE spu.office_id = ?',
-      [id]
-    );
-    const users = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      lastName: row.last_name,
-      email: row.email,
-      avatar: row.avatar,
+
+    // Obtener la lista actualizada de usuarios asociados
+    const { data: usersData, error: usersError } = await supabaseAdmin
+      .from('sales_point_users')
+      .select('usuarios(id, name, last_name, email, avatar)')
+      .eq('office_id', id);
+
+    if (usersError) throw usersError;
+
+    const users = usersData.map((item) => ({
+      id: item.usuarios.id,
+      name: item.usuarios.name,
+      lastName: item.usuarios.last_name,
+      email: item.usuarios.email,
+      avatar: item.usuarios.avatar,
     }));
-    res.json({ officeId: Number(id), users });
+    res.json({ officeId: id, associatedUsers: users });
   } catch (error) {
-    console.error(error);
+    console.error('Error al actualizar usuarios de oficina en Supabase:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });

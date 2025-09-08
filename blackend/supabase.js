@@ -1,3 +1,6 @@
+// Primero, carga las variables de entorno del archivo .env
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
 console.log('[ENV CHECK]', {
   url: process.env.SUPABASE_URL,
   anonLen: process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY.length,
@@ -5,7 +8,6 @@ console.log('[ENV CHECK]', {
 });
 
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -15,7 +17,6 @@ const supabase = createClient(
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE,
-
   {
     auth: {
       autoRefreshToken: false,
