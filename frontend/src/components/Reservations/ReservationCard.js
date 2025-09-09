@@ -87,7 +87,7 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
         <MapPin className="w-5 h-5 text-blue-600" />
         <div>
           <p className="font-semibold text-gray-900">{reservation.destination}</p>
-          <p className="text-sm text-gray-600">{tripDays} días de viaje</p>
+          <p className="text-sm text-gray-600">{tripDays > 0 ? `${tripDays} días de viaje` : 'Fechas no disponibles'}</p>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
           <div>
             <p className="text-xs text-gray-500">Salida</p>
             <p className="text-sm font-medium text-gray-900">
-              {formatDate(reservation.departureDate)}
+              {formatDate(reservation.departureDate) || 'Sin fecha'}
             </p>
           </div>
         </div>
@@ -107,7 +107,7 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
           <div>
             <p className="text-xs text-gray-500">Regreso</p>
             <p className="text-sm font-medium text-gray-900">
-              {formatDate(reservation.returnDate)}
+              {formatDate(reservation.returnDate) || 'Sin fecha'}
             </p>
           </div>
         </div>

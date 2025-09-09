@@ -470,7 +470,33 @@ app.get('/api/reservations', async (req, res) => {
       return res.status(500).json({ message: 'Server error' });
     }
 
-    res.json(data);
+    const transformedData = data.map(reservation => {
+      const mainSegment = reservation.reservation_segments && reservation.reservation_segments.length > 0
+        ? reservation.reservation_segments[0]
+        : null;
+
+      return {
+        ...reservation,
+        clientName: reservation.clients?.name,
+        clientId: reservation.clients?.id_card,
+        clientEmail: reservation.clients?.email,
+        clientPhone: reservation.clients?.phone,
+        clientAddress: reservation.clients?.address,
+        emergencyContact: {
+          name: reservation.clients?.emergency_contact_name,
+          phone: reservation.clients?.emergency_contact_phone,
+        },
+        departureDate: mainSegment?.departure_date,
+        returnDate: mainSegment?.return_date,
+        // Assuming destination is part of the main reservation object or can be derived
+        // For now, let's assume it's directly on the reservation object or needs to be added
+        // destination: reservation.destination, // Add this if 'destination' exists in 'reservations' table
+        // passengers: calculate total passengers if needed, otherwise use existing field
+        // advisorName: reservation.advisorName, // Add this if 'advisorName' exists in 'reservations' table
+      };
+    });
+
+    res.json(transformedData);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -504,7 +530,26 @@ app.get('/api/reservations/:id', async (req, res) => {
       return res.status(404).json({ message: 'Reservation not found' });
     }
 
-    res.json(data);
+    const transformedData = {
+      ...data,
+      clientName: data.clients?.name,
+      clientId: data.clients?.id_card,
+      clientEmail: data.clients?.email,
+      clientPhone: data.clients?.phone,
+      clientAddress: data.clients?.address,
+      emergencyContact: {
+        name: data.clients?.emergency_contact_name,
+        phone: data.clients?.emergency_contact_phone,
+      },
+      departureDate: data.reservation_segments && data.reservation_segments.length > 0
+        ? data.reservation_segments[0].departure_date
+        : null,
+      returnDate: data.reservation_segments && data.reservation_segments.length > 0
+        ? data.reservation_segments[0].return_date
+        : null,
+    };
+
+    res.json(transformedData);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
