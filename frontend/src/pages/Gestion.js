@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -16,26 +16,19 @@ import {
   Euro, // Import Euro
   Users // Import Users
 } from 'lucide-react';
-import { formatCurrency, formatDate, generateReservationId } from '../utils/helpers';
-import { RESERVATION_STATUS, PAYMENT_STATUS } from '../utils/constants';
-import ReservationDetail from '../components/Reservations/ReservationDetail'; 
+import { formatCurrency, formatDate } from '../utils/helpers';
+import { RESERVATION_STATUS } from '../utils/constants';
+import ReservationDetail from '../components/Reservations/ReservationDetail';
+import mockReservations from '../mock/reservations';
 
 const Gestion = () => {
-  const [reservations, setReservations] = useState([]);
-
-  useEffect(() => {
-    const fetchReservations = async () => {
-        try {
-            const response = await fetch('http://localhost:4000/api/reservations');
-            const data = await response.json();
-            setReservations(data);
-        } catch (error) {
-            console.error('Error fetching reservations:', error);
-        }
-    };
-
-    fetchReservations();
-  }, []);
+  const [reservations, setReservations] = useState(mockReservations);
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState(() => {
+    const maxInvoice = mockReservations
+      .filter(r => r.invoiceNumber)
+      .reduce((max, r) => Math.max(max, r.invoiceNumber), 1000);
+    return maxInvoice + 1;
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
 
@@ -43,10 +36,21 @@ const Gestion = () => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const clientName = reservation.clientName || '';
     const destination = reservation.destination || '';
+    const invoice = reservation.invoiceNumber ? reservation.invoiceNumber.toString() : '';
     return (
       clientName.toLowerCase().includes(lowerCaseSearchTerm) ||
-      destination.toLowerCase().includes(lowerCaseSearchTerm)
+      destination.toLowerCase().includes(lowerCaseSearchTerm) ||
+      invoice.includes(lowerCaseSearchTerm)
     );
+  });
+
+  const sortedReservations = [...filteredReservations].sort((a, b) => {
+    if (a.status === b.status) {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    }
+    if (a.status === 'pending') return -1;
+    if (b.status === 'pending') return 1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
   const handleViewReservationDetail = (reservation) => {
@@ -57,68 +61,39 @@ const Gestion = () => {
     setSelectedReservation(null);
   };
 
-  const handleApprove = async (reservationId) => {
-    try {
-        const reservationToUpdate = reservations.find(res => res.id === reservationId);
-        const updatedReservationData = { ...reservationToUpdate, status: 'confirmed', id: generateReservationId(), voucherNumber: `VOU-${Date.now()}` };
-        
-        const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedReservationData),
-        });
-        const data = await response.json();
-        const updatedReservations = reservations.map(res =>
-            res.id === reservationId ? data : res
-        );
-        setReservations(updatedReservations);
-    } catch (error) {
-        console.error('Error approving reservation:', error);
-    }
+  const handleApprove = (reservationId) => {
+    setReservations(prev =>
+      prev.map(res => {
+        if (res.id === reservationId) {
+          const invoice = nextInvoiceNumber;
+          setNextInvoiceNumber(n => n + 1);
+          console.log(`Notificación al asesor ${res.advisorName}: Reserva aprobada con factura ${invoice}`);
+          return { ...res, status: 'confirmed', invoiceNumber: invoice };
+        }
+        return res;
+      })
+    );
   };
 
-  const handleReject = async (reservationId) => {
-    try {
-        const reservationToUpdate = reservations.find(res => res.id === reservationId);
-        const updatedReservationData = { ...reservationToUpdate, status: 'rejected' };
-
-        const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedReservationData),
-        });
-        const data = await response.json();
-        const updatedReservations = reservations.map(res =>
-            res.id === reservationId ? data : res
-        );
-        setReservations(updatedReservations);
-    } catch (error) {
-        console.error('Error rejecting reservation:', error);
-    }
+  const handleReject = (reservationId) => {
+    const reason = prompt('Motivo de rechazo:');
+    if (!reason) return;
+    setReservations(prev =>
+      prev.map(res => {
+        if (res.id === reservationId) {
+          console.log(`Notificación al asesor ${res.advisorName}: Reserva rechazada - ${reason}`);
+          return { ...res, status: 'rejected', rejectionReason: reason };
+        }
+        return res;
+      })
+    );
   };
 
-  const handleUpdateReservation = async (updatedReservation) => {
-    try {
-        const response = await fetch(`http://localhost:4000/api/reservations/${updatedReservation.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedReservation),
-        });
-        const data = await response.json();
-        const updatedReservations = reservations.map(res =>
-            res.id === updatedReservation.id ? data : res
-        );
-        setReservations(updatedReservations);
-        setSelectedReservation(data);
-    } catch (error) {
-        console.error('Error updating reservation:', error);
-    }
+  const handleUpdateReservation = (updatedReservation) => {
+    setReservations(prev =>
+      prev.map(res => (res.id === updatedReservation.id ? updatedReservation : res))
+    );
+    setSelectedReservation(updatedReservation);
   };
 
   return (
@@ -146,8 +121,8 @@ const Gestion = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
-              {filteredReservations.length > 0 ? (
-                filteredReservations.map((reservation, index) => (
+              {sortedReservations.length > 0 ? (
+                sortedReservations.map((reservation, index) => (
                   <motion.div
                     key={reservation.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -159,7 +134,12 @@ const Gestion = () => {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-bold text-gray-900">{reservation.destination}</h3>
-                        <p className="text-sm text-gray-500">ID: {reservation.id}</p>
+                        {reservation.invoiceNumber && (
+                          <p className="text-sm text-gray-500">Factura: {reservation.invoiceNumber}</p>
+                        )}
+                        {!reservation.invoiceNumber && (
+                          <p className="text-sm text-gray-500">ID: {reservation.id}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${RESERVATION_STATUS[reservation.status]?.bgColor} ${RESERVATION_STATUS[reservation.status]?.textColor}`}>
@@ -179,22 +159,26 @@ const Gestion = () => {
                       </p>
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-4">
-                      <motion.button
-                        onClick={() => handleApprove(reservation.id)}
-                        className="px-3 py-1 bg-green-500 text-white rounded-lg text-xs"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Aprobar
-                      </motion.button>
-                      <motion.button
-                        onClick={() => handleReject(reservation.id)}
-                        className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Rechazar
-                      </motion.button>
+                      {reservation.status === 'pending' && (
+                        <>
+                          <motion.button
+                            onClick={() => handleApprove(reservation.id)}
+                            className="px-3 py-1 bg-green-500 text-white rounded-lg text-xs"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            Aprobar
+                          </motion.button>
+                          <motion.button
+                            onClick={() => handleReject(reservation.id)}
+                            className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            Rechazar
+                          </motion.button>
+                        </>
+                      )}
                       <motion.button
                         onClick={() => handleViewReservationDetail(reservation)}
                         className="px-3 py-1 bg-blue-500 text-white rounded-lg text-xs"

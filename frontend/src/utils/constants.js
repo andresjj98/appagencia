@@ -1,6 +1,7 @@
 export const RESERVATION_STATUS = {
   pending: { label: 'Pendiente', color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-800' },
   confirmed: { label: 'Confirmada', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-800' },
+  rejected: { label: 'Rechazada', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-800' },
   cancelled: { label: 'Cancelada', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-800' },
   completed: { label: 'Completada', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-800' }
 };
