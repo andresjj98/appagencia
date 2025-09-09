@@ -25,10 +25,50 @@ const Reservations = () => {
   const [sortBy, setSortBy] = useState('date');
   const [isLoading, setIsLoading] = useState(true);
 
+  const transformReservationForDetails = (res) => {
+    if (!res) return null;
+
+    return {
+      clientName: res.clients?.name || '',
+      clientId: res.clients?.id_card || '',
+      clientEmail: res.clients?.email || '',
+      clientPhone: res.clients?.phone || '',
+      clientAddress: res.clients?.address || '',
+      emergencyContact: {
+        name: res.clients?.emergency_contact_name || '',
+        phone: res.clients?.emergency_contact_phone || ''
+      },
+      segments: (res.reservation_segments || []).map(seg => ({
+        origin: seg.origin,
+        destination: seg.destination,
+        departureDate: seg.departure_date,
+        returnDate: seg.return_date
+      })),
+      passengersADT: res.passengers_adt || 0,
+      passengersCHD: res.passengers_chd || 0,
+      passengersINF: res.passengers_inf || 0,
+      flights: res.reservation_flights || [],
+      hotels: res.reservation_hotels || [],
+      tours: res.reservation_tours || [],
+      medicalAssistances: res.reservation_medical_assistances || [],
+      pricePerADT: res.price_per_adt,
+      pricePerCHD: res.price_per_chd,
+      pricePerINF: res.price_per_inf,
+      totalAmount: res.total_amount,
+      paymentOption: res.payment_option,
+      installments: (res.installments || []).map(inst => ({
+        amount: inst.amount,
+        dueDate: inst.due_date
+      })),
+      notes: res.notes
+    };
+  };
+
   const handleViewReservationDetails = useCallback((reservation) => {
-    setSelectedReservationForDetails(reservation._original);
+    const detailedReservation = transformReservationForDetails(reservation._original);
+    setSelectedReservationForDetails(detailedReservation);
     setShowDetailsModal(true);
-  }, []);
+  }, [transformReservationForDetails]);
 
   const transformReservationData = (apiData) => {
     return apiData.map(res => {
@@ -261,7 +301,7 @@ const Reservations = () => {
                   index={index}
                   onEdit={handleEditReservation}
                   onDelete={handleDeleteReservation}
-                  onView={(reservation) => console.log('Ver reserva:', reservation)}
+                  onView={handleViewReservationDetails}
                 />
               ))}
             </AnimatePresence>
@@ -314,6 +354,19 @@ const Reservations = () => {
               reservation={reservationToConfirm}
               onConfirm={handleConfirmReservation}
               onCancel={handleCancelSummary}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Reservation Details Modal */}
+        <AnimatePresence>
+          {showDetailsModal && selectedReservationForDetails && (
+            <ReservationSummary
+              reservation={selectedReservationForDetails}
+              onClose={() => {
+                setShowDetailsModal(false);
+                setSelectedReservationForDetails(null);
+              }}
             />
           )}
         </AnimatePresence>
