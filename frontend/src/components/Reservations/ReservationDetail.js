@@ -29,8 +29,19 @@ const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
   const [uploadMessage, setUploadMessage] = useState('');
   const [requestDocMessage, setRequestDocMessage] = useState('');
 
-  const statusConfig = RESERVATION_STATUS[editedReservation.status];
-  const paymentConfig = PAYMENT_STATUS[editedReservation.paymentStatus];
+  // Provide safe fallbacks in case status or paymentStatus are undefined
+  const statusConfig =
+    RESERVATION_STATUS[editedReservation?.status] || {
+      label: editedReservation?.status || 'Sin estado',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-800'
+    };
+  const paymentConfig =
+    PAYMENT_STATUS[editedReservation?.paymentStatus] || {
+      label: editedReservation?.paymentStatus || 'Sin estado',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-800'
+    };
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
