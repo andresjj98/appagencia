@@ -617,16 +617,16 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 <input type="text" name="clientName" value={formData.clientName} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre del titular" />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Identificación del Titular</label>
+                <input type="text" name="clientId" value={formData.clientId} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="DNI / Pasaporte" />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email del Titular</label>
                 <input type="email" name="clientEmail" value={formData.clientEmail} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="email@ejemplo.com" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono del Titular</label>
                 <input type="tel" name="clientPhone" value={formData.clientPhone} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="+34 600 000 000" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Identificación del Titular</label>
-                <input type="text" name="clientId" value={formData.clientId} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="DNI / Pasaporte" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Dirección del Titular</label>

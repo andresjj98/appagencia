@@ -17,11 +17,18 @@ const Reservations = () => {
   const [editingReservation, setEditingReservation] = useState(null);
   const [newlyCreatedReservation, setNewlyCreatedReservation] = useState(null);
   const [selectedReservationType, setSelectedReservationType] = useState(null);
-  const [reservationToConfirm, setReservationToConfirm] = useState(null);
+  const [reservationToConfirm, setReservationToConfirm] = useState(false); // Changed to boolean
   const [showSummary, setShowSummary] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false); // New state
+  const [selectedReservationForDetails, setSelectedReservationForDetails] = useState(null); // New state
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleViewReservationDetails = useCallback((reservation) => {
+    setSelectedReservationForDetails(reservation._original);
+    setShowDetailsModal(true);
+  }, []);
 
   const transformReservationData = (apiData) => {
     return apiData.map(res => {
