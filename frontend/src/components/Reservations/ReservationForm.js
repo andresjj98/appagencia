@@ -36,7 +36,7 @@ import {
   Clock, 
   Hash 
 } from 'lucide-react';
-import { generateReservationId, formatCurrency } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
 
 // Helper to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -95,36 +95,37 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
   const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
 
-  const initialSegments = reservation?.segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }];
+  const initialSegments = reservation?.reservation_segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }];
   const initialTripDepartureDate = initialSegments[0]?.departureDate || getTodayDate();
   const initialTripReturnDate = initialSegments[initialSegments.length - 1]?.returnDate || initialTripDepartureDate;
 
   const [formData, setFormData] = useState({
-    
-    clientName: reservation?.clientName || '',
-    clientEmail: reservation?.clientEmail || '',
-    clientPhone: reservation?.clientPhone || '',
-    clientId: reservation?.clientId || '',
-    clientAddress: reservation?.clientAddress || '',
-    emergencyContact: reservation?.emergencyContact || { name: '', phone: '' },
+    clientName: reservation?.clients?.name || '',
+    clientEmail: reservation?.clients?.email || '',
+    clientPhone: reservation?.clients?.phone || '',
+    clientId: reservation?.clients?.id_card || '',
+    clientAddress: reservation?.clients?.address || '',
+    emergencyContact: {
+        name: reservation?.clients?.emergency_contact_name || '',
+        phone: reservation?.clients?.emergency_contact_phone || ''
+    },
     tripType: reservation?.tripType || 'round_trip',
-    segments: initialSegments,
-    passengersADT: reservation?.passengersADT || 1,
-    passengersCHD: reservation?.passengersCHD || 0,
-    passengersINF: reservation?.passengersINF || 0,
-    pricePerADT: reservation?.pricePerADT || 0,
-    pricePerCHD: reservation?.pricePerCHD || 0,
-    pricePerINF: reservation?.pricePerINF || 0,
-    totalAmount: reservation?.totalAmount || 0,
-    paymentOption: reservation?.paymentOption || 'full_payment',
-    installments: reservation?.installments || [{ amount: 0, dueDate: getTodayDate() }],
-    installmentsCount: reservation?.installmentsCount || 1,
+    segments: reservation?.reservation_segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
+    passengersADT: reservation?.passengers_adt || 1,
+    passengersCHD: reservation?.passengers_chd || 0,
+    passengersINF: reservation?.passengers_inf || 0,
+    pricePerADT: reservation?.price_per_adt || 0,
+    pricePerCHD: reservation?.price_per_chd || 0,
+    pricePerINF: reservation?.price_per_inf || 0,
+    totalAmount: reservation?.total_amount || 0,
+    paymentOption: reservation?.payment_option || 'full_payment',
+    installments: reservation?.reservation_installments || [{ amount: 0, dueDate: getTodayDate() }],
+    installmentsCount: reservation?.reservation_installments?.length || 1,
     status: reservation?.status || 'pending',
-    notes: reservation?.notes || '',
     notes: reservation?.notes || '',
 
     // Structured data for sections
-    flights: reservation?.flights || (
+    flights: reservation?.reservation_flights || (
       showFlights
         ? [{
             airline: '',
@@ -137,7 +138,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           }]
         : []
     ),
-    hotels: reservation?.hotels || (
+    hotels: reservation?.reservation_hotels || (
       showHotels
         ? [{
             name: '',
@@ -148,12 +149,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           }]
         : []
     ),
-    tours: reservation?.tours || (
+    tours: reservation?.reservation_tours || (
       showTours
         ? [{ name: '', date: initialTripDepartureDate, cost: 0 }]
         : []
     ),
-    medicalAssistances: reservation?.medicalAssistances || (
+    medicalAssistances: reservation?.reservation_medical_assistances || (
       showMedical
         ? [{ planType: 'traditional_tourism', startDate: initialTripDepartureDate, endDate: initialTripReturnDate }]
         : []
@@ -264,19 +265,34 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   const handleSubmit = (e) => {
     e.preventDefault();
-     if (!validateForm()) return;
-    const totalPassengers = parseInt(formData.passengersADT) + parseInt(formData.passengersCHD) + parseInt(formData.passengersINF);
-    const reservationData = {
-      ...formData,
-      reservationType,
-      id: reservation?.id || generateReservationId(),
-      totalAmount: parseFloat(formData.totalAmount),
-      passengers: totalPassengers,
-      createdAt: reservation?.createdAt || new Date(),
-      advisorId: '2',
-      advisorName: 'Carlos Mendoza' 
+    if (!validateForm()) return;
+
+    const reservationDataForApi = {
+        clientName: formData.clientName,
+        clientEmail: formData.clientEmail,
+        clientPhone: formData.clientPhone,
+        clientId: formData.clientId,
+        clientAddress: formData.clientAddress,
+        emergencyContact: formData.emergencyContact,
+        segments: formData.segments,
+        passengersADT: formData.passengersADT,
+        passengersCHD: formData.passengersCHD,
+        passengersINF: formData.passengersINF,
+        pricePerADT: formData.pricePerADT,
+        pricePerCHD: formData.pricePerCHD,
+        pricePerINF: formData.pricePerINF,
+        totalAmount: formData.totalAmount,
+        paymentOption: formData.paymentOption,
+        installments: formData.installments,
+        status: formData.status,
+        notes: formData.notes,
+        flights: formData.flights,
+        hotels: formData.hotels,
+        tours: formData.tours,
+        medicalAssistances: formData.medicalAssistances,
     };
-    onSave(reservationData);
+
+    onSave(reservationDataForApi);
   };
 
   const handleChange = (e) => {

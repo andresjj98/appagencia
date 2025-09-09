@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, SortAsc } from 'lucide-react';
 import { DndProvider } from 'react-dnd';
@@ -8,10 +8,9 @@ import ReservationForm from '../components/Reservations/ReservationForm';
 import ReservationTypeSelector from '../components/Reservations/ReservationTypeSelector';
 import ReservationPostCreation from '../components/Reservations/ReservationPostCreation';
 import ReservationSummary from '../components/Reservations/ReservationSummary';
-import { mockReservations } from '../mock/reservations';
 
 const Reservations = () => {
-  const [reservations, setReservations] = useState(mockReservations);
+  const [reservations, setReservations] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [showPostCreation, setShowPostCreation] = useState(false);
@@ -22,6 +21,54 @@ const Reservations = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const transformReservationData = (apiData) => {
+    return apiData.map(res => {
+      const firstSegment = res.reservation_segments && res.reservation_segments[0];
+      const passengers = (res.passengers_adt || 0) + (res.passengers_chd || 0) + (res.passengers_inf || 0);
+
+      return {
+        id: res.id,
+        clientName: res.clients?.name,
+        clientEmail: res.clients?.email,
+        clientPhone: res.clients?.phone,
+        clientId: res.clients?.id_card,
+        destination: firstSegment ? `${firstSegment.origin} - ${firstSegment.destination}` : 'N/A',
+        departureDate: firstSegment ? firstSegment.departure_date : null,
+        returnDate: firstSegment ? firstSegment.return_date : null,
+        passengers: passengers,
+        totalAmount: res.total_amount,
+        status: res.status,
+        paymentStatus: 'pending', // Placeholder
+        advisorName: 'N/A', // Placeholder
+        notes: res.notes,
+        _original: res 
+      };
+    });
+  };
+
+  const fetchReservations = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:4000/api/reservations');
+      const data = await response.json();
+      if (response.ok) {
+        const transformedData = transformReservationData(data);
+        setReservations(transformedData);
+      } else {
+        console.error('Error fetching reservations:', data.message);
+      }
+    } catch (error) {
+      console.error('Error fetching reservations:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReservations();
+  }, [fetchReservations]);
 
   const handleNewReservationClick = () => {
     setEditingReservation(null);
@@ -35,24 +82,44 @@ const Reservations = () => {
   };
 
   const handleEditReservation = (reservation) => {
-    setEditingReservation(reservation);
-    setSelectedReservationType(reservation.isMultiDestination ? 'all_inclusive' : 'all_inclusive');
+    setEditingReservation(reservation._original);
+    setSelectedReservationType(reservation._original.isMultiDestination ? 'all_inclusive' : 'all_inclusive');
     setShowForm(true);
   };
-  
-    const handleFinalSaveReservation = (reservationData) => {
-    if (editingReservation) {
-      setReservations(prev =>
-        prev.map(r => r.id === editingReservation.id ? reservationData : r)
-      );
-      setShowForm(false);
-      setEditingReservation(null);
-      setSelectedReservationType(null);
-    } else {
-      setReservations(prev => [reservationData, ...prev]);
-      setNewlyCreatedReservation(reservationData);
-      setShowForm(false);
-      setShowPostCreation(true);
+
+  const handleFinalSaveReservation = async (reservationData) => {
+    const url = editingReservation
+      ? `http://localhost:4000/api/reservations/${editingReservation.id}`
+      : 'http://localhost:4000/api/reservations';
+    const method = editingReservation ? 'PUT' : 'POST';
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reservationData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setShowForm(false);
+        setEditingReservation(null);
+        setSelectedReservationType(null);
+        fetchReservations(); // Refetch all reservations
+        if (!editingReservation) {
+            // This part needs adjustment as the full new reservation object is not returned
+            // For now, just refetching is enough. A better approach would be to get the new reservation object from the backend.
+            // setNewlyCreatedReservation(result); 
+            // setShowPostCreation(true);
+        }
+      } else {
+        console.error('Error saving reservation:', result.message);
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error saving reservation:', error);
+      alert('An unexpected error occurred.');
     }
   };
 
@@ -78,16 +145,29 @@ const Reservations = () => {
   };
 
   const handleUpdateReservationAfterPostCreation = (updatedReservation) => {
-    setReservations(prev => 
-      prev.map(r => r.id === updatedReservation.id ? updatedReservation : r)
-    );
+    fetchReservations();
     setShowPostCreation(false);
     setNewlyCreatedReservation(null);
   };
 
-  const handleDeleteReservation = (reservation) => {
+  const handleDeleteReservation = async (reservation) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta reserva?')) {
-      setReservations(prev => prev.filter(r => r.id !== reservation.id));
+      try {
+        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          fetchReservations();
+        } else {
+          const result = await response.json();
+          console.error('Error deleting reservation:', result.message);
+          alert(`Error: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('Error deleting reservation:', error);
+        alert('An unexpected error occurred.');
+      }
     }
   };
 
@@ -99,15 +179,10 @@ const Reservations = () => {
   const sortedReservations = [...filteredReservations].sort((a, b) => {
     switch (sortBy) {
       case 'date':
-        return new Date(b.createdAt) - new Date(a.createdAt);
+        return new Date(b._original.created_at) - new Date(a._original.created_at);
       case 'departure':
-        // Assuming departureDate exists for all reservations or handle multi-destination
-        const dateA = a.isMultiDestination && a.multiDestinations.length > 0 
-                      ? new Date(a.multiDestinations[0].departureDate) 
-                      : new Date(a.departureDate);
-        const dateB = b.isMultiDestination && b.multiDestinations.length > 0 
-                      ? new Date(b.multiDestinations[0].departureDate) 
-                      : new Date(b.departureDate);
+        const dateA = a.departureDate ? new Date(a.departureDate) : 0;
+        const dateB = b.departureDate ? new Date(b.departureDate) : 0;
         return dateA - dateB;
       case 'amount':
         return b.totalAmount - a.totalAmount;
@@ -167,23 +242,27 @@ const Reservations = () => {
         </div>
 
         {/* Reservations Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <AnimatePresence mode="popLayout">
-            {sortedReservations.map((reservation, index) => (
-              <ReservationCard
-                key={reservation.id}
-                reservation={reservation}
-                index={index}
-                onEdit={handleEditReservation}
-                onDelete={handleDeleteReservation}
-                onView={(reservation) => console.log('Ver reserva:', reservation)}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
+        {isLoading ? (
+          <div className="text-center py-12">Cargando...</div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <AnimatePresence mode="popLayout">
+              {sortedReservations.map((reservation, index) => (
+                <ReservationCard
+                  key={reservation.id}
+                  reservation={reservation}
+                  index={index}
+                  onEdit={handleEditReservation}
+                  onDelete={handleDeleteReservation}
+                  onView={(reservation) => console.log('Ver reserva:', reservation)}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Empty State */}
-        {sortedReservations.length === 0 && (
+        {!isLoading && sortedReservations.length === 0 && (
           <motion.div
             className="text-center py-12"
             initial={{ opacity: 0 }}

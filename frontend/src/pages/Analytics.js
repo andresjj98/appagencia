@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BarChart, 
@@ -12,16 +12,11 @@ import {
   Filter,
   RefreshCcw
 } from 'lucide-react';
-import { mockReservations } from '../mock/reservations'; 
-import { mockUsers } from '../mock/users'; 
-import { mockOffices } from './Offices'; 
-import { formatCurrency } from '../utils/helpers'; // Import formatCurrency
+import { formatCurrency } from '../utils/helpers';
 
-// Mock data for charts (simplified for demonstration)
-const generateMockChartData = () => {
+const generateChartData = (reservations, users) => {
   const salesByMonth = {};
   const salesByDestination = {};
-  const salesByAdvisor = {};
   const reservationStatusCounts = {
     pending: 0,
     confirmed: 0,
@@ -29,15 +24,13 @@ const generateMockChartData = () => {
     completed: 0
   };
 
-  mockReservations.forEach(res => {
-    const month = new Date(res.createdAt).toLocaleString('es-ES', { month: 'short', year: 'numeric' });
-    salesByMonth[month] = (salesByMonth[month] || 0) + res.totalAmount;
+  reservations.forEach(res => {
+    const month = new Date(res.created_at).toLocaleString('es-ES', { month: 'short', year: 'numeric' });
+    salesByMonth[month] = (salesByMonth[month] || 0) + res.total_amount;
 
-    salesByDestination[res.destination] = (salesByDestination[res.destination] || 0) + res.totalAmount;
-
-    const advisor = mockUsers.find(u => u.id === res.advisorId);
-    if (advisor) {
-      salesByAdvisor[advisor.name] = (salesByAdvisor[advisor.name] || 0) + res.totalAmount;
+    if (res.reservation_segments && res.reservation_segments.length > 0) {
+        const destination = res.reservation_segments[0].destination;
+        salesByDestination[destination] = (salesByDestination[destination] || 0) + res.total_amount;
     }
 
     reservationStatusCounts[res.status] = (reservationStatusCounts[res.status] || 0) + 1;
@@ -46,27 +39,48 @@ const generateMockChartData = () => {
   return {
     salesByMonth: Object.entries(salesByMonth).map(([name, value]) => ({ name, value })),
     salesByDestination: Object.entries(salesByDestination).map(([name, value]) => ({ name, value })),
-    salesByAdvisor: Object.entries(salesByAdvisor).map(([name, value]) => ({ name, value })),
     reservationStatusCounts: Object.entries(reservationStatusCounts).map(([name, value]) => ({ name, value }))
   };
 };
 
 const Analytics = () => {
-  const [chartData, setChartData] = useState(generateMockChartData());
-  const [timeRange, setTimeRange] = useState('last_6_months'); // 'last_month', 'last_6_months', 'last_year', 'all_time'
-  const [filterType, setFilterType] = useState('all'); // 'all', 'flights', 'hotels', 'tours' etc. (based on reservation type)
+  const [chartData, setChartData] = useState({ salesByMonth: [], salesByDestination: [], reservationStatusCounts: [] });
+  const [timeRange, setTimeRange] = useState('last_6_months');
+  const [filterType, setFilterType] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Simulate data refresh
-  const refreshData = () => {
-    setChartData(generateMockChartData()); // Regenerate mock data
-    alert('Datos actualizados. ¡A analizar se ha dicho!');
-  };
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const reservationsResponse = await fetch('http://localhost:4000/api/reservations');
+      const reservations = await reservationsResponse.json();
+
+      // Users data is not used for now, but could be in the future
+      // const usersResponse = await fetch('http://localhost:4000/api/usuarios');
+      // const users = await usersResponse.json();
+
+      if (reservationsResponse.ok) {
+        const generatedData = generateChartData(reservations, []);
+        setChartData(generatedData);
+      } else {
+        console.error('Error fetching data');
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [timeRange, filterType]);
+
 
   useEffect(() => {
-    // In a real app, this would fetch data based on timeRange and filterType
-    // For mock, we just regenerate all data
-    setChartData(generateMockChartData());
-  }, [timeRange, filterType]);
+    fetchData();
+  }, [fetchData]);
+
+  const refreshData = () => {
+    fetchData();
+    alert('Datos actualizados. ¡A analizar se ha dicho!');
+  };
 
   const renderChart = (title, data, Icon, colorClass) => (
     <motion.div 
@@ -78,9 +92,8 @@ const Analytics = () => {
       <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
         <Icon className={`w-6 h-6 ${colorClass}`} /> {title}
       </h3>
-      {/* Placeholder for actual chart component */}
       <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500">
-        {data.length > 0 ? (
+        {isLoading ? <p>Cargando...</p> : data.length > 0 ? (
           <ul className="list-disc list-inside">
             {data.map((item, i) => (
               <li key={i}>{item.name}: {typeof item.value === 'number' ? formatCurrency(item.value) : item.value}</li>
@@ -148,7 +161,6 @@ const Analytics = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {renderChart('Ventas por Mes', chartData.salesByMonth, LineChart, 'text-blue-600')}
         {renderChart('Ventas por Destino', chartData.salesByDestination, MapPin, 'text-purple-600')}
-        {renderChart('Ventas por Asesor', chartData.salesByAdvisor, Users, 'text-green-600')}
         {renderChart('Estado de Reservas', chartData.reservationStatusCounts, PieChart, 'text-orange-600')}
       </div>
 

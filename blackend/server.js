@@ -450,6 +450,495 @@ app.put('/api/offices/:id/usuarios', async (req, res) => {
   }
 });
 
+app.get('/api/reservations', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('reservations')
+      .select(`
+        *,
+        clients(*),
+        reservation_segments(*),
+        reservation_flights(*, reservation_flight_itineraries(*)),
+        reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
+        reservation_tours(*),
+        reservation_medical_assistances(*),
+        reservation_installments(*)
+      `);
+
+    if (error) {
+      console.error('Error fetching reservations from Supabase:', error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/api/reservations/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('reservations')
+      .select(`
+        *,
+        clients(*),
+        reservation_segments(*),
+        reservation_flights(*, reservation_flight_itineraries(*)),
+        reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
+        reservation_tours(*),
+        reservation_medical_assistances(*),
+        reservation_installments(*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching reservation from Supabase:', error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+
+    if (!data) {
+      return res.status(404).json({ message: 'Reservation not found' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.post('/api/reservations', async (req, res) => {
+  const {
+    clientName,
+    clientId,
+    clientEmail,
+    clientPhone,
+    clientAddress,
+    emergencyContact,
+    segments,
+    passengersADT,
+    passengersCHD,
+    passengersINF,
+    flights,
+    hotels,
+    tours,
+    medicalAssistances,
+    pricePerADT,
+    pricePerCHD,
+    pricePerINF,
+    totalAmount,
+    paymentOption,
+    installments,
+    notes,
+    status,
+  } = req.body;
+
+  try {
+    // Step 1: Find or create the client
+    let client;
+    const { data: existingClient, error: clientError } = await supabaseAdmin
+      .from('clients')
+      .select('id')
+      .eq('email', clientEmail)
+      .single();
+
+    if (existingClient) {
+      client = existingClient;
+    } else {
+      const { data: newClient, error: newClientError } = await supabaseAdmin
+        .from('clients')
+        .insert({
+          name: clientName,
+          id_card: clientId,
+          email: clientEmail,
+          phone: clientPhone,
+          address: clientAddress,
+          emergency_contact_name: emergencyContact?.name,
+          emergency_contact_phone: emergencyContact?.phone,
+        })
+        .select('id')
+        .single();
+      if (newClientError) throw newClientError;
+      client = newClient;
+    }
+
+    // Step 2: Create the reservation
+    const reservationToInsert = {
+        client_id: client.id,
+        passengers_adt: passengersADT,
+        passengers_chd: passengersCHD,
+        passengers_inf: passengersINF,
+        price_per_adt: pricePerADT,
+        price_per_chd: pricePerCHD,
+        price_per_inf: pricePerINF,
+        total_amount: totalAmount,
+        payment_option: paymentOption,
+        notes: notes,
+        status: status,
+    };
+
+    const { data: reservation, error: reservationError } = await supabaseAdmin
+      .from('reservations')
+      .insert(reservationToInsert)
+      .select('id')
+      .single();
+
+    if (reservationError) {
+        console.error('Error inserting reservation into Supabase:', reservationError);
+        return res.status(500).json({ message: reservationError.message, code: reservationError.code, details: reservationError.details, hint: reservationError.hint });
+    }
+
+    const reservationId = reservation.id;
+
+    // Step 3: Insert related data
+    if (segments && segments.length > 0) {
+      const segmentData = segments.map(s => ({
+        origin: s.origin,
+        destination: s.destination,
+        departure_date: s.departureDate || null,
+        return_date: s.returnDate || null,
+        reservation_id: reservationId
+      }));
+      const { error } = await supabaseAdmin.from('reservation_segments').insert(segmentData);
+      if (error) throw error;
+    }
+
+    if (flights && flights.length > 0) {
+      for (const flight of flights) {
+        const { itineraries, ...flightData } = flight;
+        const flightToInsert = {
+            airline: flightData.airline,
+            flight_category: flightData.flightCategory,
+            baggage_allowance: flightData.baggageAllowance,
+            reservation_id: reservationId
+        };
+        const { data: newFlight, error: flightError } = await supabaseAdmin
+          .from('reservation_flights')
+          .insert(flightToInsert)
+          .select('id')
+          .single();
+        if (flightError) throw flightError;
+
+        if (itineraries && itineraries.length > 0) {
+          const itineraryData = itineraries.map(i => ({
+            flight_number: i.flightNumber,
+            departure_time: i.departureTime || null,
+            arrival_time: i.arrivalTime || null,
+            flight_id: newFlight.id
+          }));
+          const { error: itineraryError } = await supabaseAdmin.from('reservation_flight_itineraries').insert(itineraryData);
+          if (itineraryError) throw itineraryError;
+        }
+      }
+    }
+
+    if (hotels && hotels.length > 0) {
+        for (const hotel of hotels) {
+            const { accommodation, hotelInclusions, ...hotelData } = hotel;
+            const hotelToInsert = {
+                name: hotelData.name,
+                room_category: hotelData.roomCategory,
+                meal_plan: hotelData.mealPlan,
+                reservation_id: reservationId
+            };
+            const { data: newHotel, error: hotelError } = await supabaseAdmin
+                .from('reservation_hotels')
+                .insert(hotelToInsert)
+                .select('id')
+                .single();
+            if (hotelError) throw hotelError;
+
+            if (accommodation && accommodation.length > 0) {
+                const accommodationData = accommodation.map(a => ({ ...a, hotel_id: newHotel.id }));
+                const { error: accommodationError } = await supabaseAdmin.from('reservation_hotel_accommodations').insert(accommodationData);
+                if (accommodationError) throw accommodationError;
+            }
+
+            if (hotelInclusions && hotelInclusions.length > 0) {
+                const inclusionData = hotelInclusions.map(i => ({ inclusion: i, hotel_id: newHotel.id }));
+                const { error: inclusionError } = await supabaseAdmin.from('reservation_hotel_inclusions').insert(inclusionData);
+                if (inclusionError) throw inclusionError;
+            }
+        }
+    }
+
+    if (tours && tours.length > 0) {
+      const tourData = tours.map(t => ({
+        name: t.name,
+        date: t.date || null,
+        cost: t.cost,
+        reservation_id: reservationId
+      }));
+      const { error } = await supabaseAdmin.from('reservation_tours').insert(tourData);
+      if (error) throw error;
+    }
+
+    if (medicalAssistances && medicalAssistances.length > 0) {
+      const medicalAssistanceData = medicalAssistances.map(m => ({
+        plan_type: m.planType,
+        start_date: m.startDate || null,
+        end_date: m.endDate || null,
+        reservation_id: reservationId
+      }));
+      const { error } = await supabaseAdmin.from('reservation_medical_assistances').insert(medicalAssistanceData);
+      if (error) throw error;
+    }
+
+    if (installments && installments.length > 0) {
+      const installmentData = installments.map(i => ({
+        amount: i.amount,
+        due_date: i.dueDate || null,
+        reservation_id: reservationId
+      }));
+      const { error } = await supabaseAdmin.from('reservation_installments').insert(installmentData);
+      if (error) throw error;
+    }
+
+    res.status(201).json({ id: reservationId });
+
+  } catch (error) {
+    console.error('Error creating reservation:', error);
+    res.status(500).json({ message: 'Error creating reservation' });
+  }
+});
+
+app.put('/api/reservations/:id', async (req, res) => {
+    const { id } = req.params;
+    const {
+        clientName,
+        clientId,
+        clientEmail,
+        clientPhone,
+        clientAddress,
+        emergencyContact,
+        segments,
+        passengersADT,
+        passengersCHD,
+        passengersINF,
+        flights,
+        hotels,
+        tours,
+        medicalAssistances,
+        pricePerADT,
+        pricePerCHD,
+        pricePerINF,
+        totalAmount,
+        paymentOption,
+        installments,
+        notes,
+        status,
+    } = req.body;
+
+    try {
+        // Step 1: Find or create the client
+        let client;
+        const { data: existingClient, error: clientError } = await supabaseAdmin
+            .from('clients')
+            .select('id')
+            .eq('email', clientEmail)
+            .single();
+
+        if (existingClient) {
+            client = existingClient;
+        } else {
+            const { data: newClient, error: newClientError } = await supabaseAdmin
+                .from('clients')
+                .insert({
+                    name: clientName,
+                    id_card: clientId,
+                    email: clientEmail,
+                    phone: clientPhone,
+                    address: clientAddress,
+                    emergency_contact_name: emergencyContact?.name,
+                    emergency_contact_phone: emergencyContact?.phone,
+                })
+                .select('id')
+                .single();
+            if (newClientError) throw newClientError;
+            client = newClient;
+        }
+
+        // Step 2: Update the reservation
+        const reservationToUpdate = {
+            client_id: client.id,
+            passengers_adt: passengersADT,
+            passengers_chd: passengersCHD,
+            passengers_inf: passengersINF,
+            price_per_adt: pricePerADT,
+            price_per_chd: pricePerCHD,
+            price_per_inf: pricePerINF,
+            total_amount: totalAmount,
+            payment_option: paymentOption,
+            notes: notes,
+            status: status,
+            updated_at: new Date(),
+        };
+
+        const { data: reservation, error: reservationError } = await supabaseAdmin
+            .from('reservations')
+            .update(reservationToUpdate)
+            .eq('id', id)
+            .select('id')
+            .single();
+
+        if (reservationError) {
+            console.error('Error updating reservation in Supabase:', reservationError);
+            return res.status(500).json({ message: reservationError.message, code: reservationError.code, details: reservationError.details, hint: reservationError.hint });
+        }
+        if (!reservation) return res.status(404).json({ message: 'Reservation not found' });
+
+        const reservationId = reservation.id;
+
+        // Step 3: Delete old related data
+        await supabaseAdmin.from('reservation_segments').delete().eq('reservation_id', reservationId);
+        await supabaseAdmin.from('reservation_flights').delete().eq('reservation_id', reservationId); // This will cascade to itineraries
+        await supabaseAdmin.from('reservation_hotels').delete().eq('reservation_id', reservationId); // This will cascade to accommodations and inclusions
+        await supabaseAdmin.from('reservation_tours').delete().eq('reservation_id', reservationId);
+        await supabaseAdmin.from('reservation_medical_assistances').delete().eq('reservation_id', reservationId);
+        await supabaseAdmin.from('reservation_installments').delete().eq('reservation_id', reservationId);
+
+
+        // Step 4: Insert new related data
+        if (segments && segments.length > 0) {
+            const segmentData = segments.map(s => ({
+                origin: s.origin,
+                destination: s.destination,
+                departure_date: s.departureDate || null,
+                return_date: s.returnDate || null,
+                reservation_id: reservationId
+            }));
+            const { error } = await supabaseAdmin.from('reservation_segments').insert(segmentData);
+            if (error) throw error;
+        }
+
+        if (flights && flights.length > 0) {
+            for (const flight of flights) {
+                const { itineraries, ...flightData } = flight;
+                const flightToInsert = {
+                    airline: flightData.airline,
+                    flight_category: flightData.flightCategory,
+                    baggage_allowance: flightData.baggageAllowance,
+                    reservation_id: reservationId
+                };
+                const { data: newFlight, error: flightError } = await supabaseAdmin
+                    .from('reservation_flights')
+                    .insert(flightToInsert)
+                    .select('id')
+                    .single();
+                if (flightError) throw flightError;
+
+                if (itineraries && itineraries.length > 0) {
+                    const itineraryData = itineraries.map(i => ({
+                        flight_number: i.flightNumber,
+                        departure_time: i.departureTime || null,
+                        arrival_time: i.arrivalTime || null,
+                        flight_id: newFlight.id
+                    }));
+                    const { error: itineraryError } = await supabaseAdmin.from('reservation_flight_itineraries').insert(itineraryData);
+                    if (itineraryError) throw itineraryError;
+                }
+            }
+        }
+
+        if (hotels && hotels.length > 0) {
+            for (const hotel of hotels) {
+                const { accommodation, hotelInclusions, ...hotelData } = hotel;
+                const hotelToInsert = {
+                    name: hotelData.name,
+                    room_category: hotelData.roomCategory,
+                    meal_plan: hotelData.mealPlan,
+                    reservation_id: reservationId
+                };
+                const { data: newHotel, error: hotelError } = await supabaseAdmin
+                    .from('reservation_hotels')
+                    .insert(hotelToInsert)
+                    .select('id')
+                    .single();
+                if (hotelError) throw hotelError;
+
+                if (accommodation && accommodation.length > 0) {
+                    const accommodationData = accommodation.map(a => ({ ...a, hotel_id: newHotel.id }));
+                    const { error: accommodationError } = await supabaseAdmin.from('reservation_hotel_accommodations').insert(accommodationData);
+                    if (accommodationError) throw accommodationError;
+                }
+
+                if (hotelInclusions && hotelInclusions.length > 0) {
+                    const inclusionData = hotelInclusions.map(i => ({ inclusion: i, hotel_id: newHotel.id }));
+                    const { error: inclusionError } = await supabaseAdmin.from('reservation_hotel_inclusions').insert(inclusionData);
+                    if (inclusionError) throw inclusionError;
+                }
+            }
+        }
+
+        if (tours && tours.length > 0) {
+            const tourData = tours.map(t => ({
+                name: t.name,
+                date: t.date || null,
+                cost: t.cost,
+                reservation_id: reservationId
+            }));
+            const { error } = await supabaseAdmin.from('reservation_tours').insert(tourData);
+            if (error) throw error;
+        }
+
+        if (medicalAssistances && medicalAssistances.length > 0) {
+            const medicalAssistanceData = medicalAssistances.map(m => ({
+                plan_type: m.planType,
+                start_date: m.startDate || null,
+                end_date: m.endDate || null,
+                reservation_id: reservationId
+            }));
+            const { error } = await supabaseAdmin.from('reservation_medical_assistances').insert(medicalAssistanceData);
+            if (error) throw error;
+        }
+
+        if (installments && installments.length > 0) {
+            const installmentData = installments.map(i => ({
+                amount: i.amount,
+                due_date: i.dueDate || null,
+                reservation_id: reservationId
+            }));
+            const { error } = await supabaseAdmin.from('reservation_installments').insert(installmentData);
+            if (error) throw error;
+        }
+
+        res.status(200).json({ id: reservationId });
+
+    } catch (error) {
+        console.error('Error updating reservation:', error);
+        res.status(500).json({ message: 'Error updating reservation' });
+    }
+});
+
+app.delete('/api/reservations/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('reservations')
+      .delete()
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('Error deleting reservation from Supabase:', error);
+      return res.status(500).json({ message: 'Server error' });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ message: 'Reservation not found' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en el puerto ${PORT}`);

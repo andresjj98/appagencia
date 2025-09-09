@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -16,13 +16,26 @@ import {
   Euro, // Import Euro
   Users // Import Users
 } from 'lucide-react';
-import { mockReservations } from '../mock/reservations'; 
 import { formatCurrency, formatDate, generateReservationId } from '../utils/helpers';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../utils/constants';
 import ReservationDetail from '../components/Reservations/ReservationDetail'; 
 
 const Gestion = () => {
-  const [reservations, setReservations] = useState(mockReservations);
+  const [reservations, setReservations] = useState([]);
+
+  useEffect(() => {
+    const fetchReservations = async () => {
+        try {
+            const response = await fetch('http://localhost:4000/api/reservations');
+            const data = await response.json();
+            setReservations(data);
+        } catch (error) {
+            console.error('Error fetching reservations:', error);
+        }
+    };
+
+    fetchReservations();
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
 
@@ -44,26 +57,68 @@ const Gestion = () => {
     setSelectedReservation(null);
   };
 
-  const handleApprove = (reservationId) => {
-    const updatedReservations = reservations.map(res =>
-        res.id === reservationId ? { ...res, status: 'confirmed', id: generateReservationId(), voucherNumber: `VOU-${Date.now()}` } : res
-    );
-    setReservations(updatedReservations);
+  const handleApprove = async (reservationId) => {
+    try {
+        const reservationToUpdate = reservations.find(res => res.id === reservationId);
+        const updatedReservationData = { ...reservationToUpdate, status: 'confirmed', id: generateReservationId(), voucherNumber: `VOU-${Date.now()}` };
+        
+        const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedReservationData),
+        });
+        const data = await response.json();
+        const updatedReservations = reservations.map(res =>
+            res.id === reservationId ? data : res
+        );
+        setReservations(updatedReservations);
+    } catch (error) {
+        console.error('Error approving reservation:', error);
+    }
   };
 
-  const handleReject = (reservationId) => {
-    const updatedReservations = reservations.map(res =>
-        res.id === reservationId ? { ...res, status: 'rejected' } : res
-    );
-    setReservations(updatedReservations);
+  const handleReject = async (reservationId) => {
+    try {
+        const reservationToUpdate = reservations.find(res => res.id === reservationId);
+        const updatedReservationData = { ...reservationToUpdate, status: 'rejected' };
+
+        const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedReservationData),
+        });
+        const data = await response.json();
+        const updatedReservations = reservations.map(res =>
+            res.id === reservationId ? data : res
+        );
+        setReservations(updatedReservations);
+    } catch (error) {
+        console.error('Error rejecting reservation:', error);
+    }
   };
 
-  const handleUpdateReservation = (updatedReservation) => {
-    const updatedReservations = reservations.map(res =>
-        res.id === updatedReservation.id ? updatedReservation : res
-    );
-    setReservations(updatedReservations);
-    setSelectedReservation(updatedReservation);
+  const handleUpdateReservation = async (updatedReservation) => {
+    try {
+        const response = await fetch(`http://localhost:4000/api/reservations/${updatedReservation.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedReservation),
+        });
+        const data = await response.json();
+        const updatedReservations = reservations.map(res =>
+            res.id === updatedReservation.id ? data : res
+        );
+        setReservations(updatedReservations);
+        setSelectedReservation(data);
+    } catch (error) {
+        console.error('Error updating reservation:', error);
+    }
   };
 
   return (

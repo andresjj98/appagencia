@@ -54,7 +54,7 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
           {/* Itinerario */}
           <section>
             <h3 className="text-lg font-semibold mb-1">Itinerario</h3>
-            {reservation.segments.map((seg, idx) => (
+            {reservation.segments && reservation.segments.map((seg, idx) => (
               <p key={idx} className="text-sm text-gray-700">
                 {seg.origin} &rarr; {seg.destination} ({formatDate(seg.departureDate)} - {formatDate(seg.returnDate)})
               </p>
