@@ -7,7 +7,7 @@ import ReservationCard from '../components/Reservations/ReservationCard';
 import ReservationForm from '../components/Reservations/ReservationForm';
 import ReservationTypeSelector from '../components/Reservations/ReservationTypeSelector';
 import ReservationPostCreation from '../components/Reservations/ReservationPostCreation';
-import ReservationSummary from '../components/Reservations/ReservationSummary';
+import ReservationFullDetail from '../components/Reservations/ReservationFullDetail';
 import CancelRequestModal from '../components/Reservations/CancelRequestModal';
 
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
@@ -73,10 +73,17 @@ const Reservations = () => {
   };
 
   const handleViewReservationDetails = useCallback((reservation) => {
-    const detailedReservation = transformReservationForDetails(reservation._original);
-    setSelectedReservationForDetails(detailedReservation);
+    setSelectedReservationForDetails(reservation);
     setShowDetailsModal(true);
-  }, [transformReservationForDetails]);
+  }, []);
+
+  const handleUpdateReservationDetails = (updatedReservation) => {
+    // Here you would typically send the update to the backend
+    console.log('Updating reservation details:', updatedReservation);
+    // For now, just refetch all reservations to see changes
+    fetchReservations();
+    setShowDetailsModal(false);
+  };
 
   const transformReservationData = (apiData) => {
     return apiData.map(res => {
@@ -381,10 +388,21 @@ const Reservations = () => {
         {/* Reservation Details Modal */}
         <AnimatePresence>
           {showDetailsModal && selectedReservationForDetails && (
-            <ReservationSummary
+            <ReservationFullDetail
               reservation={selectedReservationForDetails}
+              onUpdateReservation={handleUpdateReservationDetails}
               onClose={() => {
                 setShowDetailsModal(false);
+                setSelectedReservationForDetails(null);
+              }}
+              onEdit={() => {
+                setShowDetailsModal(false);
+                handleEditReservation(selectedReservationForDetails);
+                setSelectedReservationForDetails(null);
+              }}
+              onRequestChange={(reservation) => {
+                setShowDetailsModal(false);
+                handleEditReservation(reservation);
                 setSelectedReservationForDetails(null);
               }}
             />

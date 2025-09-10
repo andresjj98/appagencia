@@ -1,0 +1,245 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  X,
+  Edit,
+  Users,
+  Hotel,
+  Plane,
+  HeartPulse,
+  Sun,
+  CreditCard,
+  FileText,
+  ArrowLeft,
+  Upload,
+  Paperclip,
+  Trash2,
+  Package
+} from 'lucide-react';
+import { useSettings } from '../../utils/SettingsContext';
+
+// Read-only Section
+const InfoSection = ({ title, icon, children }) => (
+  <div className="py-5 px-6 border-b border-gray-200 last:border-b-0">
+    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-3 mb-4">
+      {icon}
+      {title}
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+      {children}
+    </div>
+  </div>
+);
+
+const InfoItem = ({ label, value, fullWidth = false }) => (
+  <div className={fullWidth ? 'col-span-full' : ''}>
+    <p className="text-gray-500 font-medium">{label}</p>
+    <p className="text-gray-900">{value || 'No especificado'}</p>
+  </div>
+);
+
+// Standard form for managing details
+const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
+    <div className="p-6">
+        <div className="flex items-center gap-4 mb-6">
+            <button onClick={onBack} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full">
+                <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+                {icon}
+                {title}
+            </h3>
+        </div>
+        <div className="space-y-6">
+            {children}
+        </div>
+        <div className="mt-8 flex justify-end">
+            <button 
+                onClick={onSave}
+                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+            >
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+);
+
+const FileUpload = ({ files, onUpload, onRemove }) => (
+    <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Documentación</label>
+        <div className="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+            <div className="space-y-1 text-center">
+                <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                <div className="flex text-sm text-gray-600">
+                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                        <span>Sube un archivo</span>
+                        <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={onUpload} />
+                    </label>
+                    <p className="pl-1">o arrástralo aquí</p>
+                </div>
+                <p className="text-xs text-gray-500">PNG, JPG, GIF, PDF hasta 10MB</p>
+            </div>
+        </div>
+        <div className="mt-4 space-y-2">
+            {(files || []).map((file, index) => (
+                <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
+                    <div className="flex items-center gap-2">
+                        <Paperclip className="w-4 h-4 text-gray-500" />
+                        <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">{file.name}</a>
+                    </div>
+                    <button onClick={() => onRemove(index)} className="p-1 text-red-500 hover:text-red-700">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEdit, onRequestChange }) => {
+  const { formatCurrency, formatDate } = useSettings();
+  const [viewMode, setViewMode] = useState('view');
+  
+  const [passengersData, setPassengersData] = useState(reservation._original.passengers || []);
+  const [hotelData, setHotelData] = useState(reservation._original.reservation_hotels?.[0] || {});
+  const [flightData, setFlightData] = useState(reservation._original.reservation_flights || []);
+  const [tourData, setTourData] = useState(reservation._original.reservation_tours || []);
+  const [assistanceData, setAssistanceData] = useState(reservation._original.reservation_medical_assistances || []);
+  const [attachmentData, setAttachmentData] = useState(reservation._original.attachments || { description: '', files: [] });
+
+  const isApproved = reservation.status === 'confirmed';
+
+  const handleSave = (section) => {
+    console.log(`Saving ${section}...`);
+    setViewMode('view');
+  };
+
+  const handleManagementClick = (mode) => {
+    if (isApproved && mode !== 'attachments') { // Allow attaching files even if approved
+      onRequestChange(reservation);
+    } else {
+      setViewMode(mode);
+    }
+  };
+
+  const ReadOnlyView = () => (
+    <>
+      <div className="p-6 overflow-y-auto">
+        <InfoSection title="Información Básica" icon={<FileText className="w-5 h-5 text-blue-600" />}>
+          <InfoItem label="Cliente" value={reservation.clientName} />
+          <InfoItem label="Destino" value={reservation.destination} />
+          <InfoItem label="Fecha de Salida" value={formatDate(reservation.departureDate)} />
+          <InfoItem label="Fecha de Regreso" value={formatDate(reservation.returnDate)} />
+          <InfoItem label="Estado" value={reservation.status} />
+          <InfoItem label="Asesor" value={reservation.advisorName} />
+        </InfoSection>
+
+        <InfoSection title="Pasajeros" icon={<Users className="w-5 h-5 text-green-600" />}>
+            <InfoItem label="Adultos" value={reservation._original.passengers_adt} />
+            <InfoItem label="Niños" value={reservation._original.passengers_chd} />
+            <InfoItem label="Infantes" value={reservation._original.passengers_inf} />
+            <div className="col-span-full">
+                {(passengersData || []).map((pax, index) => (
+                    <div key={index} className="text-sm p-2 bg-gray-50 rounded-md mt-2">{pax.name} {pax.lastname} ({pax.document_type}: {pax.document_number})</div>
+                ))}
+            </div>
+        </InfoSection>
+
+        <InfoSection title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
+            {(flightData || []).length > 0 ? flightData.map((flight, index) => (
+                <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
+                    <p><strong>Aerolínea:</strong> {flight.airline}</p>
+                    <p><strong>PNR:</strong> {flight.pnr || 'No especificado'}</p>
+                </div>
+            )) : <InfoItem label="Vuelos" value="No hay vuelos registrados." />}
+        </InfoSection>
+
+        <InfoSection title="Hotel" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
+            {hotelData && hotelData.name ? (
+                <>
+                    <InfoItem label="Nombre" value={hotelData.name} />
+                    <InfoItem label="Check-in" value={formatDate(hotelData.check_in_date)} />
+                    <InfoItem label="Check-out" value={formatDate(hotelData.check_out_date)} />
+                </>
+            ) : <InfoItem label="Hotel" value="No hay hotel registrado." />}
+        </InfoSection>
+      </div>
+
+      <div className="p-6 bg-gray-50 border-t border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-3 mb-4">Información adicional de la reserva</h3>
+        <div className="flex flex-wrap items-center justify-center gap-4">
+            <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                <Edit className="w-4 h-4" /> Editar Reserva
+            </button>
+            <button onClick={() => handleManagementClick('passengers')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                <Users className="w-4 h-4" /> {isApproved ? 'Solicitar Cambio Pasajeros' : 'Gestionar Pasajeros'}
+            </button>
+            <button onClick={() => setViewMode('attachments')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                <Paperclip className="w-4 h-4" /> Adjuntar Archivos
+            </button>
+        </div>
+      </div>
+    </>
+  );
+  
+  const PassengerForm = () => {
+    return (
+        <DetailManagement title="Gestionar Pasajeros" icon={<Users className="w-5 h-5" />} onBack={() => setViewMode('view')} onSave={() => handleSave('passengers')}>
+            <p>Formulario de pasajeros...</p>
+        </DetailManagement>
+    );
+  };
+
+  const AttachmentForm = () => {
+    return (
+        <DetailManagement title="Adjuntar Archivos y Notas" icon={<Paperclip className="w-5 h-5" />} onBack={() => setViewMode('view')} onSave={() => handleSave('attachments')}>
+            <textarea placeholder="Descripción..." value={attachmentData.description} onChange={e => setAttachmentData({...attachmentData, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+            <FileUpload files={attachmentData.files} onUpload={() => {}} onRemove={() => {}} />
+        </DetailManagement>
+    );
+  };
+  
+  const renderContent = () => {
+    switch (viewMode) {
+      case 'view': return <ReadOnlyView />;
+      case 'passengers': return <PassengerForm />;
+      case 'attachments': return <AttachmentForm />;
+      default: return <ReadOnlyView />;
+    }
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-white rounded-t-2xl sticky top-0 z-10">
+          <h2 className="text-xl font-bold text-gray-900">
+            Detalle de la Reserva #{reservation.id}
+          </h2>
+          <motion.button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+            whileHover={{ scale: 1.1 }}
+          >
+            <X className="w-6 h-6" />
+          </motion.button>
+        </div>
+        <div className="overflow-y-auto">
+            {renderContent()}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+export default ReservationFullDetail;
