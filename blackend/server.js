@@ -1004,22 +1004,58 @@ app.delete('/api/reservations/:id', async (req, res) => {
   }
 });
 
+app.post('/api/reservations/:id/change-requests', async (req, res) => {
+  const { id } = req.params;
+  // TODO: Reemplazar con el ID del usuario autenticado desde el middleware de autenticación
+  const requested_by_id = 'a0e0f8b0-5c2a-4d3d-8e7f-9b1c2d3e4f5a'; // ID de usuario de ejemplo
+  const { section, changes, reason } = req.body;
+
+  if (!section || !changes || !reason) {
+    return res.status(400).json({ message: 'Faltan datos para la solicitud de cambio (sección, cambios, motivo).' });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('change_requests')
+      .insert({
+        reservation_id: id,
+        requested_by_id: requested_by_id,
+        section_to_change: section,
+        requested_changes: changes, // Asume que la columna es de tipo JSONB
+        request_reason: reason,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating change request in Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor al crear la solicitud de cambio.' });
+    }
+
+    res.status(201).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
 app.post('/api/reservations/:id/approve', async (req, res) => {
   const { id } = req.params;
   try {
-    const { data: maxInvoice, error: maxInvoiceError } = await supabaseAdmin
-      .from('reservations')
-      .select('invoice_number')
-      .order('invoice_number', { ascending: false })
-      .limit(1)
-      .single();
+    // Llamar a la función RPC para obtener el nuevo número de factura de forma segura
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_and_increment_invoice_number');
 
-    if (maxInvoiceError && maxInvoiceError.code !== 'PGRST116') { // PGRST116: no rows found
-      console.error('Error getting max invoice number:', maxInvoiceError);
-      return res.status(500).json({ message: 'Error del servidor' });
+    if (rpcError) {
+      console.error('Error calling get_and_increment_invoice_number RPC:', rpcError);
+      return res.status(500).json({ message: 'Error del servidor al obtener el número de factura.' });
     }
 
-    const newInvoiceNumber = (maxInvoice?.invoice_number || 0) + 1;
+    const newInvoiceNumber = rpcData;
+
+    if (!newInvoiceNumber) {
+      return res.status(500).json({ message: 'No se pudo generar un nuevo número de factura desde la configuración.' });
+    }
 
     const { data, error } = await supabaseAdmin
       .from('reservations')
@@ -1030,6 +1066,9 @@ app.post('/api/reservations/:id/approve', async (req, res) => {
 
     if (error) {
       console.error('Error approving reservation:', error);
+      if (error.code === '23505') { // Error de clave duplicada
+        return res.status(409).json({ message: 'Conflicto al generar el número de factura debido a concurrencia. Por favor, inténtelo de nuevo.' });
+      }
       return res.status(500).json({ message: 'Error del servidor' });
     }
 
@@ -1037,6 +1076,135 @@ app.post('/api/reservations/:id/approve', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+
+// --- Business Settings Endpoints ---
+
+// Helper to map frontend camelCase to DB snake_case
+const mapToDbSchema = (settings) => ({
+  agency_name: settings.agencyName,
+  legal_name: settings.legalName,
+  logo_url: settings.logoUrl,
+  contact_info: settings.contactInfo,
+  tax_id_number: settings.taxIdNumber,
+  tax_registry: settings.taxRegistry,
+  legal_representative_name: settings.legalRepresentativeName,
+  legal_representative_id: settings.legalRepresentativeId,
+  tax_regime: settings.taxRegime,
+  operating_city: settings.operatingCity,
+  operating_country: settings.operatingCountry,
+  tourism_registry_number: settings.tourismRegistryNumber,
+  terms_and_conditions: settings.termsAndConditions,
+  travel_contract: settings.travelContract,
+  cancellation_policies: settings.cancellationPolicies,
+  voucher_info: settings.voucherInfo,
+  voucher_header: settings.voucherHeader,
+  contract_header: settings.contractHeader,
+  default_footer: settings.defaultFooter,
+  digital_signature: settings.digitalSignature,
+  secondary_logo_url: settings.secondaryLogoUrl,
+  invoice_message: settings.invoiceMessage,
+  voucher_message: settings.voucherMessage,
+  contract_message: settings.contractMessage,
+  next_invoice_number: settings.nextInvoiceNumber,
+  invoice_format: settings.invoiceFormat,
+  currency: settings.currency,
+  timezone: settings.timezone,
+  tax_rate: settings.taxRate,
+  preferred_date_format: settings.preferredDateFormat,
+});
+
+// Helper to map DB snake_case to frontend camelCase
+const mapFromDbSchema = (settings) => ({
+  id: settings.id,
+  agencyName: settings.agency_name,
+  legalName: settings.legal_name,
+  logoUrl: settings.logo_url,
+  contactInfo: settings.contact_info,
+  taxIdNumber: settings.tax_id_number,
+  taxRegistry: settings.tax_registry,
+  legalRepresentativeName: settings.legal_representative_name,
+  legalRepresentativeId: settings.legal_representative_id,
+  taxRegime: settings.tax_regime,
+  operatingCity: settings.operating_city,
+  operatingCountry: settings.operating_country,
+  tourismRegistryNumber: settings.tourism_registry_number,
+  termsAndConditions: settings.terms_and_conditions,
+  travelContract: settings.travel_contract,
+  cancellationPolicies: settings.cancellation_policies,
+  voucherInfo: settings.voucher_info,
+  voucherHeader: settings.voucher_header,
+  contractHeader: settings.contract_header,
+  defaultFooter: settings.default_footer,
+  digitalSignature: settings.digital_signature,
+  secondaryLogoUrl: settings.secondary_logo_url,
+  invoiceMessage: settings.invoice_message,
+  voucherMessage: settings.voucher_message,
+  contractMessage: settings.contract_message,
+  nextInvoiceNumber: settings.next_invoice_number,
+  invoiceFormat: settings.invoice_format,
+  currency: settings.currency,
+timezone: settings.timezone,
+  taxRate: settings.tax_rate,
+  preferredDateFormat: settings.preferred_date_format,
+});
+
+app.get('/api/business-settings', async (req, res) => {
+  try {
+    let { data, error } = await supabaseAdmin
+      .from('business_settings')
+      .select('*')
+      .limit(1)
+      .single();
+
+    // If no settings row exists (e.g., first run), create one with defaults.
+    if (error && error.code === 'PGRST116') { // PGRST116: "queried range not satisfiable"
+      console.log('No business settings found, creating a default entry.');
+      const { data: newData, error: insertError } = await supabaseAdmin
+        .from('business_settings')
+        .insert({}) // Insert an empty object to trigger DB defaults.
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error creating default business settings:', insertError);
+        // Re-throw to be caught by the main catch block
+        throw insertError;
+      }
+      
+      data = newData; // Use the newly created data
+    } else if (error) {
+      // For any other database error, throw it.
+      throw error;
+    }
+
+    res.json(mapFromDbSchema(data));
+  } catch (error) {
+    console.error('Error fetching/creating business settings:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener la configuración.', details: error.message });
+  }
+});
+
+app.put('/api/business-settings', async (req, res) => {
+  try {
+    const settingsFromClient = req.body;
+    const settingsId = settingsFromClient.id; // Get ID from the body
+
+    if (!settingsId) {
+      return res.status(400).json({ message: 'Falta el ID de la configuración en la solicitud.' });
+    }
+
+    const settingsForDb = mapToDbSchema(settingsFromClient);
+    const { data, error } = await supabaseAdmin.from('business_settings').update(settingsForDb).eq('id', settingsId).select().single();
+    
+    if (error) throw error;
+
+    res.json(mapFromDbSchema(data));
+  } catch (error) {
+    console.error('Error updating business settings:', error);
+    res.status(500).json({ message: 'Error del servidor al actualizar la configuración.' });
   }
 });
 

@@ -144,7 +144,7 @@ const Reservations = () => {
       );
       setShowForm(true);
     } else {
-      setReservationForChange(reservation);
+      setReservationForChange(reservation._original);
       setShowChangeRequest(true);
     }
   };

@@ -10,10 +10,12 @@ import {
   Trash2,
   Eye
 } from 'lucide-react';
-import { formatCurrency, formatDate, calculateDays } from '../../utils/helpers';
+import { calculateDays } from '../../utils/helpers';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
+import { useSettings } from '../../SettingsContext';
 
 const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) => {
+  const { formatCurrency, formatDate } = useSettings();
   // Safely get status and payment configuration objects. If an unknown status
   // is provided we fall back to a neutral configuration to avoid runtime
   // errors accessing properties on `undefined`.
