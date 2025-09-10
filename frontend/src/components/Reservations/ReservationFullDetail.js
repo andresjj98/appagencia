@@ -101,7 +101,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const [viewMode, setViewMode] = useState('view');
   
   const [passengersData, setPassengersData] = useState(reservation._original.passengers || []);
-  const [hotelData, setHotelData] = useState(reservation._original.reservation_hotels?.[0] || {});
+  const [hotelData, setHotelData] = useState(reservation._original.reservation_hotels || []);
   const [flightData, setFlightData] = useState(reservation._original.reservation_flights || []);
   const [tourData, setTourData] = useState(reservation._original.reservation_tours || []);
   const [assistanceData, setAssistanceData] = useState(reservation._original.reservation_medical_assistances || []);
@@ -154,14 +154,60 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
             )) : <InfoItem label="Vuelos" value="No hay vuelos registrados." />}
         </InfoSection>
 
-        <InfoSection title="Hotel" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
-            {hotelData && hotelData.name ? (
-                <>
-                    <InfoItem label="Nombre" value={hotelData.name} />
-                    <InfoItem label="Check-in" value={formatDate(hotelData.check_in_date)} />
-                    <InfoItem label="Check-out" value={formatDate(hotelData.check_out_date)} />
-                </>
-            ) : <InfoItem label="Hotel" value="No hay hotel registrado." />}
+        <InfoSection title="Hoteles" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
+            {(hotelData || []).length > 0 ? hotelData.map((hotel, index) => (
+                <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg space-y-1">
+                    <p><strong>Nombre:</strong> {hotel.name}</p>
+                    {hotel.room_category && <p><strong>Categoría:</strong> {hotel.room_category}</p>}
+                    {hotel.meal_plan && <p><strong>Plan de Comidas:</strong> {hotel.meal_plan}</p>}
+                    {hotel.check_in_date && <p><strong>Check-in:</strong> {formatDate(hotel.check_in_date)}</p>}
+                    {hotel.check_out_date && <p><strong>Check-out:</strong> {formatDate(hotel.check_out_date)}</p>}
+                    {(hotel.accommodation || hotel.reservation_hotel_accommodations)?.length > 0 && (
+                        <div className="pl-4">
+                            {(hotel.accommodation || hotel.reservation_hotel_accommodations).map((acc, i) => (
+                                <p key={i}>Habitaciones: {acc.rooms}, ADT {acc.adt}, CHD {acc.chd}, INF {acc.inf}</p>
+                            ))}
+                        </div>
+                    )}
+                    {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions)?.length > 0 && (
+                        <ul className="pl-6 list-disc">
+                            {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions).map((inc, i) => (
+                                <li key={i}>{inc.inclusion || inc}</li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." />}
+        </InfoSection>
+
+        <InfoSection title="Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
+            {(tourData || []).length > 0 ? tourData.map((tour, index) => (
+                <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
+                    <p><strong>Nombre:</strong> {tour.name}</p>
+                    {tour.date && <p><strong>Fecha:</strong> {formatDate(tour.date)}</p>}
+                    {tour.cost && <p><strong>Costo:</strong> {formatCurrency(tour.cost)}</p>}
+                </div>
+            )) : <InfoItem label="Tours" value="No hay tours registrados." />}
+        </InfoSection>
+
+        <InfoSection title="Asistencias Médicas" icon={<HeartPulse className="w-5 h-5 text-red-600" />}>
+            {(assistanceData || []).length > 0 ? assistanceData.map((med, index) => (
+                <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
+                    <p><strong>Plan:</strong> {med.plan_type || med.planType}</p>
+                    <p><strong>Vigencia:</strong> {formatDate(med.start_date || med.startDate)} - {formatDate(med.end_date || med.endDate)}</p>
+                </div>
+            )) : <InfoItem label="Asistencias" value="No hay asistencias médicas." />}
+        </InfoSection>
+
+        <InfoSection title="Pago" icon={<CreditCard className="w-5 h-5 text-purple-600" />}>
+            <InfoItem label="Precio ADT" value={formatCurrency(reservation._original.price_per_adt)} />
+            <InfoItem label="Precio CHD" value={formatCurrency(reservation._original.price_per_chd)} />
+            <InfoItem label="Precio INF" value={formatCurrency(reservation._original.price_per_inf)} />
+            <InfoItem label="Total" value={formatCurrency(reservation._original.total_amount)} />
+            <InfoItem label="Opción" value={reservation._original.payment_option === 'full_payment' ? 'Pago completo' : 'Cuotas'} />
+            {(reservation._original.installments || []).map((inst, index) => (
+                <InfoItem key={index} label={`Cuota ${index + 1}`} value={`${formatCurrency(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
+            ))}
         </InfoSection>
       </div>
 
