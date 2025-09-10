@@ -14,7 +14,8 @@ import {
   Upload,
   Paperclip,
   Trash2,
-  Package
+  Package,
+  ListChecks
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
 
@@ -108,6 +109,27 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const [attachmentData, setAttachmentData] = useState(reservation._original.attachments || { description: '', files: [] });
 
   const isApproved = reservation.status === 'confirmed';
+
+  const paymentOption = reservation._original.payment_option;
+  const installments = reservation._original.installments || reservation._original.reservation_installments || [];
+  const totalInstallmentsAmount = installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
+  const paidAmount = paymentOption === 'full_payment'
+    ? (reservation._original.payment_status === 'paid' ? reservation._original.total_amount : 0)
+    : installments.filter(inst => inst.status === 'paid').reduce((sum, inst) => sum + (inst.amount || 0), 0);
+  const totalAmount = paymentOption === 'full_payment' ? reservation._original.total_amount : totalInstallmentsAmount;
+  const progress = totalAmount ? Math.round((paidAmount / totalAmount) * 100) : 0;
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'paid':
+        return 'Pagada';
+      case 'overdue':
+      case 'late':
+        return 'Atrasada';
+      default:
+        return 'Pendiente';
+    }
+  };
 
   const handleSave = (section) => {
     console.log(`Saving ${section}...`);
@@ -208,6 +230,49 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
             {(reservation._original.installments || []).map((inst, index) => (
                 <InfoItem key={index} label={`Cuota ${index + 1}`} value={`${formatCurrency(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
             ))}
+        </InfoSection>
+        <InfoSection title="Plan de pagos (Cuotas)" icon={<ListChecks className="w-5 h-5 text-emerald-600" />}>
+          {paymentOption === 'full_payment' ? (
+            <>
+              <InfoItem label="Fecha de pago" value={formatDate(reservation._original.payment_date)} />
+              <InfoItem label="Valor" value={formatCurrency(reservation._original.total_amount)} />
+              <InfoItem label="Estado" value={getStatusLabel(reservation._original.payment_status)} />
+            </>
+          ) : (
+            <div className="col-span-full overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left">
+                    <th className="py-1 pr-4">#</th>
+                    <th className="py-1 pr-4">Vencimiento</th>
+                    <th className="py-1 pr-4">Valor</th>
+                    <th className="py-1 pr-4">Estado</th>
+                    <th className="py-1 pr-4">Pago</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {installments.map((inst, idx) => (
+                    <tr key={idx} className="border-t">
+                      <td className="py-1 pr-4">{idx + 1}</td>
+                      <td className="py-1 pr-4">{formatDate(inst.due_date || inst.dueDate)}</td>
+                      <td className="py-1 pr-4">{formatCurrency(inst.amount)}</td>
+                      <td className="py-1 pr-4">{getStatusLabel(inst.status)}</td>
+                      <td className="py-1 pr-4">{inst.payment_date ? formatDate(inst.payment_date) : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="col-span-full mt-4">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-green-500 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-600 mt-2">
+              <span>Pagado: {formatCurrency(paidAmount)}</span>
+              <span>Total: {formatCurrency(totalAmount)}</span>
+            </div>
+          </div>
         </InfoSection>
       </div>
 
