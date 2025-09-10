@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, SortAsc } from 'lucide-react';
+import ReservationSummary from '../components/Reservations/ReservationSummary';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ReservationCard from '../components/Reservations/ReservationCard';

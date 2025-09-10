@@ -97,9 +97,75 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
   const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
 
-  const initialSegments = reservation?.reservation_segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }];
+  // Map API data (snake_case) to form-friendly camelCase structure
+  const mapSegments = (segments) =>
+    (segments || []).map((s) => ({
+      origin: s.origin || '',
+      destination: s.destination || '',
+      departureDate: s.departureDate || s.departure_date || getTodayDate(),
+      returnDate: s.returnDate || s.return_date || getTodayDate(),
+    }));
+
+  const mapFlights = (flights) =>
+    (flights || []).map((f) => ({
+      airline: f.airline || '',
+      flightCategory: f.flightCategory || f.flight_category || '',
+      baggageAllowance: f.baggageAllowance || f.baggage_allowance || '',
+      flightCycle: f.flightCycle || f.flight_cycle || 'round_trip',
+      hasItinerary:
+        f.hasItinerary || (f.reservation_flight_itineraries && f.reservation_flight_itineraries.length > 0),
+      itineraries:
+        (f.reservation_flight_itineraries || f.itineraries || []).map((i) => ({
+          flightNumber: i.flightNumber || i.flight_number || '',
+          departureTime: i.departureTime || i.departure_time || '',
+          arrivalTime: i.arrivalTime || i.arrival_time || '',
+        })),
+      trackingCode: f.trackingCode || f.tracking_code || f.pnr || '',
+    }));
+
+  const mapHotels = (hotels) =>
+    (hotels || []).map((h) => ({
+      name: h.name || '',
+      roomCategory: h.roomCategory || h.room_category || '',
+      accommodation:
+        h.accommodation ||
+        h.reservation_hotel_accommodations || [{ rooms: 1, adt: 0, chd: 0, inf: 0 }],
+      mealPlan: h.mealPlan || h.meal_plan || '',
+      hotelInclusions:
+        h.hotelInclusions ||
+        (h.reservation_hotel_inclusions
+          ? h.reservation_hotel_inclusions.map((i) => i.inclusion)
+          : ['']),
+      checkInDate: h.check_in_date,
+      checkOutDate: h.check_out_date,
+    }));
+
+  const mapTours = (tours) =>
+    (tours || []).map((t) => ({
+      name: t.name || '',
+      date: t.date || '',
+      cost: t.cost || 0,
+    }));
+
+  const mapMedical = (medical) =>
+    (medical || []).map((m) => ({
+      planType: m.planType || m.plan_type || 'traditional_tourism',
+      startDate: (m.startDate || m.start_date || getTodayDate()).split('T')[0],
+      endDate: (m.endDate || m.end_date || getTodayDate()).split('T')[0],
+    }));
+
+  const mapInstallments = (installments) =>
+    (installments || []).map((i) => ({
+      amount: i.amount || 0,
+      dueDate: (i.dueDate || i.due_date || getTodayDate()).split('T')[0],
+    }));
+
+  const initialSegments = reservation
+    ? mapSegments(reservation.reservation_segments)
+    : [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }];
   const initialTripDepartureDate = initialSegments[0]?.departureDate || getTodayDate();
-  const initialTripReturnDate = initialSegments[initialSegments.length - 1]?.returnDate || initialTripDepartureDate;
+  const initialTripReturnDate =
+    initialSegments[initialSegments.length - 1]?.returnDate || initialTripDepartureDate;
 
   const [formData, setFormData] = useState({
     clientName: reservation?.clients?.name || '',
@@ -112,7 +178,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         phone: reservation?.clients?.emergency_contact_phone || ''
     },
     tripType: reservation?.tripType || 'round_trip',
-    segments: reservation?.reservation_segments || [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
+    segments: reservation ? mapSegments(reservation.reservation_segments) : [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
     passengersADT: reservation?.passengers_adt || 1,
     passengersCHD: reservation?.passengers_chd || 0,
     passengersINF: reservation?.passengers_inf || 0,
@@ -121,46 +187,56 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     pricePerINF: reservation?.price_per_inf || 0,
     totalAmount: reservation?.total_amount || 0,
     paymentOption: reservation?.payment_option || 'full_payment',
-    installments: reservation?.reservation_installments || [{ amount: 0, dueDate: getTodayDate() }],
+    installments: reservation ? mapInstallments(reservation.reservation_installments) : [{ amount: 0, dueDate: getTodayDate() }],
     installmentsCount: reservation?.reservation_installments?.length || 1,
     status: reservation?.status || 'pending',
     notes: reservation?.notes || '',
 
     // Structured data for sections
-    flights: reservation?.reservation_flights || (
-      showFlights
-        ? [{
+    flights: reservation
+      ? mapFlights(reservation.reservation_flights)
+      : showFlights
+      ? [
+          {
             airline: '',
             flightCategory: '',
             baggageAllowance: '',
             flightCycle: 'round_trip',
             hasItinerary: false,
             itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '' }],
-            trackingCode: ''
-          }]
-        : []
-    ),
-    hotels: reservation?.reservation_hotels || (
-      showHotels
-        ? [{
+            trackingCode: '',
+          },
+        ]
+      : [],
+    hotels: reservation
+      ? mapHotels(reservation.reservation_hotels)
+      : showHotels
+      ? [
+          {
             name: '',
             roomCategory: '',
             accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }],
             mealPlan: '',
-            hotelInclusions: ['']
-          }]
-        : []
-    ),
-    tours: reservation?.reservation_tours || (
-      showTours
-        ? [{ name: '', date: initialTripDepartureDate, cost: 0 }]
-        : []
-    ),
-    medicalAssistances: reservation?.reservation_medical_assistances || (
-      showMedical
-        ? [{ planType: 'traditional_tourism', startDate: initialTripDepartureDate, endDate: initialTripReturnDate }]
-        : []
-    ),
+            hotelInclusions: [''],
+          },
+        ]
+      : [],
+    tours: reservation
+      ? mapTours(reservation.reservation_tours)
+      : showTours
+      ? [{ name: '', date: initialTripDepartureDate, cost: 0 }]
+      : [],
+    medicalAssistances: reservation
+      ? mapMedical(reservation.reservation_medical_assistances)
+      : showMedical
+      ? [
+          {
+            planType: 'traditional_tourism',
+            startDate: initialTripDepartureDate,
+            endDate: initialTripReturnDate,
+          },
+        ]
+      : [],
   });
 
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
@@ -269,32 +345,30 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     e.preventDefault();
     if (!validateForm()) return;
 
-    const reservationDataForApi = {
-        clientName: formData.clientName,
-        clientEmail: formData.clientEmail,
-        clientPhone: formData.clientPhone,
-        clientId: formData.clientId,
-        clientAddress: formData.clientAddress,
-        emergencyContact: formData.emergencyContact,
-        segments: formData.segments,
-        passengersADT: formData.passengersADT,
-        passengersCHD: formData.passengersCHD,
-        passengersINF: formData.passengersINF,
-        pricePerADT: formData.pricePerADT,
-        pricePerCHD: formData.pricePerCHD,
-        pricePerINF: formData.pricePerINF,
-        totalAmount: formData.totalAmount,
-        paymentOption: formData.paymentOption,
-        installments: formData.installments,
-        status: formData.status,
-        notes: formData.notes,
-        flights: formData.flights,
-        hotels: formData.hotels,
-        tours: formData.tours,
-        medicalAssistances: formData.medicalAssistances,
-    };
+    // Deep copy and prepare data for API
+    const dataToSend = JSON.parse(JSON.stringify(formData));
 
-    onSave(reservationDataForApi);
+    // Combine date and time for flight itineraries into valid ISO 8601 format with UTC timezone
+    if (dataToSend.flights) {
+      dataToSend.flights.forEach((flight) => {
+        if (flight.itineraries) {
+          flight.itineraries.forEach(itinerary => {
+            const segmentDate = formData.segments[0]?.departureDate; // Simplification
+            const returnDate = formData.segments[0]?.returnDate;
+
+            if (segmentDate && itinerary.departureTime) {
+              itinerary.departure_time = `${segmentDate}T${itinerary.departureTime}:00Z`;
+            }
+            if (segmentDate && itinerary.arrivalTime) {
+              const arrivalDate = flight.flightCycle === 'one_way' ? segmentDate : returnDate;
+              itinerary.arrival_time = `${arrivalDate}T${itinerary.arrivalTime}:00Z`;
+            }
+          });
+        }
+      });
+    }
+
+    onSave(dataToSend);
   };
 
   const handleChange = (e) => {

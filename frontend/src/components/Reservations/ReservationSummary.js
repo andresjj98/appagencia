@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
 
-const ReservationSummary = ({ reservation, onClose }) => {
+const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
   const { formatCurrency, formatDate } = useSettings();
 
   return (
@@ -14,25 +14,33 @@ const ReservationSummary = ({ reservation, onClose }) => {
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h2 className="text-2xl font-bold text-gray-900">Detalles de la Reserva</h2>
           <motion.button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            onClick={onCancel}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
             whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
           >
             <X className="w-6 h-6" />
           </motion.button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="overflow-y-auto p-6 space-y-6">
+          {/* Warning Message */}
+          <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-start gap-3">
+            <AlertTriangle className="w-6 h-6 text-yellow-500 flex-shrink-0 mt-1" />
+            <div>
+                <h4 className="font-bold text-yellow-800">Atención</h4>
+                <p className="text-sm text-yellow-700">La reserva será enviada para ser procesada. Por favor, verifique que toda la información sea correcta antes de confirmar.</p>
+            </div>
+          </div>
+
           {/* Datos del Titular */}
           <section className="space-y-1">
             <h3 className="text-lg font-semibold">Datos del Titular</h3>
@@ -131,7 +139,7 @@ const ReservationSummary = ({ reservation, onClose }) => {
             <p>Precio ADT: {formatCurrency(reservation.pricePerADT)}</p>
             <p>Precio CHD: {formatCurrency(reservation.pricePerCHD)}</p>
             <p>Precio INF: {formatCurrency(reservation.pricePerINF)}</p>
-            <p>Total: {formatCurrency(reservation.totalAmount)}</p>
+            <p className="font-bold">Total: {formatCurrency(reservation.totalAmount)}</p>
             <p>Opción de pago: {reservation.paymentOption === 'full_payment' ? 'Pago completo' : 'Cuotas'}</p>
             {reservation.installments && reservation.installments.length > 0 && reservation.installments.map((inst, idx) => (
               <p key={idx} className="pl-4 text-sm text-gray-700">Cuota {idx + 1}: {formatCurrency(inst.amount)} - {formatDate(inst.dueDate)}</p>
@@ -145,18 +153,25 @@ const ReservationSummary = ({ reservation, onClose }) => {
               <p>{reservation.notes}</p>
             </section>
           )}
+        </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+        <div className="flex justify-end gap-4 p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0">
             <motion.button
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              onClick={onCancel}
+              className="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
               whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
             >
-              Cerrar
+              Cancelar
+            </motion.button>
+            <motion.button
+              onClick={onConfirm}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition-colors"
+              whileHover={{ scale: 1.02 }}
+            >
+              <CheckCircle className="w-5 h-5" />
+              Confirmar Reserva
             </motion.button>
           </div>
-        </div>
       </motion.div>
     </motion.div>
   );
