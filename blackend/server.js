@@ -462,7 +462,8 @@ app.get('/api/reservations', async (req, res) => {
         reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
         reservation_tours(*),
         reservation_medical_assistances(*),
-        reservation_installments(*)
+        reservation_installments(*),
+        change_requests(*)
       `);
 
     if (error) {
@@ -477,6 +478,7 @@ app.get('/api/reservations', async (req, res) => {
 
       return {
         ...reservation,
+        invoiceNumber: reservation.invoice_number,
         clientName: reservation.clients?.name,
         clientId: reservation.clients?.id_card,
         clientEmail: reservation.clients?.email,
@@ -486,6 +488,14 @@ app.get('/api/reservations', async (req, res) => {
           name: reservation.clients?.emergency_contact_name,
           phone: reservation.clients?.emergency_contact_phone,
         },
+        changeRequests: reservation.change_requests?.map(req => ({
+          id: req.id,
+          description: req.description,
+          field: req.field,
+          value: req.value,
+        })),
+        createdAt: reservation.created_at,
+        updatedAt: reservation.updated_at,
         departureDate: mainSegment?.departure_date,
         returnDate: mainSegment?.return_date,
         // Assuming destination is part of the main reservation object or can be derived
@@ -516,7 +526,8 @@ app.get('/api/reservations/:id', async (req, res) => {
         reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
         reservation_tours(*),
         reservation_medical_assistances(*),
-        reservation_installments(*)
+        reservation_installments(*),
+        change_requests(*)
       `)
       .eq('id', id)
       .single();
@@ -532,6 +543,7 @@ app.get('/api/reservations/:id', async (req, res) => {
 
     const transformedData = {
       ...data,
+      invoiceNumber: data.invoice_number,
       clientName: data.clients?.name,
       clientId: data.clients?.id_card,
       clientEmail: data.clients?.email,
@@ -541,6 +553,14 @@ app.get('/api/reservations/:id', async (req, res) => {
         name: data.clients?.emergency_contact_name,
         phone: data.clients?.emergency_contact_phone,
       },
+      changeRequests: data.change_requests?.map(req => ({
+        id: req.id,
+        description: req.description,
+        field: req.field,
+        value: req.value,
+      })),
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
       departureDate: data.reservation_segments && data.reservation_segments.length > 0
         ? data.reservation_segments[0].departure_date
         : null,
@@ -1013,7 +1033,7 @@ app.post('/api/reservations/:id/approve', async (req, res) => {
       return res.status(500).json({ message: 'Error del servidor' });
     }
 
-    res.json(data);
+    res.json({ ...data, invoiceNumber: data.invoice_number });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -1035,7 +1055,7 @@ app.post('/api/reservations/:id/reject', async (req, res) => {
       return res.status(500).json({ message: 'Error del servidor' });
     }
 
-    res.json(data);
+    res.json({ ...data, invoiceNumber: data.invoice_number });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });

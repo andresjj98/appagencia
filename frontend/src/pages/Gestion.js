@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -19,18 +19,23 @@ import {
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { RESERVATION_STATUS } from '../utils/constants';
 import ReservationDetail from '../components/Reservations/ReservationDetail';
-import mockReservations from '../mock/reservations';
-
 const Gestion = () => {
-  const [reservations, setReservations] = useState(mockReservations);
-  const [nextInvoiceNumber, setNextInvoiceNumber] = useState(() => {
-    const maxInvoice = mockReservations
-      .filter(r => r.invoiceNumber)
-      .reduce((max, r) => Math.max(max, r.invoiceNumber), 1000);
-    return maxInvoice + 1;
-  });
+  const [reservations, setReservations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
+
+  useEffect(() => {
+    const fetchReservations = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/reservations');
+        const data = await response.json();
+        setReservations(data);
+      } catch (error) {
+        console.error('Error fetching reservations:', error);
+      }
+    };
+    fetchReservations();
+  }, []);
 
   const filteredReservations = reservations.filter(reservation => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -61,32 +66,26 @@ const Gestion = () => {
     setSelectedReservation(null);
   };
 
-  const handleApprove = (reservationId) => {
-    setReservations(prev =>
-      prev.map(res => {
-        if (res.id === reservationId) {
-          const invoice = nextInvoiceNumber;
-          setNextInvoiceNumber(n => n + 1);
-          console.log(`Notificación al asesor ${res.advisorName}: Reserva aprobada con factura ${invoice}`);
-          return { ...res, status: 'confirmed', invoiceNumber: invoice };
-        }
-        return res;
-      })
-    );
+  const handleApprove = async (reservationId) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/approve`, { method: 'POST' });
+      if (!response.ok) throw new Error('Error approving reservation');
+      const updatedReservation = await response.json();
+      setReservations(prev => prev.map(res => res.id === reservationId ? { ...res, ...updatedReservation } : res));
+    } catch (error) {
+      console.error('Error approving reservation:', error);
+    }
   };
 
-  const handleReject = (reservationId) => {
-    const reason = prompt('Motivo de rechazo:');
-    if (!reason) return;
-    setReservations(prev =>
-      prev.map(res => {
-        if (res.id === reservationId) {
-          console.log(`Notificación al asesor ${res.advisorName}: Reserva rechazada - ${reason}`);
-          return { ...res, status: 'rejected', rejectionReason: reason };
-        }
-        return res;
-      })
-    );
+  const handleReject = async (reservationId) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/reject`, { method: 'POST' });
+      if (!response.ok) throw new Error('Error rejecting reservation');
+      const updatedReservation = await response.json();
+      setReservations(prev => prev.map(res => res.id === reservationId ? { ...res, ...updatedReservation } : res));
+    } catch (error) {
+      console.error('Error rejecting reservation:', error);
+    }
   };
 
   const handleUpdateReservation = (updatedReservation) => {
