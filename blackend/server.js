@@ -717,6 +717,8 @@ app.post('/api/reservations', async (req, res) => {
                 name: hotelData.name,
                 room_category: hotelData.roomCategory,
                 meal_plan: hotelData.mealPlan,
+                check_in_date: hotelData.checkInDate || null,
+                check_out_date: hotelData.checkOutDate || null,
                 reservation_id: reservationId
             };
             const { data: newHotel, error: hotelError } = await supabaseAdmin
@@ -925,6 +927,8 @@ app.put('/api/reservations/:id', async (req, res) => {
                     name: hotelData.name,
                     room_category: hotelData.roomCategory,
                     meal_plan: hotelData.mealPlan,
+                    check_in_date: hotelData.checkInDate || null,
+                    check_out_date: hotelData.checkOutDate || null,
                     reservation_id: reservationId
                 };
                 const { data: newHotel, error: hotelError } = await supabaseAdmin

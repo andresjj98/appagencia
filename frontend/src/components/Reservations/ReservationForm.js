@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -45,6 +45,17 @@ const getTodayDate = () => {
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const formatDate = (date) => {
+  if (!date) return getTodayDate();
+  return date.split('T')[0];
+};
+
+const formatTime = (time) => {
+  if (!time) return '';
+  const part = time.includes('T') ? time.split('T')[1] : time;
+  return part.slice(0, 5);
 };
 
 // Reusable Collapsible Section Component
@@ -102,8 +113,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     (segments || []).map((s) => ({
       origin: s.origin || '',
       destination: s.destination || '',
-      departureDate: s.departureDate || s.departure_date || getTodayDate(),
-      returnDate: s.returnDate || s.return_date || getTodayDate(),
+      departureDate: formatDate(s.departureDate || s.departure_date),
+      returnDate: formatDate(s.returnDate || s.return_date),
     }));
 
   const mapFlights = (flights) =>
@@ -117,8 +128,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       itineraries:
         (f.reservation_flight_itineraries || f.itineraries || []).map((i) => ({
           flightNumber: i.flightNumber || i.flight_number || '',
-          departureTime: i.departureTime || i.departure_time || '',
-          arrivalTime: i.arrivalTime || i.arrival_time || '',
+          departureTime: formatTime(i.departureTime || i.departure_time),
+          arrivalTime: formatTime(i.arrivalTime || i.arrival_time),
         })),
       trackingCode: f.trackingCode || f.tracking_code || f.pnr || '',
     }));
@@ -136,28 +147,28 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         (h.reservation_hotel_inclusions
           ? h.reservation_hotel_inclusions.map((i) => i.inclusion)
           : ['']),
-      checkInDate: h.check_in_date,
-      checkOutDate: h.check_out_date,
+      checkInDate: formatDate(h.checkInDate || h.check_in_date),
+      checkOutDate: formatDate(h.checkOutDate || h.check_out_date),
     }));
 
   const mapTours = (tours) =>
     (tours || []).map((t) => ({
       name: t.name || '',
-      date: t.date || '',
+      date: formatDate(t.date),
       cost: t.cost || 0,
     }));
 
   const mapMedical = (medical) =>
     (medical || []).map((m) => ({
       planType: m.planType || m.plan_type || 'traditional_tourism',
-      startDate: (m.startDate || m.start_date || getTodayDate()).split('T')[0],
-      endDate: (m.endDate || m.end_date || getTodayDate()).split('T')[0],
+      startDate: formatDate(m.startDate || m.start_date),
+      endDate: formatDate(m.endDate || m.end_date),
     }));
 
   const mapInstallments = (installments) =>
     (installments || []).map((i) => ({
       amount: i.amount || 0,
-      dueDate: (i.dueDate || i.due_date || getTodayDate()).split('T')[0],
+      dueDate: formatDate(i.dueDate || i.due_date),
     }));
 
   const initialSegments = reservation
@@ -167,7 +178,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const initialTripReturnDate =
     initialSegments[initialSegments.length - 1]?.returnDate || initialTripDepartureDate;
 
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     clientName: reservation?.clients?.name || '',
     clientEmail: reservation?.clients?.email || '',
     clientPhone: reservation?.clients?.phone || '',
@@ -218,6 +229,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
             accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }],
             mealPlan: '',
             hotelInclusions: [''],
+            checkInDate: getTodayDate(),
+            checkOutDate: getTodayDate(),
           },
         ]
       : [],
@@ -237,7 +250,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           },
         ]
       : [],
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+  const initialFormDataRef = useRef(JSON.parse(JSON.stringify(initialFormState)));
 
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
     total: 0, adt: 0, chd: 0, inf: 0
@@ -344,6 +360,15 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+
+    if (reservation) {
+      const hasChanges =
+        JSON.stringify(formData) !== JSON.stringify(initialFormDataRef.current);
+      if (!hasChanges) {
+        onClose?.();
+        return;
+      }
+    }
 
     // Deep copy and prepare data for API
     const dataToSend = JSON.parse(JSON.stringify(formData));
