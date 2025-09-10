@@ -984,6 +984,65 @@ app.delete('/api/reservations/:id', async (req, res) => {
   }
 });
 
+app.post('/api/reservations/:id/approve', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data: maxInvoice, error: maxInvoiceError } = await supabaseAdmin
+      .from('reservations')
+      .select('invoice_number')
+      .order('invoice_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (maxInvoiceError && maxInvoiceError.code !== 'PGRST116') { // PGRST116: no rows found
+      console.error('Error getting max invoice number:', maxInvoiceError);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    const newInvoiceNumber = (maxInvoice?.invoice_number || 0) + 1;
+
+    const { data, error } = await supabaseAdmin
+      .from('reservations')
+      .update({ status: 'confirmed', invoice_number: newInvoiceNumber })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error approving reservation:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.post('/api/reservations/:id/reject', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('reservations')
+      .update({ status: 'rejected' })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error rejecting reservation:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en el puerto ${PORT}`);

@@ -8,6 +8,10 @@ import ReservationForm from '../components/Reservations/ReservationForm';
 import ReservationTypeSelector from '../components/Reservations/ReservationTypeSelector';
 import ReservationPostCreation from '../components/Reservations/ReservationPostCreation';
 import ReservationSummary from '../components/Reservations/ReservationSummary';
+import CancelRequestModal from '../components/Reservations/CancelRequestModal';
+
+// The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
+const ChangeRequestModal = CancelRequestModal;
 
 const Reservations = () => {
   const [reservations, setReservations] = useState([]);
@@ -21,6 +25,10 @@ const Reservations = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false); // New state
   const [selectedReservationForDetails, setSelectedReservationForDetails] = useState(null); // New state
+  const [showChangeRequest, setShowChangeRequest] = useState(false);
+  const [reservationForChange, setReservationForChange] = useState(null);
+  const [showCancelRequest, setShowCancelRequest] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState(null);
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [isLoading, setIsLoading] = useState(true);
@@ -129,9 +137,16 @@ const Reservations = () => {
   };
 
   const handleEditReservation = (reservation) => {
-    setEditingReservation(reservation._original);
-    setSelectedReservationType(reservation._original.isMultiDestination ? 'all_inclusive' : 'all_inclusive');
-    setShowForm(true);
+    if (reservation.status !== 'confirmed') {
+      setEditingReservation(reservation._original);
+      setSelectedReservationType(
+        reservation._original.isMultiDestination ? 'all_inclusive' : 'all_inclusive'
+      );
+      setShowForm(true);
+    } else {
+      setReservationForChange(reservation);
+      setShowChangeRequest(true);
+    }
   };
 
   const handleFinalSaveReservation = async (reservationData) => {
@@ -198,23 +213,28 @@ const Reservations = () => {
   };
 
   const handleDeleteReservation = async (reservation) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar esta reserva?')) {
-      try {
-        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
-          method: 'DELETE',
-        });
+    if (reservation.status !== 'confirmed') {
+      if (window.confirm('¿Estás seguro de que quieres eliminar esta reserva?')) {
+        try {
+          const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
+            method: 'DELETE',
+          });
 
-        if (response.ok) {
-          fetchReservations();
-        } else {
-          const result = await response.json();
-          console.error('Error deleting reservation:', result.message);
-          alert(`Error: ${result.message}`);
-        }
-      } catch (error) {
-        console.error('Error deleting reservation:', error);
-        alert('An unexpected error occurred.');
+          if (response.ok) {
+            fetchReservations();
+          } else {
+            const result = await response.json();
+            console.error('Error deleting reservation:', result.message);
+            alert(`Error: ${result.message}`);
+          }
+        } catch (error) {
+          console.error('Error deleting reservation:', error);
+          alert('An unexpected error occurred.');
+        }      
       }
+    } else {
+      setReservationToCancel(reservation);
+      setShowCancelRequest(true);
     }
   };
 
@@ -366,6 +386,32 @@ const Reservations = () => {
               onClose={() => {
                 setShowDetailsModal(false);
                 setSelectedReservationForDetails(null);
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Change Request Modal */}
+        <AnimatePresence>
+          {showChangeRequest && reservationForChange && (
+            <ChangeRequestModal
+              reservation={reservationForChange}
+              onClose={() => {
+                setShowChangeRequest(false);
+                setReservationForChange(null);
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Cancel Request Modal */}
+        <AnimatePresence>
+          {showCancelRequest && reservationToCancel && (
+            <CancelRequestModal
+              reservation={reservationToCancel}
+              onClose={() => {
+                setShowCancelRequest(false);
+                setReservationToCancel(null);
               }}
             />
           )}
