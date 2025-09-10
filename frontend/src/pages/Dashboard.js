@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Users, Euro, TrendingUp } from 'lucide-react';
 import StatsCard from '../components/Dashboard/StatsCard';
 import RecentReservations from '../components/Dashboard/RecentReservations';
-import { useSettings } from '../context/SettingsContext';
+import { useSettings } from '../utils/SettingsContext';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);

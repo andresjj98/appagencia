@@ -36,7 +36,7 @@ import {
   Clock, 
   Hash 
 } from 'lucide-react';
-import { useSettings } from '../../context/SettingsContext';
+import { useSettings } from '../../utils/SettingsContext';
 
 // Helper to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {

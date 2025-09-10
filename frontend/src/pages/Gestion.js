@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { RESERVATION_STATUS } from '../utils/constants';
 import ReservationDetail from '../components/Reservations/ReservationDetail';
-import { useSettings } from '../context/SettingsContext';
+import { useSettings } from '../utils/SettingsContext';
 const Gestion = () => {
   const [reservations, setReservations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');

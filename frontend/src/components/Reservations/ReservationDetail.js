@@ -21,7 +21,7 @@ import {
   User
 } from 'lucide-react';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
-import { useSettings } from '../../context/SettingsContext';
+import { useSettings } from '../../utils/SettingsContext';
 
 const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
   const { formatCurrency, formatDate } = useSettings();

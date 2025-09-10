@@ -12,7 +12,7 @@ import {
   Filter,
   RefreshCcw
 } from 'lucide-react';
-import { useSettings } from '../context/SettingsContext';
+import { useSettings } from '../utils/SettingsContext';
 
 const generateChartData = (reservations, users) => {
   const salesByMonth = {};

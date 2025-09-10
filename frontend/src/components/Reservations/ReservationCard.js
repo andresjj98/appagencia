@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { calculateDays } from '../../utils/helpers';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
-import { useSettings } from '../../context/SettingsContext';
+import { useSettings } from '../../utils/SettingsContext';
 
 const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) => {
   const { formatCurrency, formatDate } = useSettings();

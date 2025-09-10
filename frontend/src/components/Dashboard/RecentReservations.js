@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Users, Euro } from 'lucide-react';
-import { formatCurrency, formatShortDate } from '../../utils/helpers';
+import { Calendar, MapPin, Users } from 'lucide-react';
 import { RESERVATION_STATUS } from '../../utils/constants';
+import { useSettings } from '../../utils/SettingsContext';
 
 const RecentReservations = ({ reservations = [] }) => {
+  const { formatCurrency, formatDate } = useSettings();
   return (
     <motion.div
       className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100"
@@ -58,7 +59,7 @@ const RecentReservations = ({ reservations = [] }) => {
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    <span>{formatShortDate(reservation.departureDate)}</span>
+                    <span>{formatDate(reservation.departureDate)}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4" />

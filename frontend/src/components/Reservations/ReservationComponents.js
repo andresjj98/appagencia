@@ -1,24 +1,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Hotel, 
-  Plane, 
-  Car, 
-  BriefcaseMedical, 
-  Ticket, 
-  X, 
-  Bed, 
-  Info, 
-  PlusCircle, 
+  Hotel,
+  Plane,
+  Car,
+  BriefcaseMedical,
+  Ticket,
+  X,
+  Bed,
+  Info,
+  PlusCircle,
   MinusCircle,
   Calendar,
-  Users,
-  Euro,
-  FileText,
+  Users,  
   Minimize2, // For minimize icon
   Maximize2 // For maximize icon
 } from 'lucide-react';
-import { formatCurrency } from '../../utils/helpers';
+import { useSettings } from '../../context/SettingsContext';
 
 // Hotel Component
 const HotelComponent = ({ data, onChange, onDelete }) => {
@@ -302,6 +300,7 @@ const MedicalAssistanceComponent = ({ data, onChange, onDelete }) => {
 
 // Tours Component
 const ToursComponent = ({ data, onChange, onDelete }) => {
+  const { formatCurrency } = useSettings();
   const handleTourChange = (index, e) => {
     const { name, value } = e.target;
     const newTours = [...(data.tours || [{ name: '', date: '', cost: 0 }])];
@@ -319,7 +318,7 @@ const ToursComponent = ({ data, onChange, onDelete }) => {
     onChange('tours', { ...data, tours: newTours });
   };
 
-  const totalToursCost = (data.tours || []).reduce((sum, tour) => sum + (tour.cost || 0), 0);
+    const totalToursCost = (data.tours || []).reduce((sum, tour) => sum + (tour.cost || 0), 0);
 
   return (
     <motion.div 

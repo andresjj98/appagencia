@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { useSettings } from '../../context/SettingsContext';
+import { useSettings } from '../../utils/SettingsContext';
 
 const ReservationSummary = ({ reservation, onClose }) => {
   const { formatCurrency, formatDate } = useSettings();
