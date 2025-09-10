@@ -9,6 +9,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Helper to ensure time strings include a date for timestamp fields
+const formatTimeToTimestamp = (timeStr) => {
+  if (!timeStr) return null;
+  // If value already contains a date portion, assume it's a valid timestamp
+  if (/\d{4}-\d{2}-\d{2}T/.test(timeStr)) return timeStr;
+  // Attach a dummy date so Postgres can parse the time correctly
+  return `1970-01-01T${timeStr}:00Z`;
+};
+
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -691,8 +700,8 @@ app.post('/api/reservations', async (req, res) => {
         if (itineraries && itineraries.length > 0) {
           const itineraryData = itineraries.map(i => ({
             flight_number: i.flightNumber,
-            departure_time: i.departureTime || null,
-            arrival_time: i.arrivalTime || null,
+            departure_time: formatTimeToTimestamp(i.departureTime),
+            arrival_time: formatTimeToTimestamp(i.arrivalTime),
             flight_id: newFlight.id
           }));
           const { error: itineraryError } = await supabaseAdmin.from('reservation_flight_itineraries').insert(itineraryData);
@@ -899,8 +908,8 @@ app.put('/api/reservations/:id', async (req, res) => {
                 if (itineraries && itineraries.length > 0) {
                     const itineraryData = itineraries.map(i => ({
                         flight_number: i.flightNumber,
-                        departure_time: i.departureTime || null,
-                        arrival_time: i.arrivalTime || null,
+                        departure_time: formatTimeToTimestamp(i.departureTime),
+                        arrival_time: formatTimeToTimestamp(i.arrivalTime),
                         flight_id: newFlight.id
                     }));
                     const { error: itineraryError } = await supabaseAdmin.from('reservation_flight_itineraries').insert(itineraryData);
