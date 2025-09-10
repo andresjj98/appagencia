@@ -12,7 +12,7 @@ import {
   Filter,
   RefreshCcw
 } from 'lucide-react';
-import { formatCurrency } from '../utils/helpers';
+import { useSettings } from '../context/SettingsContext';
 
 const generateChartData = (reservations, users) => {
   const salesByMonth = {};
@@ -48,6 +48,7 @@ const Analytics = () => {
   const [timeRange, setTimeRange] = useState('last_6_months');
   const [filterType, setFilterType] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
+  const { formatCurrency } = useSettings();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);

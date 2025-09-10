@@ -20,10 +20,11 @@ import {
   XCircle,
   User
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '../../utils/helpers';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
+import { useSettings } from '../../context/SettingsContext';
 
 const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
+  const { formatCurrency, formatDate } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editedReservation, setEditedReservation] = useState(reservation);
   const [uploadMessage, setUploadMessage] = useState('');

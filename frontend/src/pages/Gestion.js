@@ -16,13 +16,14 @@ import {
   Euro, // Import Euro
   Users // Import Users
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/helpers';
 import { RESERVATION_STATUS } from '../utils/constants';
 import ReservationDetail from '../components/Reservations/ReservationDetail';
+import { useSettings } from '../context/SettingsContext';
 const Gestion = () => {
   const [reservations, setReservations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
+  const { formatCurrency, formatDate } = useSettings();
 
   useEffect(() => {
     const fetchReservations = async () => {

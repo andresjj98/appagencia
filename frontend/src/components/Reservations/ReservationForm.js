@@ -36,7 +36,7 @@ import {
   Clock, 
   Hash 
 } from 'lucide-react';
-import { formatCurrency } from '../../utils/helpers';
+import { useSettings } from '../../context/SettingsContext';
 
 // Helper to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -90,6 +90,8 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = fa
 
 
 const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose }) => {
+  const { settings, formatCurrency } = useSettings();
+
   const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
   const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
   const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
@@ -1033,7 +1035,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Costo (€)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Costo ({settings.currency})</label>
                       <input type="number" name="cost" value={tour.cost} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="0.00" />
                     </div>
                   </div>
@@ -1149,7 +1151,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio por Adulto (ADT) (€)
+                  Precio por Adulto (ADT) ({settings.currency})
                 </label>
                 <input
                   type="number"
@@ -1164,7 +1166,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio por Niño (CHD) (€)
+                  Precio por Niño (CHD) ({settings.currency})
                 </label>
                 <input
                   type="number"
@@ -1178,7 +1180,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio por Infante (INF) (€)
+                  Precio por Infante (INF) ({settings.currency})
                 </label>
                 <input
                   type="number"
@@ -1197,9 +1199,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 <Calculator className="w-6 h-6" />
                 Total del Plan:
               </h4>
-              <span className="text-2xl font-extrabold text-blue-800">
-                €{parseFloat(formData.totalAmount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
+              <span className="text-2xl font-extrabold text-blue-800">{formatCurrency(formData.totalAmount)}</span>
             </div>
             
             {/* Payment Option */}
@@ -1255,7 +1255,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   {formData.installments.map((installment, index) => (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Monto (€)</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Monto ({settings.currency})</label>
                         <input type="number" name="amount" value={installment.amount} onChange={(e) => handleInstallmentChange(index, e)} step="0.01" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="0.00" />
                       </div>
                       <div>

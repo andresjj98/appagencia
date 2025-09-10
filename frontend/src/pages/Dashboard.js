@@ -3,10 +3,12 @@ import { motion } from 'framer-motion';
 import { Calendar, Users, Euro, TrendingUp } from 'lucide-react';
 import StatsCard from '../components/Dashboard/StatsCard';
 import RecentReservations from '../components/Dashboard/RecentReservations';
+import { useSettings } from '../context/SettingsContext';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { formatCurrency } = useSettings();
 
   const fetchReservations = useCallback(async () => {
     setIsLoading(true);
@@ -54,7 +56,7 @@ const Dashboard = () => {
     },
     {
       title: 'Ingresos Totales (Confirmados)',
-      value: `€${totalRevenue.toLocaleString()}`,
+      value: formatCurrency(totalRevenue),
       change: '+15%', // static
       icon: Euro,
       color: 'purple'
