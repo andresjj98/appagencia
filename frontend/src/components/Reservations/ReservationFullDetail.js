@@ -172,7 +172,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
                     {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions)?.length > 0 && (
                         <ul className="pl-6 list-disc">
                             {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions).map((inc, i) => (
-                                <li key={i}>{inc.inclusion || inc}</li>
+                                <li key={i}>{typeof inc === 'string' ? inc : inc.inclusion}</li>
                             ))}
                         </ul>
                     )}
