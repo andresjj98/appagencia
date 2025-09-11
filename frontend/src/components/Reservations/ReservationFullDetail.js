@@ -15,8 +15,11 @@ import {
   Paperclip,
   Trash2,
   Package,
-  ListChecks
+  ListChecks,
+  PlusCircle
 } from 'lucide-react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import supabase from '../../utils/supabaseClient';
 import { useSettings } from '../../utils/SettingsContext';
 
 // Read-only Section
@@ -108,8 +111,6 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const [assistanceData, setAssistanceData] = useState(reservation._original.reservation_medical_assistances || []);
   const [attachmentData, setAttachmentData] = useState(reservation._original.attachments || { description: '', files: [] });
 
-  const isApproved = reservation.status === 'confirmed';
-
   const paymentOption = reservation._original.payment_option;
   const installments = reservation._original.installments || reservation._original.reservation_installments || [];
   const totalInstallmentsAmount = installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
@@ -137,11 +138,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   };
 
   const handleManagementClick = (mode) => {
-    if (isApproved && mode !== 'attachments') { // Allow attaching files even if approved
-      onRequestChange(reservation);
-    } else {
-      setViewMode(mode);
-    }
+    setViewMode(mode);
   };
 
   const ReadOnlyView = () => (
@@ -283,7 +280,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
                 <Edit className="w-4 h-4" /> Editar Reserva
             </button>
             <button onClick={() => handleManagementClick('passengers')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                <Users className="w-4 h-4" /> {isApproved ? 'Solicitar Cambio Pasajeros' : 'Gestionar Pasajeros'}
+                <Users className="w-4 h-4" /> Gestionar pasajero(s)
             </button>
             <button onClick={() => setViewMode('attachments')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
                 <Paperclip className="w-4 h-4" /> Adjuntar Archivos
@@ -294,10 +291,201 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   );
   
   const PassengerForm = () => {
+    const totalPassengers = (reservation._original.passengers_adt || 0) + (reservation._original.passengers_chd || 0) + (reservation._original.passengers_inf || 0);
+    const defaultPassengers = Array.from({ length: totalPassengers }, (_, idx) => ({
+      id: passengersData[idx]?.id || null,
+      firstName: passengersData[idx]?.name || '',
+      lastName: passengersData[idx]?.lastname || '',
+      documentType: passengersData[idx]?.document_type || '',
+      documentNumber: passengersData[idx]?.document_number || '',
+      birthDate: passengersData[idx]?.birth_date ? passengersData[idx].birth_date.split('T')[0] : '',
+      notes: passengersData[idx]?.notes || '',
+      files: passengersData[idx]?.documents || []
+    }));
+
+    const { control, register, handleSubmit, setValue, watch, formState: { errors } } = useForm({ defaultValues: { passengers: defaultPassengers } });
+    const { fields, append, remove } = useFieldArray({ control, name: 'passengers' });
+    const watchPassengers = watch('passengers');
+
+    const onFileChange = (idx, files) => {
+      const existing = watchPassengers[idx]?.files || [];
+      setValue(`passengers.${idx}.files`, [...existing, ...Array.from(files)]);
+    };
+
+    const removeFile = (pIdx, fIdx) => {
+      const updated = (watchPassengers[pIdx]?.files || []).filter((_, i) => i !== fIdx);
+      setValue(`passengers.${pIdx}.files`, updated);
+    };
+
+    const addPassenger = () => append({ firstName: '', lastName: '', documentType: '', documentNumber: '', birthDate: '', notes: '', files: [] });
+
+    const onSubmit = async (data) => {
+      const numbers = data.passengers.map(p => p.documentNumber);
+      const hasDup = numbers.some((n, i) => numbers.indexOf(n) !== i);
+      if (hasDup) {
+        alert('El número de documento debe ser único por reserva.');
+        return;
+      }
+
+      const passengersToSave = [];
+      for (let i = 0; i < data.passengers.length; i++) {
+        const pax = data.passengers[i];
+        const uploadedFiles = [];
+        for (const file of pax.files || []) {
+          if (file instanceof File) {
+            const filePath = `${reservation.id}/passenger_${i + 1}/${file.name}`;
+            const { error } = await supabase.storage.from('reservation-docs').upload(filePath, file);
+            if (!error) {
+              const { data: publicUrl } = supabase.storage.from('reservation-docs').getPublicUrl(filePath);
+              uploadedFiles.push({ name: file.name, type: file.type, url: publicUrl.publicUrl });
+            }
+          } else {
+            uploadedFiles.push(file);
+          }
+        }
+
+        passengersToSave.push({
+          id: pax.id,
+          reservation_id: reservation.id,
+          name: pax.firstName,
+          lastname: pax.lastName,
+          document_type: pax.documentType,
+          document_number: pax.documentNumber,
+          birth_date: pax.birthDate,
+          notes: pax.notes,
+          documents: uploadedFiles
+        });
+      }
+
+      const { error } = await supabase.from('reservation_passengers').upsert(passengersToSave);
+      if (error) {
+        console.error('Error saving passengers', error);
+        return;
+      }
+      setPassengersData(passengersToSave);
+      setViewMode('view');
+    };
+
     return (
-        <DetailManagement title="Gestionar Pasajeros" icon={<Users className="w-5 h-5" />} onBack={() => setViewMode('view')} onSave={() => handleSave('passengers')}>
-            <p>Formulario de pasajeros...</p>
-        </DetailManagement>
+      <DetailManagement
+        title="Gestionar Pasajeros"
+        icon={<Users className="w-5 h-5" />}
+        onBack={() => setViewMode('view')}
+        onSave={handleSubmit(onSubmit)}
+      >
+        {fields.map((field, index) => (
+          <div key={field.id} className="p-4 border border-gray-200 rounded-lg space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nombres</label>
+                <input
+                  {...register(`passengers.${index}.firstName`, { required: true })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg"
+                />
+                {errors.passengers?.[index]?.firstName && (
+                  <p className="text-xs text-red-500 mt-1">Requerido</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Apellidos</label>
+                <input
+                  {...register(`passengers.${index}.lastName`, { required: true })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg"
+                />
+                {errors.passengers?.[index]?.lastName && (
+                  <p className="text-xs text-red-500 mt-1">Requerido</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Tipo Documento</label>
+                <select
+                  {...register(`passengers.${index}.documentType`, { required: true })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg"
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="CC">CC</option>
+                  <option value="CE">CE</option>
+                  <option value="TI">TI</option>
+                  <option value="PAS">PAS</option>
+                </select>
+                {errors.passengers?.[index]?.documentType && (
+                  <p className="text-xs text-red-500 mt-1">Requerido</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Número Documento</label>
+                <input
+                  {...register(`passengers.${index}.documentNumber`, { required: true })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg"
+                />
+                {errors.passengers?.[index]?.documentNumber && (
+                  <p className="text-xs text-red-500 mt-1">Requerido</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Fecha Nacimiento</label>
+                <input
+                  type="date"
+                  {...register(`passengers.${index}.birthDate`, {
+                    required: true,
+                    validate: (v) => new Date(v) <= new Date()
+                  })}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg"
+                />
+                {errors.passengers?.[index]?.birthDate?.type === 'validate' && (
+                  <p className="text-xs text-red-500 mt-1">No puede ser futura</p>
+                )}
+                {errors.passengers?.[index]?.birthDate?.type === 'required' && (
+                  <p className="text-xs text-red-500 mt-1">Requerido</p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Anotaciones</label>
+                <textarea
+                  {...register(`passengers.${index}.notes`)}
+                  className="w-full mt-1 px-3 py-2 border rounded-lg"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Documentos</label>
+              <input type="file" multiple onChange={(e) => onFileChange(index, e.target.files)} className="mb-2" />
+              <ul className="space-y-1">
+                {(watchPassengers[index]?.files || []).map((file, fIdx) => (
+                  <li key={fIdx} className="flex justify-between items-center text-sm bg-gray-100 p-2 rounded">
+                    <span>{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index, fIdx)}
+                      className="text-red-600 text-xs"
+                    >
+                      Eliminar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                className="text-red-600 text-sm flex items-center gap-1"
+              >
+                <Trash2 className="w-4 h-4" /> Eliminar pasajero
+              </button>
+            </div>
+          </div>
+        ))}
+        <div>
+          <button
+            type="button"
+            onClick={addPassenger}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 border rounded-lg"
+          >
+            <PlusCircle className="w-4 h-4" /> Agregar pasajero
+          </button>
+        </div>
+      </DetailManagement>
     );
   };
 
