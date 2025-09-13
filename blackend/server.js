@@ -2,12 +2,17 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 const { hashPassword, comparePassword } = require('./passwordUtils');
 const { supabaseAdmin } = require('./supabase');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Multer setup for file uploads in memory
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // Helper to ensure time strings include a date for timestamp fields
 const formatTimeToTimestamp = (timeStr) => {
@@ -1241,6 +1246,268 @@ app.post('/api/reservations/:id/reject', async (req, res) => {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
   }
+});
+
+
+
+// --- Reservation Passengers Endpoints ---
+
+// Get all passengers for a reservation
+app.get('/api/reservations/:reservation_id/passengers', async (req, res) => {
+  const { reservation_id } = req.params;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('reservation_passengers')
+      .select('*')
+      .eq('reservation_id', reservation_id);
+
+    if (error) {
+      console.error('Error fetching passengers from Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Add a passenger to a reservation
+app.post('/api/reservations/:reservation_id/passengers', upload.array('documents'), async (req, res) => {
+  const { reservation_id } = req.params;
+  const { name, lastname, document_type, document_number, birth_date, notes } = req.body;
+
+  if (!name || !lastname || !document_type || !document_number || !birth_date) {
+    return res.status(400).json({ message: 'Faltan datos del pasajero' });
+  }
+
+  try {
+    let documents_metadata = [];
+    if (req.files) {
+      for (const file of req.files) {
+        const filePath = `${reservation_id}/${document_number}/${file.originalname}`;
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from('arch_pax')
+          .upload(filePath, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading file to Supabase Storage:', uploadError);
+          // Continue without this file or return an error? For now, let's continue
+        } else {
+          const { data: urlData } = supabaseAdmin.storage.from('arch_pax').getPublicUrl(filePath);
+          documents_metadata.push({
+            name: file.originalname,
+            url: urlData.publicUrl,
+            type: file.mimetype,
+            path: filePath,
+          });
+        }
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('reservation_passengers')
+      .insert({
+        reservation_id,
+        name,
+        lastname,
+        document_type,
+        document_number,
+        birth_date,
+        notes,
+        documents: documents_metadata,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error inserting passenger into Supabase:', error);
+      if (error.code === '23505') {
+        return res.status(409).json({ message: 'Un pasajero con este número de documento ya existe en esta reserva.' });
+      }
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    res.status(201).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Update a passenger
+app.put('/api/passengers/:passenger_id', upload.array('documents'), async (req, res) => {
+    const { passenger_id } = req.params;
+    const { name, lastname, document_type, document_number, birth_date, notes, existing_documents } = req.body;
+
+    try {
+        // First, get the existing passenger to get reservation_id and old documents
+        const { data: existingPassenger, error: fetchError } = await supabaseAdmin
+            .from('reservation_passengers')
+            .select('reservation_id, documents')
+            .eq('id', passenger_id)
+            .single();
+
+        if (fetchError || !existingPassenger) {
+            return res.status(404).json({ message: 'Pasajero no encontrado' });
+        }
+
+        const { reservation_id } = existingPassenger;
+        let documents_metadata = existingPassenger.documents || [];
+        
+        // If existing_documents is a string, parse it. It might come as a JSON string from form-data
+        let clientExistingDocs = [];
+        if (typeof existing_documents === 'string') {
+            try {
+                clientExistingDocs = JSON.parse(existing_documents);
+            } catch(e) {
+                // ignore if parsing fails
+            }
+        } else if (Array.isArray(existing_documents)) {
+            clientExistingDocs = existing_documents;
+        }
+
+        // Find and remove documents that are no longer in the list
+        const docsToRemove = documents_metadata.filter(doc => !clientExistingDocs.some(ed => ed.path === doc.path));
+        if (docsToRemove.length > 0) {
+            const pathsToRemove = docsToRemove.map(doc => doc.path);
+            await supabaseAdmin.storage.from('arch_pax').remove(pathsToRemove);
+            documents_metadata = documents_metadata.filter(doc => !pathsToRemove.includes(doc.path));
+        }
+
+        // Upload new files
+        if (req.files) {
+            for (const file of req.files) {
+                const filePath = `${reservation_id}/${document_number}/${file.originalname}`;
+                const { error: uploadError } = await supabaseAdmin.storage
+                    .from('arch_pax')
+                    .upload(filePath, file.buffer, {
+                        contentType: file.mimetype,
+                        upsert: true,
+                    });
+
+                if (uploadError) {
+                    console.error('Error uploading file to Supabase Storage:', uploadError);
+                } else {
+                    const { data: urlData } = supabaseAdmin.storage.from('arch_pax').getPublicUrl(filePath);
+                    documents_metadata.push({
+                        name: file.originalname,
+                        url: urlData.publicUrl,
+                        type: file.mimetype,
+                        path: filePath,
+                    });
+                }
+            }
+        }
+
+        const updateData = {
+            name,
+            lastname,
+            document_type,
+            document_number,
+            birth_date,
+            notes,
+            documents: documents_metadata,
+        };
+
+        const { data, error } = await supabaseAdmin
+            .from('reservation_passengers')
+            .update(updateData)
+            .eq('id', passenger_id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating passenger in Supabase:', error);
+            return res.status(500).json({ message: 'Error del servidor' });
+        }
+
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error del servidor' });
+    }
+});
+
+
+// Delete a passenger
+app.delete('/api/passengers/:passenger_id', async (req, res) => {
+  const { passenger_id } = req.params;
+  try {
+    // Before deleting the passenger, get their documents to delete them from storage
+    const { data: passenger, error: fetchError } = await supabaseAdmin
+        .from('reservation_passengers')
+        .select('documents')
+        .eq('id', passenger_id)
+        .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // 'PGRST116' means no rows found, which is ok if passenger doesn't exist
+        console.error('Error fetching passenger for deletion:', fetchError);
+        return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    if (passenger && passenger.documents && passenger.documents.length > 0) {
+        const pathsToRemove = passenger.documents.map(doc => doc.path).filter(Boolean);
+        if (pathsToRemove.length > 0) {
+            const { error: storageError } = await supabaseAdmin.storage.from('arch_pax').remove(pathsToRemove);
+            if (storageError) {
+                console.error('Error deleting files from Supabase Storage:', storageError);
+                // Decide if you should proceed with DB deletion or not.
+                // For now, we'll log the error and continue.
+            }
+        }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('reservation_passengers')
+      .delete()
+      .eq('id', passenger_id)
+      .select();
+
+    if (error) {
+      console.error('Error deleting passenger from Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor' });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ message: 'Pasajero no encontrado' });
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Download a passenger document
+app.get('/api/passengers/documents/download', async (req, res) => {
+    const { path } = req.query;
+    if (!path) {
+        return res.status(400).json({ message: 'File path is required' });
+    }
+    try {
+        const { data, error } = await supabaseAdmin.storage.from('arch_pax').download(path);
+        if (error) {
+            console.error('Error downloading file:', error);
+            return res.status(404).json({ message: 'File not found' });
+        }
+        // To get the content type, we can look it up or just set a generic one
+        const { data: fileData, error: fileError } = await supabaseAdmin.storage.from('arch_pax').getPublicUrl(path);
+        
+        // This is a bit of a hack. Supabase JS client v2 doesn't easily expose metadata on download.
+        // We'll try to infer from the name, or you could store mimetype in the DB.
+        const fileName = path.split('/').pop();
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        data.pipe(res);
+
+    } catch (error) {
+        console.error('Error processing file download:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
 

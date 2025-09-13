@@ -68,37 +68,336 @@ const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
     </div>
 );
 
-const FileUpload = ({ files, onUpload, onRemove }) => (
-    <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Documentación</label>
-        <div className="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-            <div className="space-y-1 text-center">
-                <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                <div className="flex text-sm text-gray-600">
-                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
-                        <span>Sube un archivo</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={onUpload} />
-                    </label>
-                    <p className="pl-1">o arrástralo aquí</p>
-                </div>
-                <p className="text-xs text-gray-500">PNG, JPG, GIF, PDF hasta 10MB</p>
+const PassengerForm = ({ reservation, passengersData, setPassengersData, setViewMode }) => {
+  const totalPassengers = (reservation._original.passengers_adt || 0) + (reservation._original.passengers_chd || 0) + (reservation._original.passengers_inf || 0);
+  
+  const initialPassengers = (passengersData || []).map(pax => ({
+    id: pax.id || null,
+    firstName: pax.name || '',
+    lastName: pax.lastname || '',
+    documentType: pax.document_type || '',
+    documentNumber: pax.document_number || '',
+    birthDate: pax.birth_date ? pax.birth_date.split('T')[0] : '',
+    notes: pax.notes || '',
+    files: pax.documents || []
+  }));
+
+  const { control, register, handleSubmit, setValue, watch, formState: { errors } } = useForm({ defaultValues: { passengers: initialPassengers } });
+  const { fields, append, remove } = useFieldArray({ control, name: 'passengers' });
+  const watchPassengers = watch('passengers');
+
+  const onFileChange = (idx, files) => {
+    const existing = watchPassengers[idx]?.files || [];
+    setValue(`passengers.${idx}.files`, [...existing, ...Array.from(files)]);
+  };
+
+  const removeFile = (pIdx, fIdx) => {
+    const updated = (watchPassengers[pIdx]?.files || []).filter((_, i) => i !== fIdx);
+    setValue(`passengers.${pIdx}.files`, updated);
+  };
+
+  const addPassenger = () => {
+    if (fields.length < totalPassengers) {
+      append({ firstName: '', lastName: '', documentType: '', documentNumber: '', birthDate: '', notes: '', files: [] });
+    } else {
+      alert(`No se pueden agregar más pasajeros. El límite para esta reserva es ${totalPassengers}.`);
+    }
+  };
+
+  const onSubmit = async (data) => {
+    const numbers = data.passengers.map(p => p.documentNumber);
+    const hasDup = numbers.some((n, i) => numbers.indexOf(n) !== i);
+    if (hasDup) {
+      alert('El número de documento debe ser único por reserva.');
+      return;
+    }
+
+    const passengersToSave = [];
+    for (let i = 0; i < data.passengers.length; i++) {
+      const pax = data.passengers[i];
+      const uploadedFiles = [];
+      for (const file of pax.files || []) {
+        if (file instanceof File) {
+          const filePath = `${reservation.id}/passenger_${i + 1}/${file.name}`;
+          const { error } = await supabase.storage.from('arch_pax').upload(filePath, file);
+          if (!error) {
+            const { data: publicUrl } = supabase.storage.from('arch_pax').getPublicUrl(filePath);
+            uploadedFiles.push({ name: file.name, type: file.type, url: publicUrl.publicUrl });
+          }
+        } else {
+          uploadedFiles.push(file);
+        }
+      }
+
+      passengersToSave.push({
+        id: pax.id,
+        reservation_id: reservation.id,
+        name: pax.firstName,
+        lastname: pax.lastName,
+        document_type: pax.documentType,
+        document_number: pax.documentNumber,
+        birth_date: pax.birthDate,
+        notes: pax.notes,
+        documents: uploadedFiles
+      });
+    }
+
+    const { error } = await supabase.from('reservation_passengers').upsert(passengersToSave);
+    if (error) {
+      console.error('Error saving passengers', error);
+      return;
+    }
+    setPassengersData(passengersToSave);
+    setViewMode('view');
+  };
+
+  return (
+    <DetailManagement
+      title="Gestionar Pasajeros"
+      icon={<Users className="w-5 h-5" />}
+      onBack={() => setViewMode('view')}
+      onSave={handleSubmit(onSubmit)}
+    >
+      {fields.map((field, index) => (
+        <div key={field.id} className="p-4 border border-gray-200 rounded-lg space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Nombres</label>
+              <input
+                {...register(`passengers.${index}.firstName`, { required: true })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+              />
+              {errors.passengers?.[index]?.firstName && (
+                <p className="text-xs text-red-500 mt-1">Requerido</p>
+              )}
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Apellidos</label>
+              <input
+                {...register(`passengers.${index}.lastName`, { required: true })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+              />
+              {errors.passengers?.[index]?.lastName && (
+                <p className="text-xs text-red-500 mt-1">Requerido</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Tipo Documento</label>
+              <select
+                {...register(`passengers.${index}.documentType`, { required: true })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+              >
+                <option value="">Seleccionar</option>
+                <option value="CC">CC</option>
+                <option value="CE">CE</option>
+                <option value="TI">TI</option>
+                <option value="PAS">PAS</option>
+              </select>
+              {errors.passengers?.[index]?.documentType && (
+                <p className="text-xs text-red-500 mt-1">Requerido</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Número Documento</label>
+              <input
+                {...register(`passengers.${index}.documentNumber`, { required: true })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+              />
+              {errors.passengers?.[index]?.documentNumber && (
+                <p className="text-xs text-red-500 mt-1">Requerido</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Fecha Nacimiento</label>
+              <input
+                type="date"
+                {...register(`passengers.${index}.birthDate`, {
+                  required: true,
+                  validate: (v) => new Date(v) <= new Date()
+                })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+              />
+              {errors.passengers?.[index]?.birthDate?.type === 'validate' && (
+                <p className="text-xs text-red-500 mt-1">No puede ser futura</p>
+              )}
+              {errors.passengers?.[index]?.birthDate?.type === 'required' && (
+                <p className="text-xs text-red-500 mt-1">Requerido</p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Anotaciones</label>
+              <textarea
+                {...register(`passengers.${index}.notes`)}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Documentos</label>
+            <input type="file" multiple onChange={(e) => onFileChange(index, e.target.files)} className="mb-2" />
+            <ul className="space-y-1">
+              {(watchPassengers[index]?.files || []).map((file, fIdx) => (
+                <li key={fIdx} className="flex justify-between items-center text-sm bg-gray-100 p-2 rounded">
+                  <span>{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index, fIdx)}
+                    className="text-red-600 text-xs"
+                  >
+                    Eliminar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => remove(index)}
+              className="text-red-600 text-sm flex items-center gap-1"
+            >
+              <Trash2 className="w-4 h-4" /> Eliminar pasajero
+            </button>
+          </div>
         </div>
-        <div className="mt-4 space-y-2">
-            {(files || []).map((file, index) => (
-                <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
-                    <div className="flex items-center gap-2">
-                        <Paperclip className="w-4 h-4 text-gray-500" />
-                        <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">{file.name}</a>
-                    </div>
-                    <button onClick={() => onRemove(index)} className="p-1 text-red-500 hover:text-red-700">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-            ))}
+      ))}
+      <div>
+        <button
+          type="button"
+          onClick={addPassenger}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 border rounded-lg"
+        >
+          <PlusCircle className="w-4 h-4" /> Agregar pasajero
+        </button>
+      </div>
+    </DetailManagement>
+  );
+};
+
+const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setViewMode }) => {
+  const { control, register, handleSubmit, setValue, watch } = useForm({
+    defaultValues: { attachments: attachmentData }
+  });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "attachments"
+  });
+
+  const onFileChange = (index, e) => {
+    if (e.target.files.length) {
+      setValue(`attachments.${index}.file`, e.target.files[0]);
+    }
+  };
+
+  const onSubmit = async (data) => {
+    const attachmentsToSave = [];
+    for (let i = 0; i < data.attachments.length; i++) {
+      const attachment = data.attachments[i];
+      let fileUrl = attachment.file_url; // Keep existing URL if file is not changed
+
+      if (attachment.file instanceof File) {
+        const file = attachment.file;
+        const filePath = `${reservation.id}/attachments/${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('arch_pax')
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          continue; // Or handle error appropriately
+        }
+        
+        const { data: publicUrlData } = supabase.storage
+          .from('arch_pax')
+          .getPublicUrl(filePath);
+        
+        fileUrl = publicUrlData.publicUrl;
+      }
+
+      attachmentsToSave.push({
+        id: attachment.id,
+        reservation_id: reservation.id,
+        title: attachment.title,
+        observation: attachment.observation,
+        file_name: attachment.file instanceof File ? attachment.file.name : attachment.file_name,
+        file_url: fileUrl,
+      });
+    }
+
+    const { data: savedAttachments, error } = await supabase
+      .from('reservation_attachments')
+      .upsert(attachmentsToSave)
+      .select();
+
+    if (error) {
+      console.error('Error saving attachments', error);
+      return;
+    }
+    setAttachmentData(savedAttachments);
+    setViewMode('view');
+  };
+
+  return (
+    <DetailManagement
+      title="Adjuntar Archivos y Notas"
+      icon={<Paperclip className="w-5 h-5" />}
+      onBack={() => setViewMode('view')}
+      onSave={handleSubmit(onSubmit)}
+    >
+      {fields.map((field, index) => (
+        <div key={field.id} className="p-4 border border-gray-200 rounded-lg space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="col-span-full">
+              <label className="block text-sm font-medium text-gray-700">Título</label>
+              <input
+                {...register(`attachments.${index}.title`, { required: true })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+                placeholder="Ej: Vouchers de hotel"
+              />
+            </div>
+            <div className="col-span-full">
+              <label className="block text-sm font-medium text-gray-700">Observaciones</label>
+              <textarea
+                {...register(`attachments.${index}.observation`)}
+                className="w-full mt-1 px-3 py-2 border rounded-lg"
+                placeholder="Observaciones sobre el archivo"
+              />
+            </div>
+            <div className="col-span-full">
+              <label className="block text-sm font-medium text-gray-700">Archivo</label>
+              <input
+                type="file"
+                onChange={(e) => onFileChange(index, e)}
+                className="w-full mt-1"
+              />
+              {watch(`attachments.${index}.file_url`) && !(watch(`attachments.${index}.file`) instanceof File) && (
+                 <div className="text-sm mt-2">
+                    Archivo actual: <a href={watch(`attachments.${index}.file_url`)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{watch(`attachments.${index}.file_name`)}</a>
+                 </div>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => remove(index)}
+              className="text-red-600 text-sm flex items-center gap-1"
+            >
+              <Trash2 className="w-4 h-4" /> Eliminar Archivo
+            </button>
+          </div>
         </div>
-    </div>
-);
+      ))}
+      <button
+        type="button"
+        onClick={() => append({ title: '', observation: '', file: null, file_name: '', file_url: '' })}
+        className="flex items-center gap-2 px-4 py-2 bg-gray-100 border rounded-lg"
+      >
+        <PlusCircle className="w-4 h-4" /> Agregar Archivo
+      </button>
+    </DetailManagement>
+  );
+};
 
 const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEdit, onRequestChange }) => {
   const { formatCurrency, formatDate } = useSettings();
@@ -109,7 +408,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const [flightData, setFlightData] = useState(reservation._original.reservation_flights || []);
   const [tourData, setTourData] = useState(reservation._original.reservation_tours || []);
   const [assistanceData, setAssistanceData] = useState(reservation._original.reservation_medical_assistances || []);
-  const [attachmentData, setAttachmentData] = useState(reservation._original.attachments || { description: '', files: [] });
+  const [attachmentData, setAttachmentData] = useState(reservation._original.reservation_attachments || []);
 
   const paymentOption = reservation._original.payment_option;
   const installments = reservation._original.installments || reservation._original.reservation_installments || [];
@@ -290,219 +589,21 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
     </>
   );
   
-  const PassengerForm = () => {
-    const totalPassengers = (reservation._original.passengers_adt || 0) + (reservation._original.passengers_chd || 0) + (reservation._original.passengers_inf || 0);
-    const defaultPassengers = Array.from({ length: totalPassengers }, (_, idx) => ({
-      id: passengersData[idx]?.id || null,
-      firstName: passengersData[idx]?.name || '',
-      lastName: passengersData[idx]?.lastname || '',
-      documentType: passengersData[idx]?.document_type || '',
-      documentNumber: passengersData[idx]?.document_number || '',
-      birthDate: passengersData[idx]?.birth_date ? passengersData[idx].birth_date.split('T')[0] : '',
-      notes: passengersData[idx]?.notes || '',
-      files: passengersData[idx]?.documents || []
-    }));
-
-    const { control, register, handleSubmit, setValue, watch, formState: { errors } } = useForm({ defaultValues: { passengers: defaultPassengers } });
-    const { fields, append, remove } = useFieldArray({ control, name: 'passengers' });
-    const watchPassengers = watch('passengers');
-
-    const onFileChange = (idx, files) => {
-      const existing = watchPassengers[idx]?.files || [];
-      setValue(`passengers.${idx}.files`, [...existing, ...Array.from(files)]);
-    };
-
-    const removeFile = (pIdx, fIdx) => {
-      const updated = (watchPassengers[pIdx]?.files || []).filter((_, i) => i !== fIdx);
-      setValue(`passengers.${pIdx}.files`, updated);
-    };
-
-    const addPassenger = () => append({ firstName: '', lastName: '', documentType: '', documentNumber: '', birthDate: '', notes: '', files: [] });
-
-    const onSubmit = async (data) => {
-      const numbers = data.passengers.map(p => p.documentNumber);
-      const hasDup = numbers.some((n, i) => numbers.indexOf(n) !== i);
-      if (hasDup) {
-        alert('El número de documento debe ser único por reserva.');
-        return;
-      }
-
-      const passengersToSave = [];
-      for (let i = 0; i < data.passengers.length; i++) {
-        const pax = data.passengers[i];
-        const uploadedFiles = [];
-        for (const file of pax.files || []) {
-          if (file instanceof File) {
-            const filePath = `${reservation.id}/passenger_${i + 1}/${file.name}`;
-            const { error } = await supabase.storage.from('reservation-docs').upload(filePath, file);
-            if (!error) {
-              const { data: publicUrl } = supabase.storage.from('reservation-docs').getPublicUrl(filePath);
-              uploadedFiles.push({ name: file.name, type: file.type, url: publicUrl.publicUrl });
-            }
-          } else {
-            uploadedFiles.push(file);
-          }
-        }
-
-        passengersToSave.push({
-          id: pax.id,
-          reservation_id: reservation.id,
-          name: pax.firstName,
-          lastname: pax.lastName,
-          document_type: pax.documentType,
-          document_number: pax.documentNumber,
-          birth_date: pax.birthDate,
-          notes: pax.notes,
-          documents: uploadedFiles
-        });
-      }
-
-      const { error } = await supabase.from('reservation_passengers').upsert(passengersToSave);
-      if (error) {
-        console.error('Error saving passengers', error);
-        return;
-      }
-      setPassengersData(passengersToSave);
-      setViewMode('view');
-    };
-
-    return (
-      <DetailManagement
-        title="Gestionar Pasajeros"
-        icon={<Users className="w-5 h-5" />}
-        onBack={() => setViewMode('view')}
-        onSave={handleSubmit(onSubmit)}
-      >
-        {fields.map((field, index) => (
-          <div key={field.id} className="p-4 border border-gray-200 rounded-lg space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nombres</label>
-                <input
-                  {...register(`passengers.${index}.firstName`, { required: true })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg"
-                />
-                {errors.passengers?.[index]?.firstName && (
-                  <p className="text-xs text-red-500 mt-1">Requerido</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Apellidos</label>
-                <input
-                  {...register(`passengers.${index}.lastName`, { required: true })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg"
-                />
-                {errors.passengers?.[index]?.lastName && (
-                  <p className="text-xs text-red-500 mt-1">Requerido</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Tipo Documento</label>
-                <select
-                  {...register(`passengers.${index}.documentType`, { required: true })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg"
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="CC">CC</option>
-                  <option value="CE">CE</option>
-                  <option value="TI">TI</option>
-                  <option value="PAS">PAS</option>
-                </select>
-                {errors.passengers?.[index]?.documentType && (
-                  <p className="text-xs text-red-500 mt-1">Requerido</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Número Documento</label>
-                <input
-                  {...register(`passengers.${index}.documentNumber`, { required: true })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg"
-                />
-                {errors.passengers?.[index]?.documentNumber && (
-                  <p className="text-xs text-red-500 mt-1">Requerido</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Fecha Nacimiento</label>
-                <input
-                  type="date"
-                  {...register(`passengers.${index}.birthDate`, {
-                    required: true,
-                    validate: (v) => new Date(v) <= new Date()
-                  })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg"
-                />
-                {errors.passengers?.[index]?.birthDate?.type === 'validate' && (
-                  <p className="text-xs text-red-500 mt-1">No puede ser futura</p>
-                )}
-                {errors.passengers?.[index]?.birthDate?.type === 'required' && (
-                  <p className="text-xs text-red-500 mt-1">Requerido</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Anotaciones</label>
-                <textarea
-                  {...register(`passengers.${index}.notes`)}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Documentos</label>
-              <input type="file" multiple onChange={(e) => onFileChange(index, e.target.files)} className="mb-2" />
-              <ul className="space-y-1">
-                {(watchPassengers[index]?.files || []).map((file, fIdx) => (
-                  <li key={fIdx} className="flex justify-between items-center text-sm bg-gray-100 p-2 rounded">
-                    <span>{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index, fIdx)}
-                      className="text-red-600 text-xs"
-                    >
-                      Eliminar
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => remove(index)}
-                className="text-red-600 text-sm flex items-center gap-1"
-              >
-                <Trash2 className="w-4 h-4" /> Eliminar pasajero
-              </button>
-            </div>
-          </div>
-        ))}
-        <div>
-          <button
-            type="button"
-            onClick={addPassenger}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 border rounded-lg"
-          >
-            <PlusCircle className="w-4 h-4" /> Agregar pasajero
-          </button>
-        </div>
-      </DetailManagement>
-    );
-  };
-
-  const AttachmentForm = () => {
-    return (
-        <DetailManagement title="Adjuntar Archivos y Notas" icon={<Paperclip className="w-5 h-5" />} onBack={() => setViewMode('view')} onSave={() => handleSave('attachments')}>
-            <textarea placeholder="Descripción..." value={attachmentData.description} onChange={e => setAttachmentData({...attachmentData, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
-            <FileUpload files={attachmentData.files} onUpload={() => {}} onRemove={() => {}} />
-        </DetailManagement>
-    );
-  };
-  
   const renderContent = () => {
     switch (viewMode) {
       case 'view': return <ReadOnlyView />;
-      case 'passengers': return <PassengerForm />;
-      case 'attachments': return <AttachmentForm />;
+      case 'passengers': return <PassengerForm 
+                                  reservation={reservation} 
+                                  passengersData={passengersData} 
+                                  setPassengersData={setPassengersData} 
+                                  setViewMode={setViewMode} 
+                                />;
+      case 'attachments': return <AttachmentForm 
+                                    reservation={reservation}
+                                    attachmentData={attachmentData}
+                                    setAttachmentData={setAttachmentData}
+                                    setViewMode={setViewMode}
+                                  />;
       default: return <ReadOnlyView />;
     }
   };
