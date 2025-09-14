@@ -16,6 +16,11 @@ import {
 } from 'lucide-react';
 
 const ReservationPostCreation = ({ reservation, onClose, onUpdateReservation }) => {
+  // Defensive check
+  if (!reservation) {
+    return null;
+  }
+
   const [passengers, setPassengers] = useState(
     reservation.passengersData ||
       Array.from({ length: reservation.passengers }, () => ({

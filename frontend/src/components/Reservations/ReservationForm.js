@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -37,6 +37,7 @@ import {
   Hash 
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
+import { currentUser as user } from '../../mock/users';
 
 // Helper to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -56,6 +57,11 @@ const formatTime = (time) => {
   if (!time) return '';
   const part = time.includes('T') ? time.split('T')[1] : time;
   return part.slice(0, 5);
+};
+
+const formatDateForField = (dateStr) => {
+  if (!dateStr) return '';
+  return dateStr.split('T')[0];
 };
 
 // Reusable Collapsible Section Component
@@ -102,6 +108,7 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = fa
 
 const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose }) => {
   const { settings, formatCurrency } = useSettings();
+  
 
   const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
   const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
@@ -117,22 +124,29 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       returnDate: formatDate(s.returnDate || s.return_date),
     }));
 
-  const mapFlights = (flights) =>
-    (flights || []).map((f) => ({
-      airline: f.airline || '',
-      flightCategory: f.flightCategory || f.flight_category || '',
-      baggageAllowance: f.baggageAllowance || f.baggage_allowance || '',
-      flightCycle: f.flightCycle || f.flight_cycle || 'round_trip',
-      hasItinerary:
-        f.hasItinerary || (f.reservation_flight_itineraries && f.reservation_flight_itineraries.length > 0),
-      itineraries:
-        (f.reservation_flight_itineraries || f.itineraries || []).map((i) => ({
-          flightNumber: i.flightNumber || i.flight_number || '',
-          departureTime: formatTime(i.departureTime || i.departure_time),
-          arrivalTime: formatTime(i.arrivalTime || i.arrival_time),
-        })),
-      trackingCode: f.trackingCode || f.tracking_code || f.pnr || '',
-    }));
+  const mapFlights = (flights) => (flights || []).map((f) => {
+    const standardCycles = ['round_trip', 'outbound', 'inbound', 'one_way', 'return_only'];
+    const flightCycleValue = f.flightCycle || f.flight_cycle;
+    const isSegmentCycle = flightCycleValue?.startsWith('segment_');
+    const isCustomCycle = flightCycleValue && !isSegmentCycle && !standardCycles.includes(flightCycleValue);
+
+    return {
+        airline: f.airline || '',
+        flightCategory: f.flightCategory || f.flight_category || '',
+        baggageAllowance: f.baggageAllowance || f.baggage_allowance || '',
+        flightCycle: isCustomCycle ? 'other' : (flightCycleValue || 'round_trip'),
+        customFlightCycle: isCustomCycle ? flightCycleValue : '',
+        hasItinerary: f.hasItinerary || (f.reservation_flight_itineraries && f.reservation_flight_itineraries.length > 0),
+        itineraries:
+            (f.reservation_flight_itineraries || f.itineraries || []).map((i) => ({
+                flightNumber: i.flightNumber || i.flight_number || '',
+                departureTime: formatTime(i.departureTime || i.departure_time),
+                arrivalTime: formatTime(i.arrivalTime || i.arrival_time),
+                date: formatDateForField(i.departure_time),
+            })),
+        trackingCode: f.trackingCode || f.tracking_code || f.pnr || '',
+    };
+  });
 
   const mapHotels = (hotels) =>
     (hotels || []).map((h) => ({
@@ -211,8 +225,9 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
             flightCategory: '',
             baggageAllowance: '',
             flightCycle: 'round_trip',
+            customFlightCycle: '',
             hasItinerary: false,
-            itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '' }],
+            itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '', date: '' }],
             trackingCode: '',
           },
         ]
@@ -266,10 +281,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   // Calculate trip start and end dates
   const tripDepartureDate = formData.segments[0]?.departureDate || '';
-  const tripReturnDate =
-    formData.tripType === 'one_way'
-      ? formData.segments[0]?.departureDate || ''
-      : formData.segments[formData.segments.length - 1]?.returnDate || '';
+  const tripReturnDate = formData.segments[formData.segments.length - 1]?.returnDate || '';
+
   useEffect(() => {
     setFormData(prev => {
       const updatedMA = prev.medicalAssistances.map(ma => ({
@@ -320,16 +333,14 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     if (!tripDepartureDate) {
       newErrors.departureDate = 'La fecha de salida es obligatoria.';
     }
-    if (formData.tripType !== 'one_way') {
-      if (!tripReturnDate) {
-        newErrors.returnDate = 'La fecha de regreso es obligatoria.';
-      } else if (new Date(tripReturnDate) <= new Date(tripDepartureDate)) {
-        newErrors.returnDate = 'La fecha de regreso debe ser posterior a la fecha de salida.';
-      }
+    if (!tripReturnDate) {
+      newErrors.returnDate = 'La fecha de regreso es obligatoria.';
+    } else if (new Date(tripReturnDate) <= new Date(tripDepartureDate)) {
+      newErrors.returnDate = 'La fecha de regreso debe ser posterior a la fecha de salida.';
     }
 
     formData.segments.forEach((seg, idx) => {
-      if (!seg.departureDate || (!seg.returnDate && formData.tripType !== 'one_way')) {
+      if (!seg.departureDate || !seg.returnDate) {
         newErrors[`segment-${idx}`] = 'Debe indicar fechas de salida y regreso.';
       } else if (new Date(seg.returnDate) < new Date(seg.departureDate)) {
         newErrors[`segment-${idx}`] = 'La fecha de regreso debe ser posterior a la fecha de salida.';
@@ -368,22 +379,38 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
     // Deep copy and prepare data for API
     const dataToSend = JSON.parse(JSON.stringify(formData));
+    dataToSend.advisorId = user?.id; // <-- AÑADIDO: Incluye el ID del asesor
+
+    // Handle custom flight cycle text
+    if (dataToSend.flights) {
+      dataToSend.flights.forEach(flight => {
+        if (flight.flightCycle === 'other') {
+          flight.flightCycle = flight.customFlightCycle || 'Ciclo no especificado';
+        }
+        delete flight.customFlightCycle; // Clean up temp field
+      });
+    }
 
     // Combine date and time for flight itineraries into valid ISO 8601 format with UTC timezone
     if (dataToSend.flights) {
       dataToSend.flights.forEach((flight) => {
         if (flight.itineraries) {
           flight.itineraries.forEach(itinerary => {
-            const segmentDate = formData.segments[0]?.departureDate; // Simplification
-            const returnDate = formData.segments[0]?.returnDate;
+            const flightDate = itinerary.date;
 
-            if (segmentDate && itinerary.departureTime) {
-              itinerary.departure_time = `${segmentDate}T${itinerary.departureTime}:00Z`;
+            if (flightDate && itinerary.departureTime) {
+              itinerary.departure_time = `${flightDate}T${itinerary.departureTime}:00Z`;
+            } else {
+              delete itinerary.departure_time;
             }
-            if (segmentDate && itinerary.arrivalTime) {
-              const arrivalDate = flight.flightCycle === 'one_way' ? segmentDate : returnDate;
-              itinerary.arrival_time = `${arrivalDate}T${itinerary.arrivalTime}:00Z`;
+            if (flightDate && itinerary.arrivalTime) {
+              // Assuming arrival is on the same day as departure.
+              itinerary.arrival_time = `${flightDate}T${itinerary.arrivalTime}:00Z`;
+            } else {
+              delete itinerary.arrival_time;
             }
+
+            delete itinerary.date; // Clean up the temporary field
           });
         }
       });
@@ -394,10 +421,80 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+
+    if (name === 'tripType') {
+      // If trip type changes, reset related form sections but keep client/passenger data.
+      setFormData(prev => {
+        const newTripDepartureDate = getTodayDate();
+        const newTripReturnDate = getTodayDate();
+
+        const blankStateForReset = {
+          pricePerADT: 0,
+          pricePerCHD: 0,
+          pricePerINF: 0,
+          totalAmount: 0,
+          paymentOption: 'full_payment',
+          installments: [{ amount: 0, dueDate: getTodayDate() }],
+          installmentsCount: 1,
+          status: prev.status, // Keep original status if editing
+          notes: '',
+          segments: [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
+          flights: showFlights ? [
+              {
+                  airline: '',
+                  flightCategory: '',
+                  baggageAllowance: '',
+                  flightCycle: 'round_trip',
+                  customFlightCycle: '',
+                  hasItinerary: false,
+                  itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '', date: '' }],
+                  trackingCode: '',
+              },
+          ] : [],
+          hotels: showHotels ? [
+              {
+                  name: '',
+                  roomCategory: '',
+                  accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }],
+                  mealPlan: '',
+                  hotelInclusions: [''],
+              },
+          ] : [],
+          tours: showTours ? [{ name: '', date: newTripDepartureDate, cost: 0 }] : [],
+          medicalAssistances: showMedical ? [
+              {
+                  planType: 'traditional_tourism',
+                  startDate: newTripDepartureDate,
+                  endDate: newTripReturnDate,
+              },
+          ] : [],
+        };
+
+        return {
+          // Preserve client and passenger info from previous state
+          clientName: prev.clientName,
+          clientEmail: prev.clientEmail,
+          clientPhone: prev.clientPhone,
+          clientId: prev.clientId,
+          clientAddress: prev.clientAddress,
+          emergencyContact: prev.emergencyContact,
+          passengersADT: prev.passengersADT,
+          passengersCHD: prev.passengersCHD,
+          passengersINF: prev.passengersINF,
+          
+          // Apply the new trip type
+          tripType: value,
+
+          // Apply the reset state for other fields
+          ...blankStateForReset,
+        };
+      });
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   const handleEmergencyContactChange = (e) => {
@@ -415,9 +512,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
     // Auto-set return date if departure date changes
     if (name === 'departureDate') {
-      if (formData.tripType === 'one_way') {
-        newSegments[index].returnDate = value;
-      } else if (!newSegments[index].returnDate) {
+      if (!newSegments[index].returnDate) {
         newSegments[index].returnDate = value;
       }
     }
@@ -453,8 +548,9 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         flightCategory: '', 
         baggageAllowance: '', 
         flightCycle: 'round_trip', 
+        customFlightCycle: '',
         hasItinerary: false, 
-        itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '' }], 
+        itineraries: [{ flightNumber: '', departureTime: '', arrivalTime: '', date: '' }], 
         trackingCode: '' 
       }]
     }));
@@ -477,7 +573,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   const addItinerary = (flightIndex) => {
     const newFlights = [...formData.flights];
-    newFlights[flightIndex].itineraries.push({ flightNumber: '', departureTime: '', arrivalTime: '' });
+    newFlights[flightIndex].itineraries.push({ flightNumber: '', departureTime: '', arrivalTime: '', date: '' });
     setFormData(prev => ({ ...prev, flights: newFlights }));
   };
 
@@ -661,13 +757,65 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   const totalInstallmentsAmount = formData.installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
 
-  // Calculate total passengers in accommodation
-  const totalAccommodationPassengers = formData.hotels.reduce((acc, hotel) => {
-    return acc + (hotel.accommodation || []).reduce((hotelAcc, room) => {
-      return hotelAcc + (room.rooms * (room.adt || 0)) + (room.rooms * (room.chd || 0)) + (room.rooms * (room.inf || 0));
-    }, 0);
-  }, 0);
+  const tripMinDate = useMemo(() => {
+    if (!formData.segments || formData.segments.length === 0) return getTodayDate();
+    const dates = formData.segments
+      .map(s => s.departureDate && new Date(s.departureDate))
+      .filter(d => d && !isNaN(d.getTime()));
+    if (dates.length === 0) return getTodayDate();
+    return new Date(Math.min.apply(null, dates)).toISOString().split('T')[0];
+  }, [formData.segments]);
 
+  const tripMaxDate = useMemo(() => {
+    if (!formData.segments || formData.segments.length === 0) return '';
+    const dates = formData.segments
+      .map(s => s.returnDate && new Date(s.returnDate))
+      .filter(d => d && !isNaN(d.getTime()));
+    if (dates.length === 0) {
+        // Fallback to max departure date if no return dates are set
+        const departureDates = formData.segments.map(s => s.departureDate && new Date(s.departureDate)).filter(d => d && !isNaN(d.getTime()));
+        if (departureDates.length === 0) return '';
+        return new Date(Math.max.apply(null, departureDates)).toISOString().split('T')[0];
+    }
+    return new Date(Math.max.apply(null, dates)).toISOString().split('T')[0];
+  }, [formData.segments]);
+
+  const flightCycleOptions = useMemo(() => {
+    const segments = formData.segments.filter(s => s.origin && s.destination);
+    const otherOption = { value: 'other', label: 'Otro (especificar)' };
+
+    if (formData.tripType === 'round_trip') {
+      if (segments.length > 0 && segments[0].origin && segments[0].destination) {
+        const origin = segments[0].origin;
+        const destination = segments[0].destination;
+        return [
+          { value: 'round_trip', label: `De ${origin} a ${destination} y de ${destination} a ${origin}` },
+          { value: 'outbound', label: `De ${origin} a ${destination}` },
+          { value: 'inbound', label: `De ${destination} a ${origin}` },
+          otherOption
+        ];
+      }
+      return [
+        { value: 'round_trip', label: 'Ida y Vuelta (Completo)' },
+        { value: 'outbound', label: 'Solo Ida' },
+        { value: 'inbound', label: 'Solo Regreso' },
+        otherOption
+      ];
+    }
+
+    if (formData.tripType === 'multi_city' && segments.length > 0) {
+      const segmentOptions = segments.map((seg, index) => ({
+        value: `segment_${index}`,
+        label: `De ${seg.origin} a ${seg.destination}`
+      }));
+      return [...segmentOptions, otherOption];
+    }
+
+    return [
+      { value: 'round_trip', label: 'Ida y Vuelta' },
+      otherOption
+    ];
+  }, [formData.segments, formData.tripType]);
 
   return (
     <motion.div
@@ -781,7 +929,6 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Viaje</label>
                 <select name="tripType" value={formData.tripType} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
                   <option value="round_trip">Ida y Vuelta</option>
-                  <option value="one_way">Solo Ida</option>
                   <option value="multi_city">Múltiples Ciudades</option>
                 </select>
               </div>
@@ -853,15 +1000,13 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       <p className="text-red-600 text-sm mt-1">{errors.departureDate}</p>
                     )}
                   </div>
-                  {formData.tripType === 'round_trip' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
-                      <input type="date" name="returnDate" value={formData.segments[0].returnDate} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={formData.segments[0].departureDate || getTodayDate()} />
-                      {errors.returnDate && (
-                        <p className="text-red-600 text-sm mt-1">{errors.returnDate}</p>
-                      )}
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
+                    <input type="date" name="returnDate" value={formData.segments[0].returnDate} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={formData.segments[0].departureDate || getTodayDate()} />
+                    {errors.returnDate && (
+                      <p className="text-red-600 text-sm mt-1">{errors.returnDate}</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -891,12 +1036,26 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Ciclo del Vuelo</label>
-                      <select name="flightCycle" value={flight.flightCycle} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                        <option value="round_trip">Ida y Vuelta</option>
-                        <option value="one_way">Solo Ida</option>
-                        <option value="return_only">Solo Regreso</option>
+                      <select name="flightCycle" value={flight.flightCycle} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" >
+                        {flightCycleOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                       </select>
                     </div>
+                    {flight.flightCycle === 'other' && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Descripción Personalizada del Ciclo</label>
+                        <input
+                          type="text"
+                          name="customFlightCycle"
+                          value={flight.customFlightCycle || ''}
+                          onChange={(e) => handleFlightChange(index, e)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                          placeholder="Ej: De A a B"
+                          required
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Equipaje Permitido</label>
                       <select name="baggageAllowance" value={flight.baggageAllowance} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
@@ -945,10 +1104,22 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                             </motion.button>
                           </div>
                           {(flight.itineraries || []).map((itinerary, itIndex) => (
-                            <div key={itIndex} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
+                            <div key={itIndex} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Número de Vuelo</label>
                                 <input type="text" name="flightNumber" value={itinerary.flightNumber} onChange={(e) => handleItineraryChange(index, itIndex, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="Ej: IB3100" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha</label>
+                                <input
+                                  type="date"
+                                  name="date"
+                                  value={itinerary.date}
+                                  onChange={(e) => handleItineraryChange(index, itIndex, e)}
+                                  className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                  min={tripMinDate}
+                                  max={tripMaxDate}
+                                />
                               </div>
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Hora Salida</label>
@@ -1005,8 +1176,13 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           {showHotels && (
           <CollapsibleSection title="Detalles de Hoteles" icon={Hotel}>
             <div className="space-y-4">
-              {formData.hotels.map((hotel, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
+              {formData.hotels.map((hotel, index) => {
+                const currentHotelTotalPassengers = (hotel.accommodation || []).reduce((acc, room) => {
+                  return acc + (room.rooms * (room.adt || 0)) + (room.rooms * (room.chd || 0)) + (room.rooms * (room.inf || 0));
+                }, 0);
+
+                return (
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
                   <h4 className="text-md font-semibold text-gray-800 mb-3">Hotel {index + 1}</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1041,10 +1217,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         )}
                       </div>
                     ))}
-                    <p className={`text-sm font-medium mt-2 ${totalAccommodationPassengers === totalPassengersCalculated.total ? 'text-gray-600' : 'text-red-600'}`}>
-                      Total de personas en acomodación: <span className="font-bold">
-                        {(hotel.accommodation || []).reduce((acc, room) => acc + (room.rooms * (room.adt || 0)) + (room.rooms * (room.chd || 0)) + (room.rooms * (room.inf || 0)), 0)}
-                      </span>
+                    <p className={`text-sm font-medium mt-2 ${currentHotelTotalPassengers === totalPassengersCalculated.total ? 'text-gray-600' : 'text-red-600'}`}>
+                      Total de personas en acomodación: <span className="font-bold">{currentHotelTotalPassengers}</span>
                     </p>
                   </div>
 
@@ -1086,8 +1260,9 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       <MinusCircle className="w-5 h-5" />
                     </motion.button>
                   )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
               <motion.button
                 type="button"
                 onClick={addHotel}

@@ -24,6 +24,11 @@ import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
 import { useSettings } from '../../utils/SettingsContext';
 
 const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
+  // Defensive check
+  if (!reservation) {
+    return <div>Cargando detalles de la reserva...</div>; // Or a more sophisticated loading/error component
+  }
+
   const { formatCurrency, formatDate } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editedReservation, setEditedReservation] = useState(reservation);
@@ -94,7 +99,7 @@ const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
     const updated = {
       ...editedReservation,
       [req.field]: req.value,
-      changeRequests: editedReservation.changeRequests.filter(r => r.id !== req.id)
+      changeRequests: (editedReservation.changeRequests || []).filter(r => r.id !== req.id)
     };
     setEditedReservation(updated);
     onUpdateReservation(updated);
@@ -103,7 +108,7 @@ const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
   const handleRejectRequest = (reqId) => {
     const updated = {
       ...editedReservation,
-      changeRequests: editedReservation.changeRequests.filter(r => r.id !== reqId)
+      changeRequests: (editedReservation.changeRequests || []).filter(r => r.id !== reqId)
     };
     setEditedReservation(updated);
     onUpdateReservation(updated);
@@ -261,8 +266,8 @@ const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
           <Info className="w-7 h-7 text-blue-600" />
           Solicitudes de Cambio
         </h3>
-        {editedReservation.changeRequests && editedReservation.changeRequests.length > 0 ? (
-          editedReservation.changeRequests.map(req => (
+        {(editedReservation.changeRequests || []).length > 0 ? (
+          (editedReservation.changeRequests || []).map(req => (
             <div key={req.id} className="flex items-center justify-between mb-4">
               <p className="text-gray-700">{req.description}</p>
               <div className="flex gap-2">
@@ -356,9 +361,9 @@ const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
 
         <div className="mt-8">
           <h4 className="text-lg font-bold text-gray-900 mb-4">Documentos Existentes:</h4>
-          {editedReservation.documents && editedReservation.documents.length > 0 ? (
+          {(editedReservation.documents || []).length > 0 ? (
             <ul className="list-disc list-inside ml-4 space-y-2">
-              {editedReservation.documents.map((doc, index) => (
+              {(editedReservation.documents || []).map((doc, index) => (
                 <li key={index} className="flex items-center justify-between text-gray-700">
                   <span>{doc.name} ({doc.type})</span>
                   <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Ver</a>

@@ -471,6 +471,7 @@ app.get('/api/reservations', async (req, res) => {
       .select(`
         *,
         clients(*),
+        advisor:usuarios!reservations_advisor_id_fkey(name),
         reservation_segments(*),
         reservation_flights(*, reservation_flight_itineraries(*)),
         reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
@@ -498,6 +499,7 @@ app.get('/api/reservations', async (req, res) => {
         clientEmail: reservation.clients?.email,
         clientPhone: reservation.clients?.phone,
         clientAddress: reservation.clients?.address,
+        advisorName: reservation.advisor?.name,
         emergencyContact: {
           name: reservation.clients?.emergency_contact_name,
           phone: reservation.clients?.emergency_contact_phone,
@@ -535,6 +537,7 @@ app.get('/api/reservations/:id', async (req, res) => {
       .select(`
         *,
         clients(*),
+        advisor:usuarios!reservations_advisor_id_fkey(name),
         reservation_segments(*),
         reservation_flights(*, reservation_flight_itineraries(*)),
         reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
@@ -563,6 +566,7 @@ app.get('/api/reservations/:id', async (req, res) => {
       clientEmail: data.clients?.email,
       clientPhone: data.clients?.phone,
       clientAddress: data.clients?.address,
+      advisorName: data.advisor?.name,
       emergencyContact: {
         name: data.clients?.emergency_contact_name,
         phone: data.clients?.emergency_contact_phone,
@@ -598,6 +602,8 @@ app.post('/api/reservations', async (req, res) => {
     clientPhone,
     clientAddress,
     emergencyContact,
+    tripType,
+    advisorId, // Asumimos que el frontend envía el ID del asesor logueado
     segments,
     passengersADT,
     passengersCHD,
@@ -648,6 +654,8 @@ app.post('/api/reservations', async (req, res) => {
     // Step 2: Create the reservation
     const reservationToInsert = {
         client_id: client.id,
+        advisor_id: advisorId,
+        trip_type: tripType,
         passengers_adt: passengersADT,
         passengers_chd: passengersCHD,
         passengers_inf: passengersINF,
@@ -693,6 +701,8 @@ app.post('/api/reservations', async (req, res) => {
             airline: flightData.airline,
             flight_category: flightData.flightCategory,
             baggage_allowance: flightData.baggageAllowance,
+            flight_cycle: flightData.flightCycle,
+            pnr: flightData.trackingCode,
             reservation_id: reservationId
         };
         const { data: newFlight, error: flightError } = await supabaseAdmin
@@ -794,6 +804,8 @@ app.put('/api/reservations/:id', async (req, res) => {
         clientPhone,
         clientAddress,
         emergencyContact,
+    tripType,
+    advisorId,
         segments,
         passengersADT,
         passengersCHD,
@@ -844,6 +856,8 @@ app.put('/api/reservations/:id', async (req, res) => {
         // Step 2: Update the reservation
         const reservationToUpdate = {
             client_id: client.id,
+            advisor_id: advisorId, // Se podría mantener el original o actualizarlo
+            trip_type: tripType,
             passengers_adt: passengersADT,
             passengers_chd: passengersCHD,
             passengers_inf: passengersINF,
@@ -901,6 +915,8 @@ app.put('/api/reservations/:id', async (req, res) => {
                     airline: flightData.airline,
                     flight_category: flightData.flightCategory,
                     baggage_allowance: flightData.baggageAllowance,
+                    flight_cycle: flightData.flightCycle,
+                    pnr: flightData.trackingCode,
                     reservation_id: reservationId
                 };
                 const { data: newFlight, error: flightError } = await supabaseAdmin
@@ -1020,12 +1036,11 @@ app.delete('/api/reservations/:id', async (req, res) => {
 
 app.post('/api/reservations/:id/change-requests', async (req, res) => {
   const { id } = req.params;
-  // TODO: Reemplazar con el ID del usuario autenticado desde el middleware de autenticación
-  const requested_by_id = 'a0e0f8b0-5c2a-4d3d-8e7f-9b1c2d3e4f5a'; // ID de usuario de ejemplo
-  const { section, changes, reason } = req.body;
+  const { section, changes, reason, userId } = req.body; // Se espera el ID del usuario desde el frontend
 
-  if (!section || !changes || !reason) {
-    return res.status(400).json({ message: 'Faltan datos para la solicitud de cambio (sección, cambios, motivo).' });
+  // Validar que todos los datos necesarios, incluyendo el userId, están presentes
+  if (!section || !changes || !reason || !userId) {
+    return res.status(400).json({ message: 'Faltan datos para la solicitud de cambio (sección, cambios, motivo, ID de usuario).' });
   }
 
   try {
@@ -1033,7 +1048,7 @@ app.post('/api/reservations/:id/change-requests', async (req, res) => {
       .from('change_requests')
       .insert({
         reservation_id: id,
-        requested_by_id: requested_by_id,
+        requested_by_id: userId, // Usar el ID del usuario enviado desde el frontend
         section_to_change: section,
         requested_changes: changes, // Asume que la columna es de tipo JSONB
         request_reason: reason,
@@ -1056,6 +1071,7 @@ app.post('/api/reservations/:id/change-requests', async (req, res) => {
 
 app.post('/api/reservations/:id/approve', async (req, res) => {
   const { id } = req.params;
+  const { managerId } = req.body; // El frontend debe enviar el ID del gestor que aprueba
   try {
     // Llamar a la función RPC para obtener el nuevo número de factura de forma segura
     const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_and_increment_invoice_number');
@@ -1073,7 +1089,12 @@ app.post('/api/reservations/:id/approve', async (req, res) => {
 
     const { data, error } = await supabaseAdmin
       .from('reservations')
-      .update({ status: 'confirmed', invoice_number: newInvoiceNumber })
+      .update({ 
+        status: 'confirmed', 
+        invoice_number: newInvoiceNumber,
+        manager_id: managerId,
+        confirmed_at: new Date()
+      })
       .eq('id', id)
       .select()
       .single();
@@ -1093,6 +1114,117 @@ app.post('/api/reservations/:id/approve', async (req, res) => {
   }
 });
 
+// Upsert passengers for a reservation
+app.post('/api/reservations/:reservation_id/passengers/upsert', async (req, res) => {
+  const { reservation_id } = req.params;
+  const passengers = req.body; // Expecting an array of passengers
+
+  if (!Array.isArray(passengers)) {
+    return res.status(400).json({ message: 'El cuerpo de la solicitud debe ser un arreglo de pasajeros.' });
+  }
+
+  try {
+    // Add reservation_id to each passenger object
+    const passengersToSave = passengers.map(p => ({ ...p, reservation_id: reservation_id }));
+
+    const { data, error } = await supabaseAdmin
+      .from('reservation_passengers')
+      .upsert(passengersToSave)
+      .select();
+
+    if (error) {
+      console.error('Error upserting passengers in Supabase:', error);
+      return res.status(500).json({ message: 'Error del servidor al guardar los pasajeros.', details: error.message });
+    }
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Error del servidor.', details: error.message });
+  }
+});
+
+// Upsert attachments for a reservation
+app.post('/api/reservations/:reservation_id/attachments/upsert', upload.array('files'), async (req, res) => {
+  const { reservation_id } = req.params;
+  const metadataString = req.body.metadata;
+
+  if (!metadataString) {
+    return res.status(400).json({ message: 'Falta la metadata de los adjuntos.' });
+  }
+
+  try {
+    const metadata = JSON.parse(metadataString);
+    const filesMap = new Map((req.files || []).map(f => [f.originalname, f]));
+    const attachmentsToUpsert = [];
+    const submittedIds = new Set();
+
+    for (const item of metadata) {
+      const attachmentData = {
+        reservation_id: reservation_id,
+        title: item.title,
+        observation: item.observation,
+      };
+
+      // If it's an existing item, add its ID to the upsert object and the tracking set
+      if (item.id) {
+        attachmentData.id = item.id;
+        submittedIds.add(item.id);
+      }
+
+      // Check if a new file was uploaded for this item
+      if (item.fileName && filesMap.has(item.fileName)) {
+        const file = filesMap.get(item.fileName);
+        const filePath = `${reservation_id}/attachments/${Date.now()}-${file.originalname}`;
+        
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from('arch_pax') // Make sure this is the correct bucket name
+          .upload(filePath, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading file to Supabase Storage:', uploadError);
+        } else {
+          const { data: urlData } = supabaseAdmin.storage.from('arch_pax').getPublicUrl(filePath);
+          attachmentData.file_name = file.originalname;
+          attachmentData.file_url = urlData.publicUrl;
+        }
+      } else {
+        // If no new file, retain the old file info
+        attachmentData.file_name = item.file_name;
+        attachmentData.file_url = item.file_url;
+      }
+      
+      attachmentsToUpsert.push(attachmentData);
+    }
+
+    // --- Deletion Logic ---
+    const { data: currentAttachments, error: fetchError } = await supabaseAdmin
+      .from('reservation_attachments')
+      .select('id')
+      .eq('reservation_id', reservation_id);
+
+    if (fetchError) throw fetchError;
+
+    const attachmentsToDelete = currentAttachments.filter(att => !submittedIds.has(att.id));
+
+    if (attachmentsToDelete.length > 0) {
+      const idsToDelete = attachmentsToDelete.map(att => att.id);
+      // Note: This doesn't delete files from storage, only the DB record.
+      // A more robust solution would also delete from storage.
+      await supabaseAdmin.from('reservation_attachments').delete().in('id', idsToDelete);
+    }
+    
+    // --- Upsert Logic ---
+    const { data, error } = await supabaseAdmin.from('reservation_attachments').upsert(attachmentsToUpsert).select();
+    if (error) throw error;
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Server error in attachment upsert:', error);
+    res.status(500).json({ message: 'Error del servidor.', details: error.message });
+  }
+});
 
 // --- Business Settings Endpoints ---
 

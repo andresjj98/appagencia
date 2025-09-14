@@ -6,6 +6,11 @@ import { useSettings } from '../../utils/SettingsContext';
 const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
   const { formatCurrency, formatDate } = useSettings();
 
+  // Defensive check in case reservation data is not passed correctly.
+  if (!reservation) {
+    return null; // Or a loading/error state
+  }
+
   return (
     <motion.div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
@@ -57,7 +62,7 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
           {/* Itinerario */}
           <section>
             <h3 className="text-lg font-semibold mb-1">Itinerario</h3>
-            {reservation.segments && reservation.segments.map((seg, idx) => (
+            {(reservation.segments || []).map((seg, idx) => (
               <p key={idx} className="text-sm text-gray-700">
                 {seg.origin} &rarr; {seg.destination} ({formatDate(seg.departureDate)} - {formatDate(seg.returnDate)})
               </p>
@@ -76,12 +81,12 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
           {reservation.flights && reservation.flights.length > 0 && (
             <section>
               <h3 className="text-lg font-semibold mb-1">Vuelos</h3>
-              {reservation.flights.map((flight, idx) => (
+              {(reservation.flights || []).map((flight, idx) => (
                 <div key={idx} className="mb-2 text-sm text-gray-700">
                   <p><span className="font-medium">Aerolínea:</span> {flight.airline}</p>
                   {flight.flightCategory && <p><span className="font-medium">Categoría:</span> {flight.flightCategory}</p>}
                   {flight.baggageAllowance && <p><span className="font-medium">Equipaje:</span> {flight.baggageAllowance}</p>}
-                  {flight.itineraries && flight.itineraries.map((it, i) => (
+                  {(flight.itineraries || []).map((it, i) => (
                     <p key={i} className="pl-4">Vuelo {it.flightNumber} - {it.departureTime} - {it.arrivalTime}</p>
                   ))}
                 </div>
@@ -93,17 +98,17 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
           {reservation.hotels && reservation.hotels.length > 0 && (
             <section>
               <h3 className="text-lg font-semibold mb-1">Hoteles</h3>
-              {reservation.hotels.map((hotel, idx) => (
+              {(reservation.hotels || []).map((hotel, idx) => (
                 <div key={idx} className="mb-2 text-sm text-gray-700">
                   <p><span className="font-medium">Nombre:</span> {hotel.name}</p>
                   {hotel.roomCategory && <p><span className="font-medium">Categoría de Habitación:</span> {hotel.roomCategory}</p>}
                   {hotel.mealPlan && <p><span className="font-medium">Plan de Comidas:</span> {hotel.mealPlan}</p>}
-                  {hotel.accommodation && hotel.accommodation.map((acc, i) => (
+                  {hotel.accommodation && (hotel.accommodation || []).map((acc, i) => (
                     <p key={i} className="pl-4">Habitaciones: {acc.rooms}, ADT {acc.adt}, CHD {acc.chd}, INF {acc.inf}</p>
                   ))}
                   {hotel.hotelInclusions && hotel.hotelInclusions.length > 0 && (
                     <ul className="pl-6 list-disc">
-                      {hotel.hotelInclusions.map((inc, i) => (
+                      {(hotel.hotelInclusions || []).map((inc, i) => (
                         <li key={i}>{inc}</li>
                       ))}
                     </ul>
@@ -117,7 +122,7 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
           {reservation.tours && reservation.tours.length > 0 && (
             <section>
               <h3 className="text-lg font-semibold mb-1">Tours</h3>
-              {reservation.tours.map((tour, idx) => (
+              {(reservation.tours || []).map((tour, idx) => (
                 <p key={idx} className="text-sm text-gray-700">{tour.name} - {formatDate(tour.date)} ({formatCurrency(tour.cost)})</p>
               ))}
             </section>
@@ -127,7 +132,7 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
           {reservation.medicalAssistances && reservation.medicalAssistances.length > 0 && (
             <section>
               <h3 className="text-lg font-semibold mb-1">Asistencias Médicas</h3>
-              {reservation.medicalAssistances.map((med, idx) => (
+              {(reservation.medicalAssistances || []).map((med, idx) => (
                 <p key={idx} className="text-sm text-gray-700">{med.planType} ({formatDate(med.startDate)} - {formatDate(med.endDate)})</p>
               ))}
             </section>
@@ -141,7 +146,7 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
             <p>Precio INF: {formatCurrency(reservation.pricePerINF)}</p>
             <p className="font-bold">Total: {formatCurrency(reservation.totalAmount)}</p>
             <p>Opción de pago: {reservation.paymentOption === 'full_payment' ? 'Pago completo' : 'Cuotas'}</p>
-            {reservation.installments && reservation.installments.length > 0 && reservation.installments.map((inst, idx) => (
+            {(reservation.installments || []).map((inst, idx) => (
               <p key={idx} className="pl-4 text-sm text-gray-700">Cuota {idx + 1}: {formatCurrency(inst.amount)} - {formatDate(inst.dueDate)}</p>
             ))}
           </section>

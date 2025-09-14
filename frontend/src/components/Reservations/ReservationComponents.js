@@ -16,7 +16,7 @@ import {
   Minimize2, // For minimize icon
   Maximize2 // For maximize icon
 } from 'lucide-react';
-import { useSettings } from '../../context/SettingsContext';
+import { useSettings } from '../../utils/SettingsContext';
 
 // Hotel Component
 const HotelComponent = ({ data, onChange, onDelete }) => {

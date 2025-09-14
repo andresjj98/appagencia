@@ -16,6 +16,11 @@ import { useSettings } from '../../utils/SettingsContext';
 
 const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) => {
   const { formatCurrency, formatDate } = useSettings();
+  // If for any reason the reservation object is not valid, don't render the card.
+  if (!reservation) {
+    return null;
+  }
+
   // Safely get status and payment configuration objects. If an unknown status
   // is provided we fall back to a neutral configuration to avoid runtime
   // errors accessing properties on `undefined`.

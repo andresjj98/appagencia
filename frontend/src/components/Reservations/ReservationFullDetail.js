@@ -108,21 +108,6 @@ const PassengerForm = ({ reservation, passengersData, setPassengersData, setView
   };
 
   const onSave = async () => {
-    let supabase;
-    try {
-        const supabaseModule = await import('../../utils/supabaseClient');
-        supabase = supabaseModule.default;
-    } catch (error) {
-        console.error("Error al importar dinámicamente supabaseClient:", error);
-        alert('Error crítico al cargar la configuración de la base de datos. Revise la consola del navegador para más detalles.');
-        return;
-    }
-    if (!supabase) {
-      console.error("El cliente de Supabase es nulo. Causas posibles: 1) Dependencia circular. 2) Error en 'supabaseClient.js'. 3) Variables de entorno (REACT_APP_SUPABASE_URL, REACT_APP_SUPABASE_ANON_KEY) no definidas en el frontend.");
-      alert('Error: No se pudo conectar a la base de datos. Verifique la configuración y las variables de entorno del frontend.');
-      return;
-    }
-
     const numbers = passengers.map(p => p.documentNumber);
     const hasDup = numbers.some((n, i) => n && numbers.indexOf(n) !== i);
     if (hasDup) {
@@ -131,8 +116,7 @@ const PassengerForm = ({ reservation, passengersData, setPassengersData, setView
     }
 
     const passengersToSave = passengers.map(pax => {
-      const passengerData = {
-        reservation_id: reservation.id,
+      const passengerData = {        
         name: pax.firstName,
         lastname: pax.lastName,
         document_type: pax.documentType,
@@ -148,19 +132,27 @@ const PassengerForm = ({ reservation, passengersData, setPassengersData, setView
       return passengerData;
     });
 
-    const { data: savedPassengers, error } = await supabase
-      .from('reservation_passengers')
-      .upsert(passengersToSave)
-      .select();
+    try {
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/passengers/upsert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(passengersToSave),
+      });
 
-    if (error) {
-      console.error('Error saving passengers', error);
+      const savedPassengers = await response.json();
+
+      if (!response.ok) {
+        throw new Error(savedPassengers.message || 'Error en el servidor');
+      }
+      
+      setPassengersData(savedPassengers);
+      setViewMode('view');
+    } catch (error) {
+      console.error('Error saving passengers via backend:', error);
       alert(`Error al guardar los pasajeros: ${error.message}`);
-      return;
     }
-    
-    setPassengersData(savedPassengers);
-    setViewMode('view');
   };
 
   return (
@@ -292,66 +284,46 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
   };
 
   const onSubmit = async (data) => {
-    let supabase;
-    try {
-        const supabaseModule = await import('../../utils/supabaseClient');
-        supabase = supabaseModule.default;
-    } catch (error) {
-        console.error("Error al importar dinámicamente supabaseClient:", error);
-        alert('Error crítico al cargar la configuración de la base de datos. Revise la consola del navegador para más detalles.');
-        return;
-    }
-    if (!supabase) {
-      console.error("El cliente de Supabase es nulo. Causas posibles: 1) Dependencia circular. 2) Error en 'supabaseClient.js'. 3) Variables de entorno (REACT_APP_SUPABASE_URL, REACT_APP_SUPABASE_ANON_KEY) no definidas en el frontend.");
-      alert('Error: No se pudo conectar a la base de datos. Verifique la configuración y las variables de entorno del frontend.');
-      return;
-    }
+    const formData = new FormData();
+    const metadata = [];
+    
+    for (const attachment of data.attachments) {
+        const itemMetadata = {
+            id: attachment.id,
+            title: attachment.title,
+            observation: attachment.observation,
+            file_name: attachment.file_name,
+            file_url: attachment.file_url,
+        };
 
-    const attachmentsToSave = [];
-    for (let i = 0; i < data.attachments.length; i++) {
-      const attachment = data.attachments[i];
-      let fileUrl = attachment.file_url; // Keep existing URL if file is not changed
-
-      if (attachment.file instanceof File) {
-        const file = attachment.file;
-        const filePath = `${reservation.id}/attachments/${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('arch_pax')
-          .upload(filePath, file, { upsert: true });
-
-        if (uploadError) {
-          console.error('Error uploading file:', uploadError);
-          continue; // Or handle error appropriately
+        if (attachment.file instanceof File) {
+            formData.append('files', attachment.file);
+            // Use the file's actual name to link it in the backend
+            itemMetadata.fileName = attachment.file.name;
         }
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('arch_pax')
-          .getPublicUrl(filePath);
-        
-        fileUrl = publicUrlData.publicUrl;
-      }
-
-      attachmentsToSave.push({
-        id: attachment.id,
-        reservation_id: reservation.id,
-        title: attachment.title,
-        observation: attachment.observation,
-        file_name: attachment.file instanceof File ? attachment.file.name : attachment.file_name,
-        file_url: fileUrl,
-      });
+        metadata.push(itemMetadata);
     }
 
-    const { data: savedAttachments, error } = await supabase
-      .from('reservation_attachments')
-      .upsert(attachmentsToSave)
-      .select();
+    formData.append('metadata', JSON.stringify(metadata));
 
-    if (error) {
-      console.error('Error saving attachments', error);
-      return;
+    try {
+        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/attachments/upsert`, {
+            method: 'POST',
+            body: formData, // Browser will set Content-Type to multipart/form-data
+        });
+
+        const savedAttachments = await response.json();
+
+        if (!response.ok) {
+            throw new Error(savedAttachments.message || 'Error en el servidor');
+        }
+
+        setAttachmentData(savedAttachments);
+        setViewMode('view');
+    } catch (error) {
+        console.error('Error saving attachments via backend:', error);
+        alert(`Error al guardar los adjuntos: ${error.message}`);
     }
-    setAttachmentData(savedAttachments);
-    setViewMode('view');
   };
 
   return (
@@ -419,6 +391,28 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
 const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEdit, onRequestChange }) => {
   const { formatCurrency, formatDate } = useSettings();
   const [viewMode, setViewMode] = useState('view');
+
+  // Defensive check: If reservation data is not available, show a fallback UI.
+  if (!reservation || !reservation._original) {
+    return (
+      <motion.div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div
+          className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-md p-8 text-center"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+        >
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Error al cargar la reserva</h2>
+          <p className="text-gray-600 mb-6">Los datos de la reserva no están disponibles. Por favor, intente de nuevo.</p>
+          <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg">Cerrar</button>
+        </motion.div>
+      </motion.div>
+    );
+  }
   
   const [passengersData, setPassengersData] = useState(reservation._original.passengers || []);
   const [hotelData, setHotelData] = useState(reservation._original.reservation_hotels || []);
@@ -481,16 +475,16 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
         </InfoSection>
 
         <InfoSection title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
-            {(flightData || []).length > 0 ? flightData.map((flight, index) => (
+            {(flightData || []).length > 0 ? (flightData || []).map((flight, index) => (
                 <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
                     <p><strong>Aerolínea:</strong> {flight.airline}</p>
                     <p><strong>PNR:</strong> {flight.pnr || 'No especificado'}</p>
                 </div>
-            )) : <InfoItem label="Vuelos" value="No hay vuelos registrados." />}
+            )) : <InfoItem label="Vuelos" value="No hay vuelos registrados." fullWidth />}
         </InfoSection>
 
         <InfoSection title="Hoteles" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
-            {(hotelData || []).length > 0 ? hotelData.map((hotel, index) => (
+            {(hotelData || []).length > 0 ? (hotelData || []).map((hotel, index) => (
                 <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg space-y-1">
                     <p><strong>Nombre:</strong> {hotel.name}</p>
                     {hotel.room_category && <p><strong>Categoría:</strong> {hotel.room_category}</p>}
@@ -499,39 +493,39 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
                     {hotel.check_out_date && <p><strong>Check-out:</strong> {formatDate(hotel.check_out_date)}</p>}
                     {(hotel.accommodation || hotel.reservation_hotel_accommodations)?.length > 0 && (
                         <div className="pl-4">
-                            {(hotel.accommodation || hotel.reservation_hotel_accommodations).map((acc, i) => (
+                            {((hotel.accommodation || hotel.reservation_hotel_accommodations) || []).map((acc, i) => (
                                 <p key={i}>Habitaciones: {acc.rooms}, ADT {acc.adt}, CHD {acc.chd}, INF {acc.inf}</p>
                             ))}
                         </div>
                     )}
                     {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions)?.length > 0 && (
                         <ul className="pl-6 list-disc">
-                            {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions).map((inc, i) => (
+                            {((hotel.hotelInclusions || hotel.reservation_hotel_inclusions) || []).map((inc, i) => (
                                 <li key={i}>{typeof inc === 'string' ? inc : inc.inclusion}</li>
                             ))}
                         </ul>
                     )}
                 </div>
-            )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." />}
+            )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." fullWidth />}
         </InfoSection>
 
         <InfoSection title="Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
-            {(tourData || []).length > 0 ? tourData.map((tour, index) => (
+            {(tourData || []).length > 0 ? (tourData || []).map((tour, index) => (
                 <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
                     <p><strong>Nombre:</strong> {tour.name}</p>
                     {tour.date && <p><strong>Fecha:</strong> {formatDate(tour.date)}</p>}
                     {tour.cost && <p><strong>Costo:</strong> {formatCurrency(tour.cost)}</p>}
                 </div>
-            )) : <InfoItem label="Tours" value="No hay tours registrados." />}
+            )) : <InfoItem label="Tours" value="No hay tours registrados." fullWidth />}
         </InfoSection>
 
         <InfoSection title="Asistencias Médicas" icon={<HeartPulse className="w-5 h-5 text-red-600" />}>
-            {(assistanceData || []).length > 0 ? assistanceData.map((med, index) => (
+            {(assistanceData || []).length > 0 ? (assistanceData || []).map((med, index) => (
                 <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
                     <p><strong>Plan:</strong> {med.plan_type || med.planType}</p>
                     <p><strong>Vigencia:</strong> {formatDate(med.start_date || med.startDate)} - {formatDate(med.end_date || med.endDate)}</p>
                 </div>
-            )) : <InfoItem label="Asistencias" value="No hay asistencias médicas." />}
+            )) : <InfoItem label="Asistencias" value="No hay asistencias médicas." fullWidth />}
         </InfoSection>
 
         <InfoSection title="Pago" icon={<CreditCard className="w-5 h-5 text-purple-600" />}>
