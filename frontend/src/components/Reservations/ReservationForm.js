@@ -147,8 +147,6 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         (h.reservation_hotel_inclusions
           ? h.reservation_hotel_inclusions.map((i) => i.inclusion)
           : ['']),
-      checkInDate: formatDate(h.checkInDate || h.check_in_date),
-      checkOutDate: formatDate(h.checkOutDate || h.check_out_date),
     }));
 
   const mapTours = (tours) =>
@@ -229,8 +227,6 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
             accommodation: [{ rooms: 1, adt: 0, chd: 0, inf: 0 }],
             mealPlan: '',
             hotelInclusions: [''],
-            checkInDate: getTodayDate(),
-            checkOutDate: getTodayDate(),
           },
         ]
       : [],
