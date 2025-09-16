@@ -29,7 +29,15 @@ const App = () => {
       case 'reservations':
         return <Reservations />;
       case 'gestion':
-        return <Gestion />; 
+        if (currentUser.role === 'manager' || currentUser.role === 'admin') {
+          return <Gestion />;
+        }
+        return (
+          <div className="p-6 text-center">
+            <h2 className="text-2xl font-bold text-red-600">Acceso Denegado</h2>
+            <p className="text-gray-600 mt-2">No tienes permisos para acceder a este módulo.</p>
+          </div>
+        );
       case 'documentation':
         return (
           <div className="p-6">

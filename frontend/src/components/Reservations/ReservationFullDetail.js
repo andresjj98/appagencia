@@ -635,7 +635,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
       >
         <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-white rounded-t-2xl sticky top-0 z-10">
           <h2 className="text-xl font-bold text-gray-900">
-            Detalle de la Reserva #{reservation.id}
+            {reservation._original.invoiceNumber || `Detalle de la Reserva #${reservation.id}`}
           </h2>
           <motion.button
             onClick={onClose}
