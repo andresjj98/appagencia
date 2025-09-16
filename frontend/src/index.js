@@ -4,12 +4,15 @@ import "./styles.css";
 
 import App from "./App";
 import { SettingsProvider } from "./utils/SettingsContext";
+import { AuthProvider } from "./pages/AuthContext";
 
 const root = createRoot(document.getElementById("root"));
 root.render(
   <StrictMode>
-    <SettingsProvider>
-      <App />
-    </SettingsProvider>
+    <AuthProvider>
+      <SettingsProvider>
+        <App />
+      </SettingsProvider>
+    </AuthProvider>
   </StrictMode>
 );

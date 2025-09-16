@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Users, Globe, Plane, Hotel, Ticket, BriefcaseMedical, Euro, ArrowLeft, X, Save, Info, MinusCircle, PlusCircle } from 'lucide-react';
-import { currentUser as user } from '../../mock/users';
+import { useAuth } from '../../pages/AuthContext';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -83,6 +83,7 @@ const ChangeRequestModal = ({ reservation, onClose }) => {
     return null;
   }
 
+  const { currentUser: user } = useAuth();
   const [editingSection, setEditingSection] = useState(null);
   const [formData, setFormData] = useState(null);
   const [originalData, setOriginalData] = useState(null);

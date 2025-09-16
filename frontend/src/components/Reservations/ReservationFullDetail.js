@@ -414,7 +414,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
     );
   }
   
-  const [passengersData, setPassengersData] = useState(reservation._original.passengers || []);
+  const [passengersData, setPassengersData] = useState(reservation._original.reservation_passengers || []);
   const [hotelData, setHotelData] = useState(reservation._original.reservation_hotels || []);
   const [flightData, setFlightData] = useState(reservation._original.reservation_flights || []);
   const [tourData, setTourData] = useState(reservation._original.reservation_tours || []);

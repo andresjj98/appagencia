@@ -1,34 +1,24 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plane, User, Lock, Eye, EyeOff } from 'lucide-react'; // Import Eye and EyeOff
+import { Plane, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from './AuthContext';
 
-const Login = ({ onLogin }) => {
+const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false); // State for showing/hiding password
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      const response = await fetch('http://localhost:4000/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || 'Credenciales incorrectas');
-        return;
+      const { error } = await signIn({ email, password });
+      if (error) {
+        setError(error.message || 'Credenciales incorrectas');
       }
-
-      onLogin(data.user);
     } catch (err) {
       setError('Error al conectar con el servidor');
     }

@@ -19,24 +19,34 @@ import {
 import { RESERVATION_STATUS } from '../utils/constants';
 import ReservationDetail from '../components/Reservations/ReservationDetail';
 import { useSettings } from '../utils/SettingsContext';
+import { useAuth } from './AuthContext';
 const Gestion = () => {
   const [reservations, setReservations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
   const { formatCurrency, formatDate } = useSettings();
+  const { currentUser } = useAuth(); // Get the logged-in user
 
   useEffect(() => {
     const fetchReservations = async () => {
+      if (!currentUser) {
+        return;
+      }
       try {
-        const response = await fetch('http://localhost:4000/api/reservations');
+        const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
+        const response = await fetch(url);
         const data = await response.json();
-        setReservations(data);
+        if (response.ok) {
+          setReservations(data);
+        } else {
+          console.error('Error fetching reservations:', data.message);
+        }
       } catch (error) {
         console.error('Error fetching reservations:', error);
       }
     };
     fetchReservations();
-  }, []);
+  }, [currentUser]);
 
   const filteredReservations = reservations.filter(reservation => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();

@@ -33,11 +33,11 @@ import {
   Maximize2,
   Ticket,
   List,
-  Clock, 
-  Hash 
+  Clock,
+  Hash
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
-import { currentUser as user } from '../../mock/users';
+import { useAuth } from '../../pages/AuthContext';
 
 // Helper to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -108,7 +108,8 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = fa
 
 const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose }) => {
   const { settings, formatCurrency } = useSettings();
-  
+  const { currentUser: user } = useAuth();
+
 
   const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
   const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';

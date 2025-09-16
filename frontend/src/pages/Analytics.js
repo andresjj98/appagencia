@@ -13,6 +13,7 @@ import {
   RefreshCcw
 } from 'lucide-react';
 import { useSettings } from '../utils/SettingsContext';
+import { useAuth } from './AuthContext';
 
 const generateChartData = (reservations, users) => {
   const salesByMonth = {};
@@ -49,11 +50,17 @@ const Analytics = () => {
   const [filterType, setFilterType] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const { formatCurrency } = useSettings();
+  const { currentUser } = useAuth();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
+    if (!currentUser) {
+        setIsLoading(false);
+        return;
+    }
     try {
-      const reservationsResponse = await fetch('http://localhost:4000/api/reservations');
+      const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
+      const reservationsResponse = await fetch(url);
       const reservations = await reservationsResponse.json();
 
       // Users data is not used for now, but could be in the future
@@ -71,7 +78,7 @@ const Analytics = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [timeRange, filterType]);
+  }, [timeRange, filterType, currentUser]);
 
 
   useEffect(() => {

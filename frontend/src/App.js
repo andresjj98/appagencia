@@ -12,25 +12,14 @@ import Notifications from './pages/Notifications';
 import Reports from './pages/Reports'; 
 import Analytics from './pages/Analytics'; 
 import Login from './pages/Login';
-import { setCurrentUser } from './mock/users' 
+import { useAuth } from './pages/AuthContext';
 
 const App = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [loggedInUser, setLoggedInUser] = useState(null); 
+  const { currentUser, login, logout } = useAuth();
 
-  const handleLogin = (user) => {
-    setLoggedInUser(user);
-    setCurrentUser(user); 
-  };
-
-  const handleLogout = () => {
-    setLoggedInUser(null);
-    setCurrentUser(null); 
-    setActiveSection('dashboard'); 
-  };
-
-  if (!loggedInUser) {
-    return <Login onLogin={handleLogin} />;
+  if (!currentUser) {
+    return <Login />;
   }
 
   const renderContent = () => {
@@ -94,7 +83,10 @@ const App = () => {
       <Sidebar 
         activeSection={activeSection} 
         onSectionChange={setActiveSection} 
-        onLogout={handleLogout} 
+        onLogout={() => {
+          logout();
+          setActiveSection('dashboard');
+        }} 
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">

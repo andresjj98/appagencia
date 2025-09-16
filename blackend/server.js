@@ -465,8 +465,9 @@ app.put('/api/offices/:id/usuarios', async (req, res) => {
 });
 
 app.get('/api/reservations', async (req, res) => {
+  const { userId, userRole } = req.query; // Obtener el rol y el ID del usuario desde la query
   try {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('reservations')
       .select(`
         *,
@@ -478,8 +479,17 @@ app.get('/api/reservations', async (req, res) => {
         reservation_tours(*),
         reservation_medical_assistances(*),
         reservation_installments(*),
-        change_requests(*)
+        change_requests(*),
+        reservation_passengers(*),
+        reservation_attachments(*)
       `);
+
+    // Si el usuario es un asesor, filtrar por su ID
+    if (userRole === 'advisor' && userId) {
+      query = query.eq('advisor_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching reservations from Supabase:', error);
@@ -544,7 +554,9 @@ app.get('/api/reservations/:id', async (req, res) => {
         reservation_tours(*),
         reservation_medical_assistances(*),
         reservation_installments(*),
-        change_requests(*)
+        change_requests(*),
+        reservation_passengers(*),
+        reservation_attachments(*)
       `)
       .eq('id', id)
       .single();

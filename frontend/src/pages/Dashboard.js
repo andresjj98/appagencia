@@ -4,16 +4,23 @@ import { Calendar, Users, Euro, TrendingUp } from 'lucide-react';
 import StatsCard from '../components/Dashboard/StatsCard';
 import RecentReservations from '../components/Dashboard/RecentReservations';
 import { useSettings } from '../utils/SettingsContext';
+import { useAuth } from './AuthContext';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { formatCurrency } = useSettings();
+  const { currentUser } = useAuth();
 
   const fetchReservations = useCallback(async () => {
     setIsLoading(true);
+    if (!currentUser) {
+      setIsLoading(false);
+      return;
+    }
     try {
-      const response = await fetch('http://localhost:4000/api/reservations');
+      const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
+      const response = await fetch(url);
       const data = await response.json();
       if (response.ok) {
         setReservations(data);
@@ -25,7 +32,7 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     fetchReservations();

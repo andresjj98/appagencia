@@ -11,6 +11,7 @@ import ReservationPostCreation from '../components/Reservations/ReservationPostC
 import ReservationFullDetail from '../components/Reservations/ReservationFullDetail';
 import CancelRequestModal from '../components/Reservations/CancelRequestModal';
 
+import { useAuth } from './AuthContext';
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
 const ChangeRequestModal = CancelRequestModal;
 
@@ -33,6 +34,7 @@ const Reservations = () => {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [isLoading, setIsLoading] = useState(true);
+  const { currentUser } = useAuth(); // Get the logged-in user
 
   const transformReservationForDetails = (res) => {
     if (!res) return null;
@@ -104,7 +106,7 @@ const Reservations = () => {
         totalAmount: res.total_amount,
         status: res.status,
         paymentStatus: 'pending', // Placeholder
-        advisorName: 'N/A', // Placeholder
+        advisorName: res.advisorName || 'N/A', // Use advisor name from backend
         notes: res.notes,
         _original: res 
       };
@@ -113,9 +115,17 @@ const Reservations = () => {
 
   const fetchReservations = useCallback(async () => {
     setIsLoading(true);
+    if (!currentUser) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch('http://localhost:4000/api/reservations');
+      // Add userId and userRole to the request URL
+      const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
+      const response = await fetch(url);
       const data = await response.json();
+
       if (response.ok) {
         const transformedData = transformReservationData(data);
         setReservations(transformedData);
@@ -127,7 +137,7 @@ const Reservations = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUser]); // Add currentUser as a dependency
 
   useEffect(() => {
     fetchReservations();
