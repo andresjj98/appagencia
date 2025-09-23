@@ -1,13 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, X } from 'lucide-react';
-import ReservationFullDetail from '../Reservations/ReservationFullDetail';
+import { ArrowLeft, X, FileText } from 'lucide-react';
+import ReservationDetailContent from '../Reservations/ReservationDetailContent';
 import FulfillmentChecklist from './FulfillmentChecklist';
 import ChangeRequestManager from './ChangeRequestManager';
 
 const ReservationManagementPanel = ({ reservation: initialReservation, onBack, onUpdate }) => {
   const [reservation, setReservation] = useState(initialReservation);
-  const [activeTab, setActiveTab] = useState('details');
 
   const refetchReservation = useCallback(async () => {
     try {
@@ -30,40 +29,13 @@ const ReservationManagementPanel = ({ reservation: initialReservation, onBack, o
     }
   }, [reservation.id, onUpdate]);
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'details':
-        // ReservationFullDetail expects the full object in `_original`
-        return <ReservationFullDetail reservation={reservation} onClose={onBack} />;
-      case 'fulfillment':
-        return <FulfillmentChecklist reservation={reservation._original} onUpdate={refetchReservation} />;
-      case 'changes':
-        return <ChangeRequestManager reservation={reservation._original} onUpdate={refetchReservation} />;
-      default:
-        return null;
-    }
-  };
-
-  const TabButton = ({ tabName, label }) => (
-    <button
-      onClick={() => setActiveTab(tabName)}
-      className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-        activeTab === tabName
-          ? 'bg-blue-600 text-white'
-          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
   return (
     <motion.div
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -50 }}
       transition={{ duration: 0.3 }}
-      className="bg-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200"
+      className="bg-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 space-y-8"
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -88,16 +60,24 @@ const ReservationManagementPanel = ({ reservation: initialReservation, onBack, o
         </motion.button>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm mb-6">
-        <div className="flex items-center justify-center gap-4">
-          <TabButton tabName="details" label="Detalles Completos" />
-          <TabButton tabName="fulfillment" label="Checklist de Cumplimiento" />
-          <TabButton tabName="changes" label="Solicitudes de Cambio" />
-        </div>
+      {/* Fulfillment Checklist Section */}
+      <div className="bg-white p-6 rounded-xl shadow-md border">
+          <FulfillmentChecklist reservation={reservation._original} onUpdate={refetchReservation} />
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-inner">
-        {renderContent()}
+      {/* Change Request Manager Section */}
+      <div className="bg-white p-6 rounded-xl shadow-md border">
+          <ChangeRequestManager reservation={reservation._original} onUpdate={refetchReservation} />
+      </div>
+
+      {/* Full Details Section */}
+      <div className="bg-white rounded-xl shadow-md border">
+          <div className="p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <FileText className="w-6 h-6 text-blue-600" /> Resumen Completo de la Reserva
+            </h3>
+            <ReservationDetailContent reservation={reservation} />
+          </div>
       </div>
     </motion.div>
   );
