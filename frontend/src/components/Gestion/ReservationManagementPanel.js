@@ -23,7 +23,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate }) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'info':
-        return <GeneralInfoPanel reservation={reservation} />;
+        return <GeneralInfoPanel reservation={reservation} onUpdate={onUpdate} />;
       case 'services':
         return <ServiceManagementTab reservation={reservation} onUpdate={onUpdate} />;
       case 'passengers':
@@ -63,6 +63,16 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate }) => {
           </div>
         </div>
         <nav className="flex flex-col space-y-2">
+          {reservation._original.status === 'pending' && (
+            <div className="flex items-center justify-around mb-4">
+              <motion.button onClick={() => onApprove(reservation.id)} className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-semibold" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                Aprobar
+              </motion.button>
+              <motion.button onClick={() => onReject(reservation.id)} className="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-semibold" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                Rechazar
+              </motion.button>
+            </div>
+          )}
           {tabs.map(tab => (
             <button
               key={tab.id}

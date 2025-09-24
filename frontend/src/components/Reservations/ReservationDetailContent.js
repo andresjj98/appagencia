@@ -35,6 +35,7 @@ const InfoItem = ({ label, value, fullWidth = false }) => (
 const ReservationDetailContent = ({ reservation }) => {
     const { formatCurrency, formatDate } = useSettings();
 
+    const segments = reservation._original.reservation_segments || [];
     const passengersData = reservation._original.reservation_passengers || [];
     const hotelData = reservation._original.reservation_hotels || [];
     const flightData = reservation._original.reservation_flights || [];
@@ -66,11 +67,15 @@ const ReservationDetailContent = ({ reservation }) => {
         <>
             <InfoSection title="Información Básica" icon={<FileText className="w-5 h-5 text-blue-600" />}>
                 <InfoItem label="Cliente" value={reservation.clientName} />
-                <InfoItem label="Destino" value={reservation.destination} />
-                <InfoItem label="Fecha de Salida" value={formatDate(reservation.departureDate)} />
-                <InfoItem label="Fecha de Regreso" value={formatDate(reservation.returnDate)} />
                 <InfoItem label="Estado" value={reservation.status} />
                 <InfoItem label="Asesor" value={reservation.advisorName} />
+                {segments.map((segment, index) => (
+                    <React.Fragment key={index}>
+                        <InfoItem label={`Tramo ${index + 1}`} value={`${segment.origin} - ${segment.destination}`} />
+                        <InfoItem label="Salida" value={formatDate(segment.departure_date)} />
+                        <InfoItem label="Regreso" value={formatDate(segment.return_date)} />
+                    </React.Fragment>
+                ))}
             </InfoSection>
 
             <InfoSection title="Pasajeros" icon={<Users className="w-5 h-5 text-green-600" />}>

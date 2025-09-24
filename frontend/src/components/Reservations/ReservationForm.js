@@ -265,6 +265,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   };
 
   const [formData, setFormData] = useState(initialFormState);
+  const [flightTripType, setFlightTripType] = useState('round_trip');
   const initialFormDataRef = useRef(JSON.parse(JSON.stringify(initialFormState)));
 
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
@@ -334,10 +335,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     if (!tripDepartureDate) {
       newErrors.departureDate = 'La fecha de salida es obligatoria.';
     }
-    if (!tripReturnDate) {
-      newErrors.returnDate = 'La fecha de regreso es obligatoria.';
-    } else if (new Date(tripReturnDate) <= new Date(tripDepartureDate)) {
-      newErrors.returnDate = 'La fecha de regreso debe ser posterior a la fecha de salida.';
+    if (reservationType !== 'flights_only' || flightTripType === 'round_trip') {
+      if (!tripReturnDate) {
+        newErrors.returnDate = 'La fecha de regreso es obligatoria.';
+      } else if (new Date(tripReturnDate) <= new Date(tripDepartureDate)) {
+        newErrors.returnDate = 'La fecha de regreso debe ser posterior a la fecha de salida.';
+      }
     }
 
     formData.segments.forEach((seg, idx) => {
@@ -381,6 +384,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     // Deep copy and prepare data for API
     const dataToSend = JSON.parse(JSON.stringify(formData));
     dataToSend.advisorId = user?.id; // <-- AÑADIDO: Incluye el ID del asesor
+
+    if (reservationType === 'flights_only' && flightTripType === 'one_way') {
+      dataToSend.segments.forEach(segment => {
+        segment.returnDate = null;
+      });
+    }
 
     // Handle custom flight cycle text
     if (dataToSend.flights) {
@@ -926,13 +935,35 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
                 <Globe className="w-5 h-5" /> Detalles del Itinerario
               </h4>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Viaje</label>
-                <select name="tripType" value={formData.tripType} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                  <option value="round_trip">Ida y Vuelta</option>
-                  <option value="multi_city">Múltiples Ciudades</option>
-                </select>
-              </div>
+              {reservationType === 'flights_only' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Vuelo</label>
+                  <select 
+                    name="flightTripType" 
+                    value={flightTripType} 
+                    onChange={(e) => {
+                      setFlightTripType(e.target.value);
+                      if (e.target.value === 'one_way') {
+                        const newSegments = [...formData.segments];
+                        newSegments[0].returnDate = '';
+                        setFormData(prev => ({ ...prev, segments: newSegments }));
+                      }
+                    }} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  >
+                    <option value="round_trip">Ida y Vuelta</option>
+                    <option value="one_way">Solo Ida</option>
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Viaje</label>
+                  <select name="tripType" value={formData.tripType} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                    <option value="round_trip">Ida y Vuelta</option>
+                    <option value="multi_city">Múltiples Ciudades</option>
+                  </select>
+                </div>
+              )}
 
               {formData.tripType === 'multi_city' ? (
                 <div className="space-y-4">
@@ -1001,13 +1032,15 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       <p className="text-red-600 text-sm mt-1">{errors.departureDate}</p>
                     )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
-                    <input type="date" name="returnDate" value={formData.segments[0].returnDate} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={formData.segments[0].departureDate || getTodayDate()} />
-                    {errors.returnDate && (
-                      <p className="text-red-600 text-sm mt-1">{errors.returnDate}</p>
-                    )}
-                  </div>
+                  {(reservationType !== 'flights_only' || flightTripType === 'round_trip') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
+                      <input type="date" name="returnDate" value={formData.segments[0].returnDate} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={formData.segments[0].departureDate || getTodayDate()} />
+                      {errors.returnDate && (
+                        <p className="text-red-600 text-sm mt-1">{errors.returnDate}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

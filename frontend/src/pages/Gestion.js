@@ -148,13 +148,31 @@ const Gestion = () => {
     }
   };
 
-  const handleUpdateReservation = (updatedReservation) => {
-    // The updatedReservation comes from the panel and is already structured.
-    // We need to update our list of raw reservations with the new data from `_original`.
-    setReservations(prev =>
-      prev.map(res => (res.id === updatedReservation.id ? updatedReservation._original : res))
-    );
-    setSelectedReservation(updatedReservation); // Keep the selected one structured.
+  const handleUpdateReservation = async (updatedReservation) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/reservations/${updatedReservation.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedReservation._original),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al actualizar la reserva');
+      }
+
+      alert('Reserva actualizada con éxito');
+
+      // Refetch reservations to get the latest data
+      fetchReservations();
+      // Update the selected reservation to show the changes immediately
+      setSelectedReservation(updatedReservation);
+    } catch (error) {
+      console.error('Error updating reservation:', error);
+      alert(error.message);
+    }
   };
 
   return (
@@ -269,6 +287,8 @@ const Gestion = () => {
           reservation={selectedReservation} 
           onBack={handleBackToList} 
           onUpdate={handleUpdateReservation}
+          onApprove={handleApprove}
+          onReject={handleReject}
         />
       )}
     </motion.div>

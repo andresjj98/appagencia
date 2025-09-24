@@ -168,6 +168,7 @@ const Reservations = () => {
   };
 
   const handleFinalSaveReservation = async (reservationData) => {
+    setIsLoading(true);
     const url = editingReservation
       ? `http://localhost:4000/api/reservations/${editingReservation.id}`
       : 'http://localhost:4000/api/reservations';
@@ -188,10 +189,8 @@ const Reservations = () => {
         setSelectedReservationType(null);
         fetchReservations(); // Refetch all reservations
         if (!editingReservation) {
-            // This part needs adjustment as the full new reservation object is not returned
-            // For now, just refetching is enough. A better approach would be to get the new reservation object from the backend.
-            // setNewlyCreatedReservation(result); 
-            // setShowPostCreation(true);
+          setNewlyCreatedReservation(result);
+          setShowPostCreation(true);
         }
       } else {
         console.error('Error saving reservation:', result.message);
@@ -200,6 +199,8 @@ const Reservations = () => {
     } catch (error) {
       console.error('Error saving reservation:', error);
       alert('An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
