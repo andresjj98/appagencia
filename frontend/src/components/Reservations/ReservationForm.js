@@ -384,6 +384,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     // Deep copy and prepare data for API
     const dataToSend = JSON.parse(JSON.stringify(formData));
     dataToSend.advisorId = user?.id; // <-- AÑADIDO: Incluye el ID del asesor
+    dataToSend.reservation_type = reservationType;
 
     if (reservationType === 'flights_only' && flightTripType === 'one_way') {
       dataToSend.segments.forEach(segment => {

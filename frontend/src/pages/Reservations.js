@@ -10,6 +10,7 @@ import ReservationTypeSelector from '../components/Reservations/ReservationTypeS
 import ReservationPostCreation from '../components/Reservations/ReservationPostCreation';
 import ReservationFullDetail from '../components/Reservations/ReservationFullDetail';
 import CancelRequestModal from '../components/Reservations/CancelRequestModal';
+import ConfirmationModal from '../components/common/ConfirmationModal'; // Import the new modal
 
 import { useAuth } from './AuthContext';
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
@@ -31,7 +32,10 @@ const Reservations = () => {
   const [reservationForChange, setReservationForChange] = useState(null);
   const [showCancelRequest, setShowCancelRequest] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for delete confirmation
+  const [reservationToDelete, setReservationToDelete] = useState(null); // State for reservation to delete
   const [filter, setFilter] = useState('all');
+  const [filterType, setFilterType] = useState('all'); // New state for reservation type filter
   const [sortBy, setSortBy] = useState('date');
   const [isLoading, setIsLoading] = useState(true);
   const { currentUser } = useAuth(); // Get the logged-in user
@@ -121,8 +125,10 @@ const Reservations = () => {
     }
 
     try {
-      // Add userId and userRole to the request URL
-      const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
+      let url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
+      if (filterType !== 'all') {
+        url += `&reservation_type=${filterType}`;
+      }
       const response = await fetch(url);
       const data = await response.json();
 
@@ -137,7 +143,7 @@ const Reservations = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser]); // Add currentUser as a dependency
+  }, [currentUser, filterType]); // Add filterType to dependency array
 
   useEffect(() => {
     fetchReservations();
@@ -158,7 +164,7 @@ const Reservations = () => {
     if (reservation.status !== 'confirmed') {
       setEditingReservation(reservation._original);
       setSelectedReservationType(
-        reservation._original.isMultiDestination ? 'all_inclusive' : 'all_inclusive'
+        reservation._original.reservation_type || 'all_inclusive'
       );
       setShowForm(true);
     } else {
@@ -231,29 +237,37 @@ const Reservations = () => {
     setNewlyCreatedReservation(null);
   };
 
-  const handleDeleteReservation = async (reservation) => {
+  const handleDeleteReservation = (reservation) => {
     if (reservation.status !== 'confirmed') {
-      if (window.confirm('¿Estás seguro de que quieres eliminar esta reserva?')) {
-        try {
-          const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
-            method: 'DELETE',
-          });
-
-          if (response.ok) {
-            fetchReservations();
-          } else {
-            const result = await response.json();
-            console.error('Error deleting reservation:', result.message);
-            alert(`Error: ${result.message}`);
-          }
-        } catch (error) {
-          console.error('Error deleting reservation:', error);
-          alert('An unexpected error occurred.');
-        }      
-      }
+      setReservationToDelete(reservation);
+      setShowDeleteConfirm(true);
     } else {
       setReservationToCancel(reservation);
       setShowCancelRequest(true);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!reservationToDelete) return;
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservationToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchReservations();
+      } else {
+        const result = await response.json();
+        console.error('Error deleting reservation:', result.message);
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting reservation:', error);
+      alert('An unexpected error occurred.');
+    } finally {
+      setReservationToDelete(null);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -300,6 +314,23 @@ const Reservations = () => {
                 <option value="confirmed">Confirmadas</option>
                 <option value="cancelled">Canceladas</option>
                 <option value="completed">Completadas</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-400" />
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Todos los tipos</option>
+                <option value="all_inclusive">Paquete Todo Incluido</option>
+                <option value="flights_only">Solo Vuelos</option>
+                <option value="hotel_only">Solo Hotel</option>
+                <option value="tours_only">Solo Tours</option>
+                <option value="medical_assistance">Asistencia Médica</option>
+                <option value="other">Otro</option>
               </select>
             </div>
 
@@ -457,6 +488,15 @@ const Reservations = () => {
             />
           )}
         </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          title="Confirmar Eliminación"
+          message="¿Estás seguro de que quieres eliminar esta reserva? Esta acción no se puede deshacer."
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       </motion.div>
     </DndProvider>
   );

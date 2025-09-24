@@ -465,7 +465,7 @@ app.put('/api/offices/:id/usuarios', async (req, res) => {
 });
 
 app.get('/api/reservations', async (req, res) => {
-  const { userId, userRole } = req.query; // Obtener el rol y el ID del usuario desde la query
+  const { userId, userRole, reservation_type } = req.query; // Obtener el rol, el ID del usuario y el tipo de reserva desde la query
   try {
     let query = supabaseAdmin
       .from('reservations')
@@ -487,7 +487,12 @@ app.get('/api/reservations', async (req, res) => {
     // Si el usuario es un asesor, filtrar por su ID
     if (userRole === 'advisor' && userId) {
       query = query.eq('advisor_id', userId);
-    } 
+    }
+
+    // Filtrar por tipo de reserva si se proporciona
+    if (reservation_type) {
+      query = query.eq('reservation_type', reservation_type);
+    }
 
     const { data, error } = await query.order('created_at', { ascending: false }); // Ordenar por fecha de creación
 
@@ -610,6 +615,7 @@ app.post('/api/reservations', async (req, res) => {
     clientAddress,
     emergencyContact,
     tripType,
+    reservation_type, // Nuevo campo
     advisorId, // Asumimos que el frontend envía el ID del asesor logueado
     segments,
     passengersADT,
@@ -663,6 +669,7 @@ app.post('/api/reservations', async (req, res) => {
         client_id: client.id,
         advisor_id: advisorId,
         trip_type: tripType,
+        reservation_type: reservation_type, // Nuevo campo
         passengers_adt: passengersADT,
         passengers_chd: passengersCHD,
         passengers_inf: passengersINF,
@@ -830,6 +837,7 @@ app.put('/api/reservations/:id', async (req, res) => {
     const {
         clients, // Expecting the client object
         reservation_segments, // Expecting the segments array
+        reservation_type, // Nuevo campo
         // Other top-level reservation fields can be added here for update
         notes, 
         status,
@@ -882,6 +890,7 @@ app.put('/api/reservations/:id', async (req, res) => {
         const reservationUpdateData = {};
         if (notes !== undefined) reservationUpdateData.notes = notes;
         if (status !== undefined) reservationUpdateData.status = status;
+        if (reservation_type !== undefined) reservationUpdateData.reservation_type = reservation_type; // Nuevo campo
         
         if (Object.keys(reservationUpdateData).length > 0) {
             const { error: reservationError } = await supabaseAdmin
