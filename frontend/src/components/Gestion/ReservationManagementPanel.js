@@ -1,83 +1,98 @@
-import React, { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, X, FileText } from 'lucide-react';
-import ReservationDetailContent from '../Reservations/ReservationDetailContent';
-import FulfillmentChecklist from './FulfillmentChecklist';
-import ChangeRequestManager from './ChangeRequestManager';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Info, CheckSquare, Users, DollarSign, Paperclip, History } from 'lucide-react';
+import GeneralInfoPanel from './GeneralInfoPanel';
+import ReservationFinanceTab from './ReservationFinanceTab';
+import ServiceManagementTab from './ServiceManagementTab';
+import PassengerManagementTab from './PassengerManagementTab';
+import DocumentationTab from './DocumentationTab';
+import HistoryTab from './HistoryTab';
 
-const ReservationManagementPanel = ({ reservation: initialReservation, onBack, onUpdate }) => {
-  const [reservation, setReservation] = useState(initialReservation);
+const ReservationManagementPanel = ({ reservation, onBack, onUpdate }) => {
+  const [activeTab, setActiveTab] = useState('info');
 
-  const refetchReservation = useCallback(async () => {
-    try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`);
-      const data = await response.json();
-      if (response.ok) {
-        // The API returns a transformed object, we need to wrap it in `_original`
-        // to match the structure expected by ReservationFullDetail
-        const transformedData = {
-            ...reservation, // Keep the card-level data
-            _original: data // Embed the full detail
-        };
-        setReservation(transformedData);
-        onUpdate(transformedData); // Notify parent component
-      } else {
-        console.error('Failed to refetch reservation');
-      }
-    } catch (error) {
-      console.error('Error refetching reservation:', error);
+  const tabs = [
+    { id: 'info', label: 'Información General', icon: Info },
+    { id: 'services', label: 'Gestión de Servicios', icon: CheckSquare },
+    { id: 'passengers', label: 'Pasajeros', icon: Users },
+    { id: 'finance', label: 'Finanzas y Pagos', icon: DollarSign },
+    { id: 'documents', label: 'Documentación', icon: Paperclip },
+    { id: 'history', label: 'Actividad y Cambios', icon: History },
+  ];
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'info':
+        return <GeneralInfoPanel reservation={reservation} />;
+      case 'services':
+        return <ServiceManagementTab reservation={reservation} onUpdate={onUpdate} />;
+      case 'passengers':
+        return <PassengerManagementTab reservation={reservation} onUpdate={onUpdate} />;
+      case 'finance':
+        return <ReservationFinanceTab reservation={reservation._original} onUpdate={onUpdate} />;
+      case 'documents':
+        return <DocumentationTab reservation={reservation} onUpdate={onUpdate} />;
+      case 'history':
+        return <HistoryTab reservation={reservation} onUpdate={onUpdate} />;
+      default:
+        return null;
     }
-  }, [reservation.id, onUpdate]);
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -50 }}
-      transition={{ duration: 0.3 }}
-      className="bg-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 flex"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-            <motion.button
-                onClick={onBack}
-                className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition-colors duration-200"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-            >
-                <ArrowLeft className="w-5 h-5" /> Volver
-            </motion.button>
-            <h2 className="text-2xl font-bold text-gray-900">
-                Panel de Gestión: {reservation._original.invoiceNumber || `Reserva #${reservation.id}`}
-            </h2>
-        </div>
-        <motion.button
+      {/* Sidebar / Tabs */}
+      <div className="w-1/4 bg-gray-50 rounded-l-2xl border-r border-gray-200 p-6 flex flex-col">
+        <div className="flex items-center gap-3 mb-8">
+          <motion.button
             onClick={onBack}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+            className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-full transition-colors"
             whileHover={{ scale: 1.1 }}
-        >
-            <X className="w-6 h-6" />
-        </motion.button>
-      </div>
-
-      {/* Fulfillment Checklist Section */}
-      <div className="bg-white p-6 rounded-xl shadow-md border">
-          <FulfillmentChecklist reservation={reservation._original} onUpdate={refetchReservation} />
-      </div>
-
-      {/* Change Request Manager Section */}
-      <div className="bg-white p-6 rounded-xl shadow-md border">
-          <ChangeRequestManager reservation={reservation._original} onUpdate={refetchReservation} />
-      </div>
-
-      {/* Full Details Section */}
-      <div className="bg-white rounded-xl shadow-md border">
-          <div className="p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                <FileText className="w-6 h-6 text-blue-600" /> Resumen Completo de la Reserva
-            </h3>
-            <ReservationDetailContent reservation={reservation} />
+            whileTap={{ scale: 0.9 }}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </motion.button>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Panel de Gestión</h2>
+            <p className="text-sm text-gray-500 font-mono">{reservation._original.invoiceNumber}</p>
           </div>
+        </div>
+        <nav className="flex flex-col space-y-2">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${ 
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+              }`}
+            >
+              <tab.icon className="w-5 h-5" />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Content Area */}
+      <div className="w-3/4 p-8 overflow-y-auto" style={{maxHeight: '90vh'}}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </motion.div>
   );

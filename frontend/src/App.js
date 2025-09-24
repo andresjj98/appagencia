@@ -11,6 +11,7 @@ import Gestion from './pages/Gestion';
 import Notifications from './pages/Notifications'; 
 import Reports from './pages/Reports'; 
 import Analytics from './pages/Analytics'; 
+import Finance from './pages/Finance'; // Importar el nuevo componente
 import Login from './pages/Login';
 import { useAuth } from './pages/AuthContext';
 
@@ -48,12 +49,7 @@ const App = () => {
       case 'offices':
         return <OfficeManagement />; 
       case 'finance':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Finanzas</h2>
-            <p className="text-gray-600">Módulo de finanzas en desarrollo...</p>
-          </div>
-        );
+        return <Finance />;
       case 'reports':
         return <Reports />; 
       case 'analytics':

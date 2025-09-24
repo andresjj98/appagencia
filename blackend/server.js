@@ -482,14 +482,15 @@ app.get('/api/reservations', async (req, res) => {
         change_requests(*),
         reservation_passengers(*),
         reservation_attachments(*)
-      `);
+      `)
+      .not('invoice_number', 'is', null); // <-- AÑADIDO: Solo reservas con número de factura
 
     // Si el usuario es un asesor, filtrar por su ID
     if (userRole === 'advisor' && userId) {
       query = query.eq('advisor_id', userId);
     }
 
-    const { data, error } = await query;
+    const { data, error } = await query.order('created_at', { ascending: false }); // Ordenar por fecha de creación
 
     if (error) {
       console.error('Error fetching reservations from Supabase:', error);
@@ -524,11 +525,6 @@ app.get('/api/reservations', async (req, res) => {
         updatedAt: reservation.updated_at,
         departureDate: mainSegment?.departure_date,
         returnDate: mainSegment?.return_date,
-        // Assuming destination is part of the main reservation object or can be derived
-        // For now, let's assume it's directly on the reservation object or needs to be added
-        // destination: reservation.destination, // Add this if 'destination' exists in 'reservations' table
-        // passengers: calculate total passengers if needed, otherwise use existing field
-        // advisorName: reservation.advisorName, // Add this if 'advisorName' exists in 'reservations' table
       };
     });
 
@@ -1021,6 +1017,177 @@ app.put('/api/reservations/:id', async (req, res) => {
     }
 });
 
+app.put('/api/reservations/:id/service-status', async (req, res) => {
+  const { id } = req.params;
+  const { service, status } = req.body;
+
+  const allowedServices = ['hotel_status_ok', 'flight_status_ok', 'tours_status_ok', 'assistance_status_ok'];
+  if (!allowedServices.includes(service)) {
+    return res.status(400).json({ message: 'Servicio no válido.' });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('reservations')
+      .update({ [service]: status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`Error updating service ${service}:`, error);
+      return res.status(500).json({ message: 'Error del servidor al actualizar el servicio.' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+});
+
+app.post('/api/reservations/:reservationId/flights/upsert', async (req, res) => {
+    const { reservationId } = req.params;
+    const flights = req.body;
+
+    if (!Array.isArray(flights)) {
+        return res.status(400).json({ message: 'El cuerpo de la solicitud debe ser un arreglo de vuelos.' });
+    }
+
+    try {
+        // Get current flights and itineraries to calculate deletions later
+        const { data: currentFlights, error: currentFlightsError } = await supabaseAdmin
+            .from('reservation_flights')
+            .select('id, reservation_flight_itineraries(id)')
+            .eq('reservation_id', reservationId);
+
+        if (currentFlightsError) throw currentFlightsError;
+
+        const submittedFlightIds = new Set(flights.map(f => f.id).filter(Boolean));
+        const flightsToDelete = currentFlights.filter(f => !submittedFlightIds.has(f.id));
+
+        // --- Deletion Phase ---
+        if (flightsToDelete.length > 0) {
+            const idsToDelete = flightsToDelete.map(f => f.id);
+            // Deleting flights will cascade and delete their itineraries
+            const { error: deleteError } = await supabaseAdmin.from('reservation_flights').delete().in('id', idsToDelete);
+            if (deleteError) throw { message: 'Error eliminando vuelos antiguos.', details: deleteError };
+        }
+
+        // --- Upsert Phase ---
+        for (const flight of flights) {
+            const { reservation_flight_itineraries: itineraries, ...flightData } = flight;
+            flightData.reservation_id = reservationId;
+
+            // Upsert the flight itself
+            const { data: upsertedFlight, error: flightError } = await supabaseAdmin
+                .from('reservation_flights')
+                .upsert(flightData)
+                .select('id')
+                .single();
+
+            if (flightError) throw { message: `Error guardando el vuelo ${flightData.airline}.`, details: flightError };
+
+            const flightId = upsertedFlight.id;
+
+            if (itineraries && itineraries.length > 0) {
+                const currentItineraryIds = currentFlights
+                    .find(f => f.id === flightId)?.reservation_flight_itineraries.map(i => i.id) || [];
+                
+                const submittedItineraryIds = new Set(itineraries.map(i => i.id).filter(Boolean));
+                const itinerariesToDelete = currentItineraryIds.filter(id => !submittedItineraryIds.has(id));
+
+                if (itinerariesToDelete.length > 0) {
+                    const { error: deleteItinError } = await supabaseAdmin.from('reservation_flight_itineraries').delete().in('id', itinerariesToDelete);
+                    if (deleteItinError) throw { message: 'Error eliminando itinerarios antiguos.', details: deleteItinError };
+                }
+
+                const itinerariesToUpsert = itineraries.map(itin => ({ ...itin, flight_id: flightId }));
+                const { error: itinError } = await supabaseAdmin.from('reservation_flight_itineraries').upsert(itinerariesToUpsert);
+                if (itinError) throw { message: 'Error guardando itinerarios.', details: itinError };
+            }
+        }
+
+        res.status(200).json({ message: 'Vuelos actualizados con éxito.' });
+
+    } catch (error) {
+        console.error('Error en el proceso de upsert de vuelos:', error);
+        res.status(500).json({ message: error.message || 'Error interno del servidor.', details: error.details });
+    }
+});
+
+app.post('/api/reservations/:reservationId/hotels/upsert', async (req, res) => {
+    const { reservationId } = req.params;
+    const hotels = req.body;
+
+    if (!Array.isArray(hotels)) {
+        return res.status(400).json({ message: 'El cuerpo de la solicitud debe ser un arreglo de hoteles.' });
+    }
+
+    try {
+        const { data: currentHotels, error: currentHotelsError } = await supabaseAdmin
+            .from('reservation_hotels')
+            .select('id, reservation_hotel_accommodations(id), reservation_hotel_inclusions(id)')
+            .eq('reservation_id', reservationId);
+
+        if (currentHotelsError) throw currentHotelsError;
+
+        const submittedHotelIds = new Set(hotels.map(h => h.id).filter(Boolean));
+        const hotelsToDelete = currentHotels.filter(h => !submittedHotelIds.has(h.id));
+
+        if (hotelsToDelete.length > 0) {
+            const idsToDelete = hotelsToDelete.map(h => h.id);
+            const { error: deleteError } = await supabaseAdmin.from('reservation_hotels').delete().in('id', idsToDelete);
+            if (deleteError) throw { message: 'Error eliminando hoteles antiguos.', details: deleteError };
+        }
+
+        for (const hotel of hotels) {
+            const { reservation_hotel_accommodations: accommodations, reservation_hotel_inclusions: inclusions, ...hotelData } = hotel;
+            hotelData.reservation_id = reservationId;
+
+            const { data: upsertedHotel, error: hotelError } = await supabaseAdmin
+                .from('reservation_hotels')
+                .upsert(hotelData)
+                .select('id')
+                .single();
+
+            if (hotelError) throw { message: `Error guardando el hotel ${hotelData.name}.`, details: hotelError };
+
+            const hotelId = upsertedHotel.id;
+
+            // Handle Accommodations
+            if (accommodations) {
+                const currentAccommIds = currentHotels.find(h => h.id === hotelId)?.reservation_hotel_accommodations.map(a => a.id) || [];
+                const submittedAccommIds = new Set(accommodations.map(a => a.id).filter(Boolean));
+                const accommsToDelete = currentAccommIds.filter(id => !submittedAccommIds.has(id));
+                if (acommsToDelete.length > 0) {
+                    await supabaseAdmin.from('reservation_hotel_accommodations').delete().in('id', acommsToDelete);
+                }
+                const accommsToUpsert = accommodations.map(acc => ({ ...acc, hotel_id: hotelId }));
+                await supabaseAdmin.from('reservation_hotel_accommodations').upsert(acommsToUpsert);
+            }
+
+            // Handle Inclusions
+            if (inclusions) {
+                const currentInclusionIds = currentHotels.find(h => h.id === hotelId)?.reservation_hotel_inclusions.map(i => i.id) || [];
+                const submittedInclusionIds = new Set(inclusions.map(i => i.id).filter(Boolean));
+                const inclusionsToDelete = currentInclusionIds.filter(id => !submittedInclusionIds.has(id));
+                if (inclusionsToDelete.length > 0) {
+                    await supabaseAdmin.from('reservation_hotel_inclusions').delete().in('id', inclusionsToDelete);
+                }
+                const inclusionsToUpsert = inclusions.map(inc => ({ ...inc, hotel_id: hotelId }));
+                await supabaseAdmin.from('reservation_hotel_inclusions').upsert(inclusionsToUpsert);
+            }
+        }
+
+        res.status(200).json({ message: 'Hoteles actualizados con éxito.' });
+
+    } catch (error) {
+        console.error('Error en el proceso de upsert de hoteles:', error);
+        res.status(500).json({ message: error.message || 'Error interno del servidor.', details: error.details });
+    }
+});
+
 app.delete('/api/reservations/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1078,6 +1245,34 @@ app.post('/api/reservations/:id/change-requests', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.put('/api/change-requests/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ message: 'Estado no válido.' });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('change_requests')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`Error updating change request status:`, error);
+      return res.status(500).json({ message: 'Error del servidor al actualizar la solicitud.' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
   }
 });
 
@@ -1622,6 +1817,99 @@ app.delete('/api/passengers/:passenger_id', async (req, res) => {
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
+
+// Endpoint to update installment status
+app.put('/api/installments/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!status) {
+    return res.status(400).json({ message: 'El estado es requerido.' });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('reservation_installments')
+      .update({ status: status, payment_date: status === 'paid' ? new Date() : null })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating installment status:', error);
+      return res.status(500).json({ message: 'Error del servidor al actualizar la cuota.' });
+    }
+
+    if (!data) {
+      return res.status(404).json({ message: 'Cuota no encontrada.' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Endpoint to upload a receipt for an installment
+app.post('/api/installments/:id/receipt', upload.single('receipt'), async (req, res) => {
+  const { id } = req.params;
+  
+  if (!req.file) {
+    return res.status(400).json({ message: 'No se ha subido ningún archivo.' });
+  }
+
+  try {
+    // 1. Get the reservation_id from the installment
+    const { data: installment, error: fetchError } = await supabaseAdmin
+      .from('reservation_installments')
+      .select('reservation_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !installment) {
+      return res.status(404).json({ message: 'La cuota no fue encontrada.' });
+    }
+
+    const { reservation_id } = installment;
+    const filePath = `reservations/${reservation_id}/installments/${id}/${req.file.originalname}`;
+
+    // 2. Upload file to Supabase Storage
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('receipts')
+      .upload(filePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true, // Overwrite if file already exists
+      });
+
+    if (uploadError) {
+      console.error('Error uploading file to Supabase Storage:', uploadError);
+      return res.status(500).json({ message: 'Error al subir el archivo.' });
+    }
+
+    // 3. Get public URL and update the database
+    const { data: urlData } = supabaseAdmin.storage.from('receipts').getPublicUrl(filePath);
+    
+    const { data: updatedInstallment, error: updateError } = await supabaseAdmin
+      .from('reservation_installments')
+      .update({ receipt_url: urlData.publicUrl })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating installment with receipt URL:', updateError);
+      return res.status(500).json({ message: 'Error al guardar la URL del recibo.' });
+    }
+
+    res.status(200).json(updatedInstallment);
+
+  } catch (error) {
+    console.error('Error processing receipt upload:', error);
+    res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+});
+
 
 // Download a passenger document
 app.get('/api/passengers/documents/download', async (req, res) => {
