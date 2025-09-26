@@ -9,7 +9,8 @@ import {
   FileText,
   ListChecks,
   Paperclip,
-  Loader2
+  Loader2,
+  MessageSquare
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
@@ -257,6 +258,10 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 <span>Total: {formatCurrency(totalAmount)}</span>
                 </div>
             </div>
+            </InfoSection>
+
+            <InfoSection id="observaciones" title="Observaciones" icon={<MessageSquare className="w-5 h-5 text-gray-600" />}>
+                <InfoItem value={reservation._original.notes} fullWidth />
             </InfoSection>
 
             <InfoSection id="adjuntos" title="Documentos Adjuntos" icon={<Paperclip className="w-5 h-5 text-gray-600" />}>

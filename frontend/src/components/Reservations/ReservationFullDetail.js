@@ -14,7 +14,8 @@ import {
   Paperclip,
   Trash2,
   ListChecks,
-  PlusCircle
+  PlusCircle,
+  MessageSquare
 } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useSettings } from '../../utils/SettingsContext';
@@ -411,6 +412,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
     { id: 'asistencias', label: 'Asistencia Médica', icon: HeartPulse },
     { id: 'pago', label: 'Información de Pago', icon: CreditCard },
     { id: 'plan-pagos', label: 'Plan de Pagos', icon: ListChecks },
+    { id: 'observaciones', label: 'Observaciones', icon: MessageSquare },
     { id: 'adjuntos', label: 'Documentos Adjuntos', icon: Paperclip },
   ];
 
