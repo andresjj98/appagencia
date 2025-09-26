@@ -405,41 +405,43 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const menuItems = [
     { id: 'info-basica', label: 'Información Básica', icon: FileText },
     { id: 'pasajeros', label: 'Pasajeros', icon: Users },
-    { id: 'adjuntos', label: 'Documentos Adjuntos', icon: Paperclip },
     { id: 'vuelos', label: 'Vuelos', icon: Plane },
     { id: 'hoteles', label: 'Hoteles', icon: Hotel },
     { id: 'tours', label: 'Tours', icon: Sun },
     { id: 'asistencias', label: 'Asistencia Médica', icon: HeartPulse },
     { id: 'pago', label: 'Información de Pago', icon: CreditCard },
     { id: 'plan-pagos', label: 'Plan de Pagos', icon: ListChecks },
+    { id: 'adjuntos', label: 'Documentos Adjuntos', icon: Paperclip },
   ];
 
   const SideMenu = () => (
-    <div className="w-1/4 bg-gray-50 p-6 flex flex-col space-y-4 border-r border-gray-200 rounded-l-2xl">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Secciones</h3>
-        <nav className="space-y-2">
-            {menuItems.map(item => (
-                <button 
-                    key={item.id} 
-                    onClick={() => handleScrollToSection(item.id)}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                    <item.icon className="w-5 h-5 text-gray-600" />
-                    <span>{item.label}</span>
+    <div className="w-1/4 bg-gray-50 p-6 flex flex-col border-r border-gray-200 rounded-l-2xl">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex-shrink-0">Secciones</h3>
+        <div className="overflow-y-auto pr-2 -mr-2">
+            <nav className="space-y-2">
+                {menuItems.map(item => (
+                    <button 
+                        key={item.id} 
+                        onClick={() => handleScrollToSection(item.id)}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                        <item.icon className="w-5 h-5 text-gray-600" />
+                        <span>{item.label}</span>
+                    </button>
+                ))}
+            </nav>
+            <div className="pt-6 border-t border-gray-300 space-y-3 mt-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Acciones</h3>
+                <button onClick={onEdit} className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                    <Edit className="w-4 h-4" /> Editar Reserva
                 </button>
-            ))}
-        </nav>
-        <div className="mt-auto pt-6 border-t border-gray-300 space-y-3">
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Acciones</h3>
-            <button onClick={onEdit} className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                <Edit className="w-4 h-4" /> Editar Reserva
-            </button>
-            <button onClick={() => setViewMode('passengers')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                <Users className="w-4 h-4" /> Gestionar Pasajeros
-            </button>
-            <button onClick={() => setViewMode('attachments')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                <Paperclip className="w-4 h-4" /> Adjuntar Archivos
-            </button>
+                <button onClick={() => setViewMode('passengers')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                    <Users className="w-4 h-4" /> Gestionar Pasajeros
+                </button>
+                <button onClick={() => setViewMode('attachments')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                    <Paperclip className="w-4 h-4" /> Adjuntar Archivos
+                </button>
+            </div>
         </div>
     </div>
   );

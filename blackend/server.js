@@ -19,118 +19,13 @@ const formatTimeToTimestamp = (timeStr) => {
   return `1970-01-01T${timeStr}:00Z`;
 };
 
-app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Faltan credenciales' });
-  }
+// Import routes
+const authRoutes = require('./routes/auth');
+const reservationRoutes = require('./routes/reservations');
 
-  try {
-    const { data: user, error } = await supabaseAdmin
-      .from('usuarios')
-      .select('id, name, last_name, id_card, username, email, role, password, active, avatar')
-      .eq('email', email)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
-    }
-
-    const match = await comparePassword(password, user.password);
-
-    if (!match) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
-    }
-
-    delete user.password;
-    res.json({ user });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-});
-
-// ... (other user, office endpoints remain the same) ...
-
-app.get('/api/reservations', async (req, res) => {
-  const { userId, userRole, reservation_type } = req.query;
-  try {
-    let query = supabaseAdmin
-      .from('reservations')
-      .select(`
-        *,
-        clients(*),
-        advisor:usuarios!reservations_advisor_id_fkey(name),
-        reservation_segments(*),
-        reservation_flights(*, reservation_flight_itineraries(*)),
-        reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
-        reservation_tours(*),
-        reservation_medical_assistances(*),
-        reservation_installments(*),
-        change_requests(*),
-        reservation_passengers(*),
-        reservation_attachments(*)
-      `);
-
-    if (userRole === 'advisor' && userId) {
-      query = query.eq('advisor_id', userId);
-    }
-
-    if (reservation_type) {
-      query = query.eq('reservation_type', reservation_type);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching reservations from Supabase:', error);
-      return res.status(500).json({ message: 'Server error' });
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.get('/api/reservations/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    let { data, error } = await supabaseAdmin
-      .from('reservations')
-      .select(`
-        *,
-        clients(*),
-        advisor:usuarios!reservations_advisor_id_fkey(name),
-        reservation_segments(*),
-        reservation_flights(*, reservation_flight_itineraries(*)),
-        reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),
-        reservation_tours(*),
-        reservation_medical_assistances(*),
-        reservation_installments(*),
-        change_requests(*),
-        reservation_passengers(*),
-        reservation_attachments(*)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching reservation from Supabase:', error);
-      return res.status(500).json({ message: 'Server error' });
-    }
-
-    if (!data) {
-      return res.status(404).json({ message: 'Reservation not found' });
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+// Use routes
+app.use('/api', authRoutes);
+app.use('/api/reservations', reservationRoutes);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...
 

@@ -129,7 +129,7 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 <InfoItem label="Dirección" value={reservation._original.clients?.address} fullWidth />
                 <InfoItem label="Contacto de Emergencia" value={reservation._original.clients?.emergency_contact_name} />
                 <InfoItem label="Tel. Emergencia" value={reservation._original.clients?.emergency_contact_phone} />
-                <InfoItem label="Asesor" value={reservation.advisorName} />
+                <InfoItem label="Asesor" value={reservation._original.advisor?.name} />
                 {segments.map((segment, index) => (
                     <React.Fragment key={index}>
                         <InfoItem label={`Tramo ${index + 1}`} value={`${segment.origin} - ${segment.destination}`} />
@@ -148,43 +148,6 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                         <div key={index} className="text-base p-2 bg-gray-50 rounded-md mt-2">{pax.name} {pax.lastname} ({pax.document_type}: {pax.document_number})</div>
                     ))}
                 </div>
-            </InfoSection>
-
-            <InfoSection id="adjuntos" title="Documentos Adjuntos" icon={<Paperclip className="w-5 h-5 text-gray-600" />}>
-                {(attachmentData || []).length > 0 ? (
-                    <div className="col-span-full space-y-4">
-                        {(attachmentData || []).map((doc, index) => (
-                            <div key={index} className="p-4 bg-gray-50 rounded-lg border flex justify-between items-center">
-                                <div>
-                                    <h4 className="font-semibold text-gray-800">{doc.title}</h4>
-                                    {doc.observation && <p className="text-gray-600 mt-1 italic text-sm">{doc.observation}</p>}
-                                </div>
-                                {doc.file_url && (
-                                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                                        <button 
-                                            onClick={() => handleViewFile(doc.file_url)}
-                                            disabled={loadingDoc === doc.file_url}
-                                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center"
-                                        >
-                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
-                                            Ver
-                                        </button>
-                                        <button 
-                                            onClick={() => handleDownloadFile(doc.file_url, doc.file_name)}
-                                            disabled={loadingDoc === doc.file_url}
-                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:bg-gray-300 flex items-center"
-                                        >
-                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
-                                            Descargar
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <InfoItem label="Documentos" value="No hay documentos adjuntos." fullWidth />
-                )}
             </InfoSection>
 
             <InfoSection id="vuelos" title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
@@ -294,6 +257,43 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 <span>Total: {formatCurrency(totalAmount)}</span>
                 </div>
             </div>
+            </InfoSection>
+
+            <InfoSection id="adjuntos" title="Documentos Adjuntos" icon={<Paperclip className="w-5 h-5 text-gray-600" />}>
+                {(attachmentData || []).length > 0 ? (
+                    <div className="col-span-full space-y-4">
+                        {(attachmentData || []).map((doc, index) => (
+                            <div key={index} className="p-4 bg-gray-50 rounded-lg border flex justify-between items-center">
+                                <div>
+                                    <h4 className="font-semibold text-gray-800">{doc.title}</h4>
+                                    {doc.observation && <p className="text-gray-600 mt-1 italic text-sm">{doc.observation}</p>}
+                                </div>
+                                {doc.file_url && (
+                                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                                        <button 
+                                            onClick={() => handleViewFile(doc.file_url)}
+                                            disabled={loadingDoc === doc.file_url}
+                                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center"
+                                        >
+                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
+                                            Ver
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDownloadFile(doc.file_url, doc.file_name)}
+                                            disabled={loadingDoc === doc.file_url}
+                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:bg-gray-300 flex items-center"
+                                        >
+                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
+                                            Descargar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <InfoItem label="Documentos" value="No hay documentos adjuntos." fullWidth />
+                )}
             </InfoSection>
         </>
     );
