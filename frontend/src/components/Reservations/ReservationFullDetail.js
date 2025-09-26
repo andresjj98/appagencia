@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   X,
@@ -11,18 +11,16 @@ import {
   CreditCard,
   FileText,
   ArrowLeft,
-  Upload,
   Paperclip,
   Trash2,
-  Package,
   ListChecks,
   PlusCircle
 } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useSettings } from '../../utils/SettingsContext';
 import ReservationDetailContent from './ReservationDetailContent';
+import { RESERVATION_STATUS } from '../../utils/constants'; // Import status configuration
 
-// Standard form for managing details
 const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
     <div className="p-6">
         <div className="flex items-center gap-4 mb-6">
@@ -279,7 +277,6 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
 
         if (attachment.file instanceof File) {
             formData.append('files', attachment.file);
-            // Use the file's actual name to link it in the backend
             itemMetadata.fileName = attachment.file.name;
         }
         metadata.push(itemMetadata);
@@ -290,7 +287,7 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
     try {
         const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/attachments/upsert`, {
             method: 'POST',
-            body: formData, // Browser will set Content-Type to multipart/form-data
+            body: formData,
         });
 
         const savedAttachments = await response.json();
@@ -370,10 +367,9 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
 };
 
 const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEdit, onRequestChange }) => {
-  const { formatCurrency, formatDate } = useSettings();
   const [viewMode, setViewMode] = useState('view');
+  const contentRef = useRef(null);
 
-  // Defensive check: If reservation data is not available, show a fallback UI.
   if (!reservation || !reservation._original) {
     return (
       <motion.div
@@ -394,83 +390,75 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
       </motion.div>
     );
   }
-  
+
   const [passengersData, setPassengersData] = useState(reservation._original.reservation_passengers || []);
-  const [hotelData, setHotelData] = useState(reservation._original.reservation_hotels || []);
-  const [flightData, setFlightData] = useState(reservation._original.reservation_flights || []);
-  const [tourData, setTourData] = useState(reservation._original.reservation_tours || []);
-  const [assistanceData, setAssistanceData] = useState(reservation._original.reservation_medical_assistances || []);
   const [attachmentData, setAttachmentData] = useState(reservation._original.reservation_attachments || []);
 
-  const paymentOption = reservation._original.payment_option;
-  const installments = reservation._original.installments || reservation._original.reservation_installments || [];
-  const totalInstallmentsAmount = installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
-  const paidAmount = paymentOption === 'full_payment'
-    ? (reservation._original.payment_status === 'paid' ? reservation._original.total_amount : 0)
-    : installments.filter(inst => inst.status === 'paid').reduce((sum, inst) => sum + (inst.amount || 0), 0);
-  const totalAmount = paymentOption === 'full_payment' ? reservation._original.total_amount : totalInstallmentsAmount;
-  const progress = totalAmount ? Math.round((paidAmount / totalAmount) * 100) : 0;
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'paid':
-        return 'Pagada';
-      case 'overdue':
-      case 'late':
-        return 'Atrasada';
-      default:
-        return 'Pendiente';
+  const handleScrollToSection = (sectionId) => {
+    const section = contentRef.current.querySelector(`#${sectionId}`);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  const handleSave = (section) => {
-    console.log(`Saving ${section}...`);
-    setViewMode('view');
-  };
+  const statusConfig = RESERVATION_STATUS[reservation.status] || { label: reservation.status, bgColor: 'bg-gray-100', textColor: 'text-gray-800' };
 
-  const handleManagementClick = (mode) => {
-    setViewMode(mode);
-  };
+  const menuItems = [
+    { id: 'info-basica', label: 'Información Básica', icon: FileText },
+    { id: 'pasajeros', label: 'Pasajeros', icon: Users },
+    { id: 'vuelos', label: 'Vuelos', icon: Plane },
+    { id: 'hoteles', label: 'Hoteles', icon: Hotel },
+    { id: 'tours', label: 'Tours', icon: Sun },
+    { id: 'asistencias', label: 'Asistencia Médica', icon: HeartPulse },
+    { id: 'pago', label: 'Información de Pago', icon: CreditCard },
+    { id: 'plan-pagos', label: 'Plan de Pagos', icon: ListChecks },
+  ];
 
-  const ReadOnlyView = () => (
-    <>
-      <div className="p-6 overflow-y-auto">
-        <ReservationDetailContent reservation={reservation} />
-      </div>
-
-      <div className="p-6 bg-gray-50 border-t border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-3 mb-4">Información adicional de la reserva</h3>
-        <div className="flex flex-wrap items-center justify-center gap-4">
-            <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+  const SideMenu = () => (
+    <div className="w-1/4 bg-gray-50 p-6 flex flex-col space-y-4 border-r border-gray-200 rounded-l-2xl">
+        <h3 className="text-lg font-bold text-gray-800 mb-4">Secciones</h3>
+        <nav className="space-y-2">
+            {menuItems.map(item => (
+                <button 
+                    key={item.id} 
+                    onClick={() => handleScrollToSection(item.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                    <item.icon className="w-5 h-5 text-gray-600" />
+                    <span>{item.label}</span>
+                </button>
+            ))}
+        </nav>
+        <div className="mt-auto pt-6 border-t border-gray-300 space-y-3">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Acciones</h3>
+            <button onClick={onEdit} className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
                 <Edit className="w-4 h-4" /> Editar Reserva
             </button>
-            <button onClick={() => handleManagementClick('passengers')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                <Users className="w-4 h-4" /> Gestionar pasajero(s)
+            <button onClick={() => setViewMode('passengers')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                <Users className="w-4 h-4" /> Gestionar Pasajeros
             </button>
-            <button onClick={() => setViewMode('attachments')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+            <button onClick={() => setViewMode('attachments')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
                 <Paperclip className="w-4 h-4" /> Adjuntar Archivos
             </button>
         </div>
-      </div>
-    </>
+    </div>
   );
-  
+
   const renderContent = () => {
+    const formProps = {
+        reservation,
+        setViewMode,
+    };
+
     switch (viewMode) {
-      case 'view': return <ReadOnlyView />;
-      case 'passengers': return <PassengerForm 
-                                  reservation={reservation} 
-                                  passengersData={passengersData} 
-                                  setPassengersData={setPassengersData} 
-                                  setViewMode={setViewMode} 
-                                />;
-      case 'attachments': return <AttachmentForm 
-                                    reservation={reservation}
-                                    attachmentData={attachmentData}
-                                    setAttachmentData={setAttachmentData}
-                                    setViewMode={setViewMode}
-                                  />;
-      default: return <ReadOnlyView />;
+      case 'view':
+        return <ReservationDetailContent reservation={reservation} />;
+      case 'passengers': 
+        return <PassengerForm {...formProps} passengersData={passengersData} setPassengersData={setPassengersData} />;
+      case 'attachments': 
+        return <AttachmentForm {...formProps} attachmentData={attachmentData} setAttachmentData={setAttachmentData} />;
+      default: 
+        return <ReservationDetailContent reservation={reservation} />;
     }
   };
 
@@ -482,16 +470,21 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-white rounded-t-2xl sticky top-0 z-10">
-          <h2 className="text-xl font-bold text-gray-900">
-            {reservation._original.invoiceNumber || `Detalle de la Reserva #${reservation.id}`}
-          </h2>
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-white rounded-t-2xl flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-gray-900">
+              {reservation._original.invoiceNumber || `Detalle de la Reserva #${reservation.id}`}
+            </h2>
+            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+              {statusConfig.label}
+            </span>
+          </div>
           <motion.button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
@@ -500,8 +493,11 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
             <X className="w-6 h-6" />
           </motion.button>
         </div>
-        <div className="overflow-y-auto">
-            {renderContent()}
+        <div className="flex flex-1 overflow-hidden">
+            {viewMode === 'view' && <SideMenu />}
+            <main ref={contentRef} className="flex-1 overflow-y-auto p-6">
+                {renderContent()}
+            </main>
         </div>
       </motion.div>
     </motion.div>

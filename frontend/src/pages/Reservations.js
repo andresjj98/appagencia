@@ -7,10 +7,10 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import ReservationCard from '../components/Reservations/ReservationCard';
 import ReservationForm from '../components/Reservations/ReservationForm';
 import ReservationTypeSelector from '../components/Reservations/ReservationTypeSelector';
-import ReservationPostCreation from '../components/Reservations/ReservationPostCreation';
 import ReservationFullDetail from '../components/Reservations/ReservationFullDetail';
 import CancelRequestModal from '../components/Reservations/CancelRequestModal';
-import ConfirmationModal from '../components/common/ConfirmationModal'; // Import the new modal
+import ConfirmationModal from '../components/common/ConfirmationModal';
+import LoadingOverlay from '../components/common/LoadingOverlay'; // Import the new component
 
 import { useAuth } from './AuthContext';
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
@@ -20,9 +20,7 @@ const Reservations = () => {
   const [reservations, setReservations] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showTypeSelector, setShowTypeSelector] = useState(false);
-  const [showPostCreation, setShowPostCreation] = useState(false);
   const [editingReservation, setEditingReservation] = useState(null);
-  const [newlyCreatedReservation, setNewlyCreatedReservation] = useState(null);
   const [selectedReservationType, setSelectedReservationType] = useState(null);
   const [reservationToConfirm, setReservationToConfirm] = useState(false); // Changed to boolean
   const [showSummary, setShowSummary] = useState(false);
@@ -38,6 +36,7 @@ const Reservations = () => {
   const [filterType, setFilterType] = useState('all'); // New state for reservation type filter
   const [sortBy, setSortBy] = useState('date');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // New state for saving overlay
   const { currentUser } = useAuth(); // Get the logged-in user
 
   const transformReservationForDetails = (res) => {
@@ -174,7 +173,7 @@ const Reservations = () => {
   };
 
   const handleFinalSaveReservation = async (reservationData) => {
-    setIsLoading(true);
+    setIsSaving(true); // Show loading overlay
     const url = editingReservation
       ? `http://localhost:4000/api/reservations/${editingReservation.id}`
       : 'http://localhost:4000/api/reservations';
@@ -194,10 +193,6 @@ const Reservations = () => {
         setEditingReservation(null);
         setSelectedReservationType(null);
         fetchReservations(); // Refetch all reservations
-        if (!editingReservation) {
-          setNewlyCreatedReservation(result);
-          setShowPostCreation(true);
-        }
       } else {
         console.error('Error saving reservation:', result.message);
         alert(`Error: ${result.message}`);
@@ -206,7 +201,7 @@ const Reservations = () => {
       console.error('Error saving reservation:', error);
       alert('An unexpected error occurred.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false); // Hide loading overlay
     }
   };
 
@@ -231,12 +226,6 @@ const Reservations = () => {
     setShowSummary(false);
   };
 
-  const handleUpdateReservationAfterPostCreation = (updatedReservation) => {
-    fetchReservations();
-    setShowPostCreation(false);
-    setNewlyCreatedReservation(null);
-  };
-
   const handleDeleteReservation = (reservation) => {
     if (reservation.status !== 'confirmed') {
       setReservationToDelete(reservation);
@@ -249,7 +238,7 @@ const Reservations = () => {
 
   const handleConfirmDelete = async () => {
     if (!reservationToDelete) return;
-
+    setIsSaving(true); // Show loading overlay for delete
     try {
       const response = await fetch(`http://localhost:4000/api/reservations/${reservationToDelete.id}`, {
         method: 'DELETE',
@@ -268,6 +257,7 @@ const Reservations = () => {
     } finally {
       setReservationToDelete(null);
       setShowDeleteConfirm(false);
+      setIsSaving(false); // Hide loading overlay
     }
   };
 
@@ -293,6 +283,7 @@ const Reservations = () => {
 
   return (
     <DndProvider backend={HTML5Backend}>
+      <AnimatePresence>{isSaving && <LoadingOverlay />}</AnimatePresence>
       <motion.div
         className="p-6 space-y-6"
         initial={{ opacity: 0 }}
@@ -474,17 +465,6 @@ const Reservations = () => {
                 setShowCancelRequest(false);
                 setReservationToCancel(null);
               }}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Post-Creation Screen Modal */}
-        <AnimatePresence>
-          {showPostCreation && newlyCreatedReservation && (
-            <ReservationPostCreation
-              reservation={newlyCreatedReservation}
-              onUpdateReservation={handleUpdateReservationAfterPostCreation}
-              onClose={() => setShowPostCreation(false)}
             />
           )}
         </AnimatePresence>

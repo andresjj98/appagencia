@@ -12,13 +12,13 @@ import {
 import { useSettings } from '../../utils/SettingsContext';
 
 // Read-only Section
-const InfoSection = ({ title, icon, children }) => (
-  <div className="py-5 px-6 border-b border-gray-200 last:border-b-0">
-    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-3 mb-4">
+const InfoSection = ({ id, title, icon, children, gridColsClass = 'lg:grid-cols-3' }) => (
+  <div id={id} className="py-5 px-6 border-b border-gray-200 last:border-b-0 scroll-mt-20">
+    <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-3 mb-4">
       {icon}
       {title}
     </h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+    <div className={`grid grid-cols-1 md:grid-cols-2 ${gridColsClass} gap-x-8 gap-y-4 text-base`}>
       {children}
     </div>
   </div>
@@ -65,9 +65,14 @@ const ReservationDetailContent = ({ reservation }) => {
 
     return (
         <>
-            <InfoSection title="Información Básica" icon={<FileText className="w-5 h-5 text-blue-600" />}>
+            <InfoSection id="info-basica" title="Información Básica" icon={<FileText className="w-5 h-5 text-blue-600" />} gridColsClass="lg:grid-cols-2">
                 <InfoItem label="Cliente" value={reservation.clientName} />
-                <InfoItem label="Estado" value={reservation.status} />
+                <InfoItem label="Identificación" value={reservation.clientId} />
+                <InfoItem label="Email" value={reservation.clientEmail} />
+                <InfoItem label="Teléfono" value={reservation.clientPhone} />
+                <InfoItem label="Dirección" value={reservation._original.clients?.address} fullWidth />
+                <InfoItem label="Contacto de Emergencia" value={reservation._original.clients?.emergency_contact_name} />
+                <InfoItem label="Tel. Emergencia" value={reservation._original.clients?.emergency_contact_phone} />
                 <InfoItem label="Asesor" value={reservation.advisorName} />
                 {segments.map((segment, index) => (
                     <React.Fragment key={index}>
@@ -78,29 +83,29 @@ const ReservationDetailContent = ({ reservation }) => {
                 ))}
             </InfoSection>
 
-            <InfoSection title="Pasajeros" icon={<Users className="w-5 h-5 text-green-600" />}>
+            <InfoSection id="pasajeros" title="Pasajeros" icon={<Users className="w-5 h-5 text-green-600" />}>
                 <InfoItem label="Adultos" value={reservation._original.passengers_adt} />
                 <InfoItem label="Niños" value={reservation._original.passengers_chd} />
                 <InfoItem label="Infantes" value={reservation._original.passengers_inf} />
                 <div className="col-span-full">
                     {(passengersData || []).map((pax, index) => (
-                        <div key={index} className="text-sm p-2 bg-gray-50 rounded-md mt-2">{pax.name} {pax.lastname} ({pax.document_type}: {pax.document_number})</div>
+                        <div key={index} className="text-base p-2 bg-gray-50 rounded-md mt-2">{pax.name} {pax.lastname} ({pax.document_type}: {pax.document_number})</div>
                     ))}
                 </div>
             </InfoSection>
 
-            <InfoSection title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
+            <InfoSection id="vuelos" title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
                 {(flightData || []).length > 0 ? (flightData || []).map((flight, index) => (
-                    <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
                         <p><strong>Aerolínea:</strong> {flight.airline}</p>
                         <p><strong>PNR:</strong> {flight.pnr || 'No especificado'}</p>
                     </div>
                 )) : <InfoItem label="Vuelos" value="No hay vuelos registrados." fullWidth />}
             </InfoSection>
 
-            <InfoSection title="Hoteles" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
+            <InfoSection id="hoteles" title="Hoteles" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
                 {(hotelData || []).length > 0 ? (hotelData || []).map((hotel, index) => (
-                    <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg space-y-1">
+                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg space-y-1">
                         <p><strong>Nombre:</strong> {hotel.name}</p>
                         {hotel.room_category && <p><strong>Categoría:</strong> {hotel.room_category}</p>}
                         {hotel.meal_plan && <p><strong>Plan de Comidas:</strong> {hotel.meal_plan}</p>}
@@ -124,9 +129,9 @@ const ReservationDetailContent = ({ reservation }) => {
                 )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." fullWidth />}
             </InfoSection>
 
-            <InfoSection title="Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
+            <InfoSection id="tours" title="Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
                 {(tourData || []).length > 0 ? (tourData || []).map((tour, index) => (
-                    <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
                         <p><strong>Nombre:</strong> {tour.name}</p>
                         {tour.date && <p><strong>Fecha:</strong> {formatDate(tour.date)}</p>}
                         {tour.cost && <p><strong>Costo:</strong> {formatCurrency(tour.cost)}</p>}
@@ -134,16 +139,16 @@ const ReservationDetailContent = ({ reservation }) => {
                 )) : <InfoItem label="Tours" value="No hay tours registrados." fullWidth />}
             </InfoSection>
 
-            <InfoSection title="Asistencias Médicas" icon={<HeartPulse className="w-5 h-5 text-red-600" />}>
+            <InfoSection id="asistencias" title="Asistencias Médicas" icon={<HeartPulse className="w-5 h-5 text-red-600" />}>
                 {(assistanceData || []).length > 0 ? (assistanceData || []).map((med, index) => (
-                    <div key={index} className="col-span-full text-sm p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
                         <p><strong>Plan:</strong> {med.plan_type || med.planType}</p>
                         <p><strong>Vigencia:</strong> {formatDate(med.start_date || med.startDate)} - {formatDate(med.end_date || med.endDate)}</p>
                     </div>
                 )) : <InfoItem label="Asistencias" value="No hay asistencias médicas." fullWidth />}
             </InfoSection>
 
-            <InfoSection title="Pago" icon={<CreditCard className="w-5 h-5 text-purple-600" />}>
+            <InfoSection id="pago" title="Pago" icon={<CreditCard className="w-5 h-5 text-purple-600" />}>
                 <InfoItem label="Precio ADT" value={formatCurrency(reservation._original.price_per_adt)} />
                 <InfoItem label="Precio CHD" value={formatCurrency(reservation._original.price_per_chd)} />
                 <InfoItem label="Precio INF" value={formatCurrency(reservation._original.price_per_inf)} />
@@ -153,7 +158,7 @@ const ReservationDetailContent = ({ reservation }) => {
                     <InfoItem key={index} label={`Cuota ${index + 1}`} value={`${formatCurrency(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
                 ))}
             </InfoSection>
-            <InfoSection title="Plan de pagos (Cuotas)" icon={<ListChecks className="w-5 h-5 text-emerald-600" />}>
+            <InfoSection id="plan-pagos" title="Plan de pagos (Cuotas)" icon={<ListChecks className="w-5 h-5 text-emerald-600" />}>
             {paymentOption === 'full_payment' ? (
                 <>
                 <InfoItem label="Fecha de pago" value={formatDate(reservation._original.payment_date)} />
@@ -162,7 +167,7 @@ const ReservationDetailContent = ({ reservation }) => {
                 </>
             ) : (
                 <div className="col-span-full overflow-x-auto">
-                <table className="min-w-full text-sm">
+                <table className="min-w-full text-base">
                     <thead>
                     <tr className="text-left">
                         <th className="py-1 pr-4">#</th>
@@ -190,7 +195,7 @@ const ReservationDetailContent = ({ reservation }) => {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                 <div className="bg-green-500 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
                 </div>
-                <div className="flex justify-between text-xs text-gray-600 mt-2">
+                <div className="flex justify-between text-sm text-gray-600 mt-2">
                 <span>Pagado: {formatCurrency(paidAmount)}</span>
                 <span>Total: {formatCurrency(totalAmount)}</span>
                 </div>

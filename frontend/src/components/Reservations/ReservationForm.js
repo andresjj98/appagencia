@@ -386,6 +386,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     dataToSend.advisorId = user?.id; // <-- AÑADIDO: Incluye el ID del asesor
     dataToSend.reservation_type = reservationType;
 
+    if (dataToSend.paymentOption === 'full_payment') {
+      dataToSend.installments = [{ amount: dataToSend.totalAmount, dueDate: getTodayDate() }];
+    }
+
     if (reservationType === 'flights_only' && flightTripType === 'one_way') {
       dataToSend.segments.forEach(segment => {
         segment.returnDate = null;

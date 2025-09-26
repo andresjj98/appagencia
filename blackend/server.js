@@ -511,11 +511,11 @@ app.get('/api/reservations', async (req, res) => {
         invoiceNumber: reservation.invoice_number,
         clientName: reservation.clients?.name,
         clientId: reservation.clients?.id_card,
-        clientEmail: reservation.clients?.email,
-        clientPhone: reservation.clients?.phone,
-        clientAddress: reservation.clients?.address,
+        clientEmail: reservation.clients?.email, // Ya estaba
+        clientPhone: reservation.clients?.phone, // Ya estaba
+        clientAddress: reservation.clients?.address, // Añadido
         advisorName: reservation.advisor?.name,
-        emergencyContact: {
+        emergencyContact: { // Añadido
           name: reservation.clients?.emergency_contact_name,
           phone: reservation.clients?.emergency_contact_phone,
         },
@@ -575,11 +575,11 @@ app.get('/api/reservations/:id', async (req, res) => {
       invoiceNumber: data.invoice_number,
       clientName: data.clients?.name,
       clientId: data.clients?.id_card,
-      clientEmail: data.clients?.email,
-      clientPhone: data.clients?.phone,
-      clientAddress: data.clients?.address,
+      clientEmail: data.clients?.email, // Ya estaba
+      clientPhone: data.clients?.phone, // Ya estaba
+      clientAddress: data.clients?.address, // Añadido
       advisorName: data.advisor?.name,
-      emergencyContact: {
+      emergencyContact: { // Añadido
         name: data.clients?.emergency_contact_name,
         phone: data.clients?.emergency_contact_phone,
       },
@@ -835,75 +835,179 @@ app.post('/api/reservations', async (req, res) => {
 app.put('/api/reservations/:id', async (req, res) => {
     const { id } = req.params;
     const {
-        clients, // Expecting the client object
-        reservation_segments, // Expecting the segments array
-        reservation_type, // Nuevo campo
-        // Other top-level reservation fields can be added here for update
-        notes, 
+        clientName,
+        clientId: clientIdBody,
+        clientEmail,
+        clientPhone,
+        clientAddress,
+        emergencyContact,
+        tripType,
+        reservation_type,
+        passengersADT,
+        passengersCHD,
+        passengersINF,
+        pricePerADT,
+        pricePerCHD,
+        pricePerINF,
+        totalAmount,
+        paymentOption,
+        installments,
+        notes,
         status,
+        segments,
+        flights,
+        hotels,
+        tours,
+        medicalAssistances,
     } = req.body;
 
     try {
-        // Start a transaction
-        // Note: Supabase JS client doesn't directly support transactions in the same way as a raw SQL client.
-        // We will perform operations sequentially and handle errors.
+        // First, get the correct client_id from the reservation itself
+        const { data: existingReservation, error: fetchError } = await supabaseAdmin
+            .from('reservations')
+            .select('client_id')
+            .eq('id', id)
+            .single();
 
-        // 1. Update Client Info if provided
-        if (clients) {
-            const { id: clientId, ...clientData } = clients;
-            // Map frontend keys to DB keys if they are different
+        if (fetchError) throw { message: 'Error fetching reservation before update', details: fetchError };
+        if (!existingReservation) return res.status(404).json({ message: 'Reservation not found' });
+
+        const client_id = existingReservation.client_id;
+
+        // Step 1: Update main reservation details
+        const reservationUpdateData = {
+            trip_type: tripType,
+            reservation_type: reservation_type,
+            passengers_adt: passengersADT,
+            passengers_chd: passengersCHD,
+            passengers_inf: passengersINF,
+            price_per_adt: pricePerADT,
+            price_per_chd: pricePerCHD,
+            price_per_inf: pricePerINF,
+            total_amount: totalAmount,
+            payment_option: paymentOption,
+            notes: notes,
+            status: status,
+        };
+
+        const { error: reservationError } = await supabaseAdmin
+            .from('reservations')
+            .update(reservationUpdateData)
+            .eq('id', id);
+
+        if (reservationError) throw { message: 'Error actualizando los datos principales de la reserva', details: reservationError };
+
+        // Step 2: Update client details
+        if (client_id) {
             const clientUpdateData = {
-                name: clientData.name,
-                id_card: clientData.id_card,
-                email: clientData.email,
-                phone: clientData.phone,
-                address: clientData.address,
-                emergency_contact_name: clientData.emergency_contact_name,
-                emergency_contact_phone: clientData.emergency_contact_phone,
+                name: clientName,
+                id_card: clientIdBody,
+                email: clientEmail,
+                phone: clientPhone,
+                address: clientAddress,
+                emergency_contact_name: emergencyContact?.name,
+                emergency_contact_phone: emergencyContact?.phone,
             };
             const { error: clientError } = await supabaseAdmin
                 .from('clients')
                 .update(clientUpdateData)
-                .eq('id', clientId);
+                .eq('id', client_id);
             if (clientError) throw { message: 'Error actualizando el cliente', details: clientError };
         }
 
-        // 2. Upsert Segments if provided
-        if (reservation_segments) {
-            const segmentsToUpsert = reservation_segments.map(s => ({
-                id: s.id, // Important for upsert
-                reservation_id: id,
-                origin: s.origin,
-                destination: s.destination,
-                departure_date: s.departure_date,
-                return_date: s.return_date,
-            }));
-            
-            const { error: segmentsError } = await supabaseAdmin
-                .from('reservation_segments')
-                .upsert(segmentsToUpsert);
+        // Step 3: Re-create all related data (delete and insert)
+        const reservationId = id;
 
-            if (segmentsError) throw { message: 'Error actualizando los segmentos', details: segmentsError };
+        // Segments
+        await supabaseAdmin.from('reservation_segments').delete().eq('reservation_id', reservationId);
+        if (segments && segments.length > 0) {
+            const segmentData = segments.map(s => ({ origin: s.origin, destination: s.destination, departure_date: s.departureDate, return_date: s.returnDate, reservation_id: reservationId }));
+            const { error } = await supabaseAdmin.from('reservation_segments').insert(segmentData);
+            if (error) throw { message: 'Error actualizando segmentos', details: error };
         }
 
-        // 3. Update main reservation fields if provided
-        const reservationUpdateData = {};
-        if (notes !== undefined) reservationUpdateData.notes = notes;
-        if (status !== undefined) reservationUpdateData.status = status;
-        if (reservation_type !== undefined) reservationUpdateData.reservation_type = reservation_type; // Nuevo campo
-        
-        if (Object.keys(reservationUpdateData).length > 0) {
-            const { error: reservationError } = await supabaseAdmin
-                .from('reservations')
-                .update(reservationUpdateData)
-                .eq('id', id);
-            if (reservationError) throw { message: 'Error actualizando la reserva principal', details: reservationError };
+        // Flights (and their itineraries)
+        await supabaseAdmin.from('reservation_flights').delete().eq('reservation_id', reservationId);
+        if (flights && flights.length > 0) {
+            for (const flight of flights) {
+                const { itineraries, ...flightData } = flight;
+                const flightToInsert = {
+                    airline: flightData.airline,
+                    flight_category: flightData.flightCategory,
+                    baggage_allowance: flightData.baggageAllowance,
+                    flight_cycle: flightData.flightCycle,
+                    pnr: flightData.trackingCode,
+                    reservation_id: reservationId
+                };
+                const { data: newFlight, error: flightError } = await supabaseAdmin.from('reservation_flights').insert(flightToInsert).select('id').single();
+                if (flightError) throw { message: 'Error actualizando vuelos', details: flightError };
+                if (itineraries && itineraries.length > 0) {
+                    const itineraryData = itineraries.map(i => ({ 
+                        flight_number: i.flightNumber, 
+                        departure_time: i.departure_time, 
+                        arrival_time: i.arrival_time, 
+                        flight_id: newFlight.id 
+                    }));
+                    const { error } = await supabaseAdmin.from('reservation_flight_itineraries').insert(itineraryData);
+                    if (error) throw { message: 'Error actualizando itinerarios de vuelo', details: error };
+                }
+            }
+        }
+
+        // Hotels (and their accommodations/inclusions)
+        await supabaseAdmin.from('reservation_hotels').delete().eq('reservation_id', reservationId);
+        if (hotels && hotels.length > 0) {
+            for (const hotel of hotels) {
+                const { accommodation, hotelInclusions, ...hotelData } = hotel;
+                const hotelToInsert = {
+                    name: hotelData.name,
+                    room_category: hotelData.roomCategory,
+                    meal_plan: hotelData.mealPlan,
+                    reservation_id: reservationId
+                };
+                const { data: newHotel, error: hotelError } = await supabaseAdmin.from('reservation_hotels').insert(hotelToInsert).select('id').single();
+                if (hotelError) throw { message: 'Error actualizando hoteles', details: hotelError };
+                if (accommodation && accommodation.length > 0) {
+                    const accommodationData = accommodation.map(a => ({ rooms: a.rooms, adt: a.adt, chd: a.chd, inf: a.inf, hotel_id: newHotel.id }));
+                    const { error } = await supabaseAdmin.from('reservation_hotel_accommodations').insert(accommodationData);
+                    if (error) throw { message: 'Error actualizando acomodaciones de hotel', details: error };
+                }
+                if (hotelInclusions && hotelInclusions.length > 0) {
+                    const inclusionData = hotelInclusions.map(i => ({ inclusion: i, hotel_id: newHotel.id }));
+                    const { error } = await supabaseAdmin.from('reservation_hotel_inclusions').insert(inclusionData);
+                    if (error) throw { message: 'Error actualizando inclusiones de hotel', details: error };
+                }
+            }
+        }
+
+        // Tours
+        await supabaseAdmin.from('reservation_tours').delete().eq('reservation_id', reservationId);
+        if (tours && tours.length > 0) {
+            const tourData = tours.map(t => ({ name: t.name, date: t.date, cost: t.cost, reservation_id: reservationId }));
+            const { error } = await supabaseAdmin.from('reservation_tours').insert(tourData);
+            if (error) throw { message: 'Error actualizando tours', details: error };
+        }
+
+        // Medical Assistances
+        await supabaseAdmin.from('reservation_medical_assistances').delete().eq('reservation_id', reservationId);
+        if (medicalAssistances && medicalAssistances.length > 0) {
+            const assistanceData = medicalAssistances.map(m => ({ plan_type: m.planType, start_date: m.startDate, end_date: m.endDate, reservation_id: reservationId }));
+            const { error } = await supabaseAdmin.from('reservation_medical_assistances').insert(assistanceData);
+            if (error) throw { message: 'Error actualizando asistencias médicas', details: error };
+        }
+
+        // Installments
+        await supabaseAdmin.from('reservation_installments').delete().eq('reservation_id', reservationId);
+        if (installments && installments.length > 0) {
+            const installmentData = installments.map(i => ({ amount: i.amount, due_date: i.dueDate, status: i.status || 'pending', reservation_id: reservationId }));
+            const { error } = await supabaseAdmin.from('reservation_installments').insert(installmentData);
+            if (error) throw { message: 'Error actualizando el plan de pagos', details: error };
         }
 
         res.status(200).json({ message: 'Reserva actualizada con éxito' });
 
     } catch (error) {
-        console.error('Error en la actualización parcial de la reserva:', error);
+        console.error('Error en la actualización completa de la reserva:', error);
         res.status(500).json({ message: error.message || 'Error interno del servidor', details: error.details });
     }
 });
@@ -1739,6 +1843,52 @@ app.put('/api/installments/:id/status', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+app.post('/api/reservations/:reservation_id/installments/upsert', async (req, res) => {
+  const { reservation_id } = req.params;
+  const installments = req.body;
+
+  if (!Array.isArray(installments)) {
+    return res.status(400).json({ message: 'El cuerpo de la solicitud debe ser un arreglo de cuotas.' });
+  }
+
+  try {
+    // 1. Delete existing installments for the reservation
+    const { error: deleteError } = await supabaseAdmin
+      .from('reservation_installments')
+      .delete()
+      .eq('reservation_id', reservation_id);
+
+    if (deleteError) {
+      console.error('Error deleting old installments:', deleteError);
+      throw { message: 'Error eliminando el plan de pagos antiguo.', details: deleteError };
+    }
+
+    // 2. Insert the new installments
+    const installmentsToInsert = installments.map(inst => ({
+      reservation_id: reservation_id,
+      amount: inst.amount,
+      due_date: inst.dueDate,
+      status: inst.status || 'pending' // Default status
+    }));
+
+    const { data: newInstallments, error: insertError } = await supabaseAdmin
+      .from('reservation_installments')
+      .insert(installmentsToInsert)
+      .select();
+
+    if (insertError) {
+      console.error('Error inserting new installments:', insertError);
+      throw { message: 'Error insertando el nuevo plan de pagos.', details: insertError };
+    }
+
+    res.status(200).json(newInstallments);
+
+  } catch (error) {
+    console.error('Error en el proceso de upsert de cuotas:', error);
+    res.status(500).json({ message: error.message || 'Error interno del servidor.', details: error.details });
   }
 });
 
