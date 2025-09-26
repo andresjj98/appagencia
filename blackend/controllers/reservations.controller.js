@@ -3,7 +3,7 @@ const { supabaseAdmin } = require('../supabase');
 const fullReservationSelect = `
   *,
   clients(*),
-  advisor:usuarios!reservations_advisor_id_fkey(name),
+  advisor:advisor_id(name),
   reservation_segments(*),
   reservation_flights(*, reservation_flight_itineraries(*)),
   reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),

@@ -109,7 +109,7 @@ const Reservations = () => {
         totalAmount: res.total_amount,
         status: res.status,
         paymentStatus: 'pending', // Placeholder
-        advisorName: res.advisorName || 'N/A', // Use advisor name from backend
+        advisorName: res.advisor?.name || 'N/A', // Use advisor name from backend
         notes: res.notes,
         _original: res 
       };
