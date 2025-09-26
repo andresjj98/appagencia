@@ -285,104 +285,105 @@ const Reservations = () => {
     <DndProvider backend={HTML5Backend}>
       <AnimatePresence>{isSaving && <LoadingOverlay />}</AnimatePresence>
       <motion.div
-        className="p-6 space-y-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Filters and Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-400" />
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Todas las reservas</option>
-                <option value="pending">Pendientes</option>
-                <option value="confirmed">Confirmadas</option>
-                <option value="cancelled">Canceladas</option>
-                <option value="completed">Completadas</option>
-              </select>
+        <div className="p-6 space-y-6">
+          {/* Filters and Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5 text-gray-400" />
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Todas las reservas</option>
+                  <option value="pending">Pendientes</option>
+                  <option value="confirmed">Confirmadas</option>
+                  <option value="cancelled">Canceladas</option>
+                  <option value="completed">Completadas</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5 text-gray-400" />
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Todos los tipos</option>
+                  <option value="all_inclusive">Paquete Todo Incluido</option>
+                  <option value="flights_only">Solo Vuelos</option>
+                  <option value="hotel_only">Solo Hotel</option>
+                  <option value="tours_only">Solo Tours</option>
+                  <option value="medical_assistance">Asistencia Médica</option>
+                  <option value="other">Otro</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <SortAsc className="w-5 h-5 text-gray-400" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="date">Fecha de creación</option>
+                  <option value="departure">Fecha de salida</option>
+                  <option value="amount">Monto total</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-400" />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Todos los tipos</option>
-                <option value="all_inclusive">Paquete Todo Incluido</option>
-                <option value="flights_only">Solo Vuelos</option>
-                <option value="hotel_only">Solo Hotel</option>
-                <option value="tours_only">Solo Tours</option>
-                <option value="medical_assistance">Asistencia Médica</option>
-                <option value="other">Otro</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <SortAsc className="w-5 h-5 text-gray-400" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="date">Fecha de creación</option>
-                <option value="departure">Fecha de salida</option>
-                <option value="amount">Monto total</option>
-              </select>
-            </div>
+            <motion.button
+              onClick={handleNewReservationClick}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Nueva Reserva
+            </motion.button>
           </div>
 
-          <motion.button
-            onClick={handleNewReservationClick}
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            Nueva Reserva
-          </motion.button>
+          {/* Reservations Grid */}
+          {isLoading ? (
+            <div className="text-center py-12">Cargando...</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              <AnimatePresence mode="popLayout">
+                {sortedReservations.map((reservation, index) => (
+                  <ReservationCard
+                    key={reservation.id}
+                    reservation={reservation}
+                    index={index}
+                    onEdit={handleEditReservation}
+                    onDelete={handleDeleteReservation}
+                    onView={handleViewReservationDetails}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && sortedReservations.length === 0 && (
+            <motion.div
+              className="text-center py-12"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <p className="text-gray-500 text-lg">No se encontraron reservas</p>
+              <p className="text-gray-400 mt-2">Ajusta los filtros o crea una nueva reserva</p>
+            </motion.div>
+          )}
         </div>
 
-        {/* Reservations Grid */}
-        {isLoading ? (
-          <div className="text-center py-12">Cargando...</div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            <AnimatePresence mode="popLayout">
-              {sortedReservations.map((reservation, index) => (
-                <ReservationCard
-                  key={reservation.id}
-                  reservation={reservation}
-                  index={index}
-                  onEdit={handleEditReservation}
-                  onDelete={handleDeleteReservation}
-                  onView={handleViewReservationDetails}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!isLoading && sortedReservations.length === 0 && (
-          <motion.div
-            className="text-center py-12"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <p className="text-gray-500 text-lg">No se encontraron reservas</p>
-            <p className="text-gray-400 mt-2">Ajusta los filtros o crea una nueva reserva</p>
-          </motion.div>
-        )}
-
-        {/* Reservation Type Selector Modal */}
+        {/* MODALS ARE HERE */}
         <AnimatePresence>
           {showTypeSelector && (
             <ReservationTypeSelector 
@@ -392,7 +393,6 @@ const Reservations = () => {
           )}
         </AnimatePresence>
 
-        {/* Reservation Form Modal */}
         <AnimatePresence>
           {showForm && (
             <ReservationForm
@@ -408,7 +408,6 @@ const Reservations = () => {
           )}
         </AnimatePresence>
 
-        {/* Reservation Summary Modal */}
         <AnimatePresence>
           {showSummary && reservationToConfirm && (
             <ReservationSummary
@@ -419,7 +418,6 @@ const Reservations = () => {
           )}
         </AnimatePresence>
 
-        {/* Reservation Details Modal */}
         <AnimatePresence>
           {showDetailsModal && selectedReservationForDetails && (
             <ReservationFullDetail
@@ -443,7 +441,6 @@ const Reservations = () => {
           )}
         </AnimatePresence>
 
-        {/* Change Request Modal */}
         <AnimatePresence>
           {showChangeRequest && reservationForChange && (
             <ChangeRequestModal
@@ -456,7 +453,6 @@ const Reservations = () => {
           )}
         </AnimatePresence>
 
-        {/* Cancel Request Modal */}
         <AnimatePresence>
           {showCancelRequest && reservationToCancel && (
             <CancelRequestModal
@@ -469,7 +465,6 @@ const Reservations = () => {
           )}
         </AnimatePresence>
 
-        {/* Delete Confirmation Modal */}
         <ConfirmationModal
           isOpen={showDeleteConfirm}
           title="Confirmar Eliminación"

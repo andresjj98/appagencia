@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 
 const ConfirmationModal = ({ 
   isOpen, 
@@ -10,9 +10,23 @@ const ConfirmationModal = ({
   onCancel, 
   confirmText = 'Aceptar', 
   cancelText = 'Cancelar',
-  confirmButtonClass = 'bg-red-600 hover:bg-red-700'
+  confirmButtonClass = 'bg-red-600 hover:bg-red-700',
+  hideCancelButton = false,
+  type = 'warning' // 'warning', 'info', 'success'
 }) => {
   if (!isOpen) return null;
+
+  const icons = {
+    warning: <AlertTriangle className="w-8 h-8 text-red-600" />,
+    info: <Info className="w-8 h-8 text-blue-600" />,
+    success: <CheckCircle className="w-8 h-8 text-green-600" />
+  };
+
+  const iconBg = {
+    warning: 'bg-red-100',
+    info: 'bg-blue-100',
+    success: 'bg-green-100'
+  };
 
   return (
     <AnimatePresence>
@@ -30,8 +44,8 @@ const ConfirmationModal = ({
           transition={{ duration: 0.3 }}
         >
           <div className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
+            <div className={`w-16 h-16 ${iconBg[type]} rounded-full flex items-center justify-center mb-4`}>
+              {icons[type]}
             </div>
             
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -44,14 +58,16 @@ const ConfirmationModal = ({
           </div>
 
           <div className="flex items-center justify-center gap-4">
-            <motion.button
-              onClick={onCancel}
-              className="px-8 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg transition-colors duration-200 w-full"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {cancelText}
-            </motion.button>
+            {!hideCancelButton && (
+              <motion.button
+                onClick={onCancel}
+                className="px-8 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg transition-colors duration-200 w-full"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {cancelText}
+              </motion.button>
+            )}
             <motion.button
               onClick={onConfirm}
               className={`px-8 py-3 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 w-full ${confirmButtonClass}`}

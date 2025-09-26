@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Users,
   Hotel,
@@ -8,8 +8,11 @@ import {
   CreditCard,
   FileText,
   ListChecks,
+  Paperclip,
+  Loader2
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
+import { useAuth } from '../../pages/AuthContext';
 
 // Read-only Section
 const InfoSection = ({ id, title, icon, children, gridColsClass = 'lg:grid-cols-3' }) => (
@@ -32,8 +35,38 @@ const InfoItem = ({ label, value, fullWidth = false }) => (
 );
 
 
-const ReservationDetailContent = ({ reservation }) => {
+const ReservationDetailContent = ({ reservation, showAlert }) => {
     const { formatCurrency, formatDate } = useSettings();
+    const { currentUser } = useAuth();
+    const [loadingDoc, setLoadingDoc] = useState(null);
+
+    const handleGetSecureUrl = async (path) => {
+        if (!path) {
+            showAlert('Error', 'La ruta del archivo no es válida.');
+            return;
+        }
+        setLoadingDoc(path);
+        try {
+            const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path, userId: currentUser.id })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'No se pudo obtener el enlace seguro.');
+            }
+
+            window.open(data.signedUrl, '_blank');
+
+        } catch (error) {
+            showAlert('Error al obtener documento', error.message);
+        } finally {
+            setLoadingDoc(null);
+        }
+    };
 
     const segments = reservation._original.reservation_segments || [];
     const passengersData = reservation._original.reservation_passengers || [];
@@ -41,6 +74,7 @@ const ReservationDetailContent = ({ reservation }) => {
     const flightData = reservation._original.reservation_flights || [];
     const tourData = reservation._original.reservation_tours || [];
     const assistanceData = reservation._original.reservation_medical_assistances || [];
+    const attachmentData = reservation._original.reservation_attachments || [];
     
     const paymentOption = reservation._original.payment_option;
     const installments = reservation._original.installments || reservation._original.reservation_installments || [];
@@ -158,6 +192,7 @@ const ReservationDetailContent = ({ reservation }) => {
                     <InfoItem key={index} label={`Cuota ${index + 1}`} value={`${formatCurrency(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
                 ))}
             </InfoSection>
+
             <InfoSection id="plan-pagos" title="Plan de pagos (Cuotas)" icon={<ListChecks className="w-5 h-5 text-emerald-600" />}>
             {paymentOption === 'full_payment' ? (
                 <>
@@ -200,6 +235,43 @@ const ReservationDetailContent = ({ reservation }) => {
                 <span>Total: {formatCurrency(totalAmount)}</span>
                 </div>
             </div>
+            </InfoSection>
+
+            <InfoSection id="adjuntos" title="Documentos Adjuntos" icon={<Paperclip className="w-5 h-5 text-gray-600" />}>
+                {(attachmentData || []).length > 0 ? (
+                    <div className="col-span-full space-y-4">
+                        {(attachmentData || []).map((doc, index) => (
+                            <div key={index} className="p-4 bg-gray-50 rounded-lg border flex justify-between items-center">
+                                <div>
+                                    <h4 className="font-semibold text-gray-800">{doc.title}</h4>
+                                    {doc.observation && <p className="text-gray-600 mt-1 italic text-sm">{doc.observation}</p>}
+                                </div>
+                                {doc.file_url && (
+                                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                                        <button 
+                                            onClick={() => handleGetSecureUrl(doc.file_url)}
+                                            disabled={loadingDoc === doc.file_url}
+                                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center"
+                                        >
+                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
+                                            Ver
+                                        </button>
+                                        <button 
+                                            onClick={() => handleGetSecureUrl(doc.file_url)}
+                                            disabled={loadingDoc === doc.file_url}
+                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:bg-gray-300 flex items-center"
+                                        >
+                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
+                                            Descargar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <InfoItem label="Documentos" value="No hay documentos adjuntos." fullWidth />
+                )}
             </InfoSection>
         </>
     );

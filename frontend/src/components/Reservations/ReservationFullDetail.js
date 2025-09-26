@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
   Edit,
@@ -19,7 +19,9 @@ import {
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useSettings } from '../../utils/SettingsContext';
 import ReservationDetailContent from './ReservationDetailContent';
-import { RESERVATION_STATUS } from '../../utils/constants'; // Import status configuration
+import { RESERVATION_STATUS } from '../../utils/constants';
+import LoadingOverlay from '../common/LoadingOverlay';
+import ConfirmationModal from '../common/ConfirmationModal';
 
 const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
     <div className="p-6">
@@ -46,7 +48,7 @@ const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
     </div>
 );
 
-const PassengerForm = ({ reservation, passengersData, setPassengersData, setViewMode }) => {
+const PassengerForm = ({ reservation, passengersData, setPassengersData, setViewMode, onSaveSuccess, showAlert }) => {
   const totalPassengers = (reservation._original.passengers_adt || 0) + (reservation._original.passengers_chd || 0) + (reservation._original.passengers_inf || 0);
   
   const initialPassengers = (passengersData || []).map(pax => ({
@@ -69,12 +71,12 @@ const PassengerForm = ({ reservation, passengersData, setPassengersData, setView
 
   const addPassengerToList = (data) => {
     if (passengers.length >= totalPassengers) {
-      alert(`No se pueden agregar más pasajeros. El límite para esta reserva es ${totalPassengers}.`);
+      showAlert('Límite de Pasajeros', `No se pueden agregar más pasajeros. El límite para esta reserva es ${totalPassengers}.`);
       return;
     }
     
     if (passengers.some(p => p.documentNumber === data.documentNumber && data.documentNumber)) {
-      alert('El número de documento ya existe en la lista de pasajeros.');
+      showAlert('Pasajero Duplicado', 'El número de documento ya existe en la lista de pasajeros.');
       return;
     }
 
@@ -90,48 +92,21 @@ const PassengerForm = ({ reservation, passengersData, setPassengersData, setView
     const numbers = passengers.map(p => p.documentNumber);
     const hasDup = numbers.some((n, i) => n && numbers.indexOf(n) !== i);
     if (hasDup) {
-      alert('El número de documento debe ser único por reserva.');
+      showAlert('Documento Duplicado', 'El número de documento debe ser único para cada pasajero en la reserva.');
       return;
     }
 
-    const passengersToSave = passengers.map(pax => {
-      const passengerData = {        
-        name: pax.firstName,
-        lastname: pax.lastName,
-        document_type: pax.documentType,
-        document_number: pax.documentNumber,
-        birth_date: pax.birthDate,
-        notes: pax.notes,
-      };
+    const passengersToSave = passengers.map(pax => ({
+      id: pax.id,
+      name: pax.firstName,
+      lastname: pax.lastName,
+      document_type: pax.documentType,
+      document_number: pax.documentNumber,
+      birth_date: pax.birthDate,
+      notes: pax.notes,
+    }));
 
-      if (pax.id) {
-        passengerData.id = pax.id;
-      }
-      
-      return passengerData;
-    });
-
-    try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/passengers/upsert`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(passengersToSave),
-      });
-
-      const savedPassengers = await response.json();
-
-      if (!response.ok) {
-        throw new Error(savedPassengers.message || 'Error en el servidor');
-      }
-      
-      setPassengersData(savedPassengers);
-      setViewMode('view');
-    } catch (error) {
-      console.error('Error saving passengers via backend:', error);
-      alert(`Error al guardar los pasajeros: ${error.message}`);
-    }
+    onSaveSuccess(passengersToSave);
   };
 
   return (
@@ -247,7 +222,7 @@ const PassengerForm = ({ reservation, passengersData, setPassengersData, setView
   );
 };
 
-const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setViewMode }) => {
+const AttachmentForm = ({ setViewMode, onSaveSuccess, showAlert, attachmentData }) => {
   const { control, register, handleSubmit, setValue, watch } = useForm({
     defaultValues: { attachments: attachmentData }
   });
@@ -262,7 +237,7 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
     }
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = (data) => {
     const formData = new FormData();
     const metadata = [];
     
@@ -283,25 +258,7 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
     }
 
     formData.append('metadata', JSON.stringify(metadata));
-
-    try {
-        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/attachments/upsert`, {
-            method: 'POST',
-            body: formData,
-        });
-
-        const savedAttachments = await response.json();
-
-        if (!response.ok) {
-            throw new Error(savedAttachments.message || 'Error en el servidor');
-        }
-
-        setAttachmentData(savedAttachments);
-        setViewMode('view');
-    } catch (error) {
-        console.error('Error saving attachments via backend:', error);
-        alert(`Error al guardar los adjuntos: ${error.message}`);
-    }
+    onSaveSuccess(formData);
   };
 
   return (
@@ -369,30 +326,72 @@ const AttachmentForm = ({ reservation, attachmentData, setAttachmentData, setVie
 const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEdit, onRequestChange }) => {
   const [viewMode, setViewMode] = useState('view');
   const contentRef = useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [alertInfo, setAlertInfo] = useState({ isOpen: false, title: '', message: '', type: 'info' });
 
   if (!reservation || !reservation._original) {
     return (
-      <motion.div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        <motion.div
-          className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-md p-8 text-center"
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-        >
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Error al cargar la reserva</h2>
-          <p className="text-gray-600 mb-6">Los datos de la reserva no están disponibles. Por favor, intente de nuevo.</p>
-          <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg">Cerrar</button>
+        <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Error al cargar la reserva</h2>
+                <p className="text-gray-600 mb-6">Los datos de la reserva no están disponibles.</p>
+                <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg">Cerrar</button>
+            </motion.div>
         </motion.div>
-      </motion.div>
     );
   }
 
   const [passengersData, setPassengersData] = useState(reservation._original.reservation_passengers || []);
   const [attachmentData, setAttachmentData] = useState(reservation._original.reservation_attachments || []);
+
+  const showAlert = (title, message, type = 'warning') => {
+    setAlertInfo({ isOpen: true, title, message, type });
+  };
+
+  const handlePassengerSave = async (passengersToSave) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/passengers/upsert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(passengersToSave),
+      });
+      const savedData = await response.json();
+      if (!response.ok) {
+        throw new Error(savedData.message || 'Error en el servidor');
+      }
+      setPassengersData(savedData);
+      onUpdateReservation(); // This will trigger a re-fetch in the parent
+      setViewMode('view');
+      showAlert('Éxito', 'Los pasajeros se han guardado correctamente.', 'success');
+    } catch (error) {
+      showAlert('Error al Guardar', error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAttachmentSave = async (formData) => {
+    setIsSaving(true);
+    try {
+        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/attachments/upsert`, {
+            method: 'POST',
+            body: formData,
+        });
+        const savedData = await response.json();
+        if (!response.ok) {
+            throw new Error(savedData.message || 'Error en el servidor');
+        }
+        setAttachmentData(savedData);
+        onUpdateReservation();
+        setViewMode('view');
+        showAlert('Éxito', 'Los adjuntos se han guardado correctamente.', 'success');
+    } catch (error) {
+        showAlert('Error al Guardar', error.message);
+    } finally {
+        setIsSaving(false);
+    }
+  };
 
   const handleScrollToSection = (sectionId) => {
     const section = contentRef.current.querySelector(`#${sectionId}`);
@@ -406,6 +405,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const menuItems = [
     { id: 'info-basica', label: 'Información Básica', icon: FileText },
     { id: 'pasajeros', label: 'Pasajeros', icon: Users },
+    { id: 'adjuntos', label: 'Documentos Adjuntos', icon: Paperclip },
     { id: 'vuelos', label: 'Vuelos', icon: Plane },
     { id: 'hoteles', label: 'Hoteles', icon: Hotel },
     { id: 'tours', label: 'Tours', icon: Sun },
@@ -445,30 +445,49 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   );
 
   const renderContent = () => {
-    const formProps = {
-        reservation,
-        setViewMode,
-    };
-
     switch (viewMode) {
       case 'view':
-        return <ReservationDetailContent reservation={reservation} />;
+        return <ReservationDetailContent reservation={reservation} showAlert={showAlert} />;
       case 'passengers': 
-        return <PassengerForm {...formProps} passengersData={passengersData} setPassengersData={setPassengersData} />;
+        return <PassengerForm 
+                    reservation={reservation} 
+                    passengersData={passengersData} 
+                    setPassengersData={setPassengersData} 
+                    setViewMode={setViewMode}
+                    onSaveSuccess={handlePassengerSave}
+                    showAlert={showAlert}
+                />;
       case 'attachments': 
-        return <AttachmentForm {...formProps} attachmentData={attachmentData} setAttachmentData={setAttachmentData} />;
+        return <AttachmentForm 
+                    attachmentData={attachmentData}
+                    setViewMode={setViewMode}
+                    onSaveSuccess={handleAttachmentSave}
+                    showAlert={showAlert}
+                />;
       default: 
-        return <ReservationDetailContent reservation={reservation} />;
+        return <ReservationDetailContent reservation={reservation} showAlert={showAlert} />;
     }
   };
 
   return (
     <motion.div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <AnimatePresence>{isSaving && <LoadingOverlay />}</AnimatePresence>
+      <ConfirmationModal 
+        isOpen={alertInfo.isOpen}
+        title={alertInfo.title}
+        message={alertInfo.message}
+        onConfirm={() => setAlertInfo({ isOpen: false })}
+        confirmText="Aceptar"
+        hideCancelButton={true}
+        type={alertInfo.type}
+        confirmButtonClass={alertInfo.type === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+      />
+
       <motion.div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden"
         initial={{ scale: 0.9, opacity: 0 }}
