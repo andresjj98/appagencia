@@ -40,29 +40,51 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
     const { currentUser } = useAuth();
     const [loadingDoc, setLoadingDoc] = useState(null);
 
-    const handleGetSecureUrl = async (path) => {
-        if (!path) {
-            showAlert('Error', 'La ruta del archivo no es válida.');
-            return;
+    const getSecureUrl = async (path) => {
+        const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, userId: currentUser.id })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'No se pudo obtener el enlace seguro.');
         }
+        return data.signedUrl;
+    };
+
+    const handleViewFile = async (path) => {
+        if (!path) return showAlert('Error', 'La ruta del archivo no es válida.');
         setLoadingDoc(path);
         try {
-            const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path, userId: currentUser.id })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'No se pudo obtener el enlace seguro.');
-            }
-
-            window.open(data.signedUrl, '_blank');
-
+            const secureUrl = await getSecureUrl(path);
+            window.open(secureUrl, '_blank');
         } catch (error) {
             showAlert('Error al obtener documento', error.message);
+        } finally {
+            setLoadingDoc(null);
+        }
+    };
+
+    const handleDownloadFile = async (path, filename) => {
+        if (!path) return showAlert('Error', 'La ruta del archivo no es válida.');
+        setLoadingDoc(path);
+        try {
+            const secureUrl = await getSecureUrl(path);
+            const fileResponse = await fetch(secureUrl);
+            if (!fileResponse.ok) {
+                throw new Error('No se pudo descargar el archivo.');
+            }
+            const blob = await fileResponse.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename || path.split('/').pop();
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        } catch (error) {
+            showAlert('Error de Descarga', error.message);
         } finally {
             setLoadingDoc(null);
         }
@@ -126,6 +148,43 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                         <div key={index} className="text-base p-2 bg-gray-50 rounded-md mt-2">{pax.name} {pax.lastname} ({pax.document_type}: {pax.document_number})</div>
                     ))}
                 </div>
+            </InfoSection>
+
+            <InfoSection id="adjuntos" title="Documentos Adjuntos" icon={<Paperclip className="w-5 h-5 text-gray-600" />}>
+                {(attachmentData || []).length > 0 ? (
+                    <div className="col-span-full space-y-4">
+                        {(attachmentData || []).map((doc, index) => (
+                            <div key={index} className="p-4 bg-gray-50 rounded-lg border flex justify-between items-center">
+                                <div>
+                                    <h4 className="font-semibold text-gray-800">{doc.title}</h4>
+                                    {doc.observation && <p className="text-gray-600 mt-1 italic text-sm">{doc.observation}</p>}
+                                </div>
+                                {doc.file_url && (
+                                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                                        <button 
+                                            onClick={() => handleViewFile(doc.file_url)}
+                                            disabled={loadingDoc === doc.file_url}
+                                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center"
+                                        >
+                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
+                                            Ver
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDownloadFile(doc.file_url, doc.file_name)}
+                                            disabled={loadingDoc === doc.file_url}
+                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:bg-gray-300 flex items-center"
+                                        >
+                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
+                                            Descargar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <InfoItem label="Documentos" value="No hay documentos adjuntos." fullWidth />
+                )}
             </InfoSection>
 
             <InfoSection id="vuelos" title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
@@ -235,43 +294,6 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 <span>Total: {formatCurrency(totalAmount)}</span>
                 </div>
             </div>
-            </InfoSection>
-
-            <InfoSection id="adjuntos" title="Documentos Adjuntos" icon={<Paperclip className="w-5 h-5 text-gray-600" />}>
-                {(attachmentData || []).length > 0 ? (
-                    <div className="col-span-full space-y-4">
-                        {(attachmentData || []).map((doc, index) => (
-                            <div key={index} className="p-4 bg-gray-50 rounded-lg border flex justify-between items-center">
-                                <div>
-                                    <h4 className="font-semibold text-gray-800">{doc.title}</h4>
-                                    {doc.observation && <p className="text-gray-600 mt-1 italic text-sm">{doc.observation}</p>}
-                                </div>
-                                {doc.file_url && (
-                                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                                        <button 
-                                            onClick={() => handleGetSecureUrl(doc.file_url)}
-                                            disabled={loadingDoc === doc.file_url}
-                                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center"
-                                        >
-                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
-                                            Ver
-                                        </button>
-                                        <button 
-                                            onClick={() => handleGetSecureUrl(doc.file_url)}
-                                            disabled={loadingDoc === doc.file_url}
-                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:bg-gray-300 flex items-center"
-                                        >
-                                            {loadingDoc === doc.file_url && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} 
-                                            Descargar
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <InfoItem label="Documentos" value="No hay documentos adjuntos." fullWidth />
-                )}
             </InfoSection>
         </>
     );

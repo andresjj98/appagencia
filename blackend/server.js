@@ -200,6 +200,13 @@ app.post('/api/files/get-secure-url', async (req, res) => {
     }
 
     try {
+        // Sanitize the path: if it's a full URL, extract the path from it.
+        let cleanPath = path;
+        const bucketIdentifier = '/arch_pax/';
+        if (path.includes(bucketIdentifier)) {
+            cleanPath = path.substring(path.indexOf(bucketIdentifier) + bucketIdentifier.length);
+        }
+
         // 1. Get user role
         const { data: userData, error: userError } = await supabaseAdmin
             .from('usuarios')
@@ -219,8 +226,8 @@ app.post('/api/files/get-secure-url', async (req, res) => {
             hasPermission = true;
         } else {
             // 2. For other roles, check if they are the advisor on the reservation
-            const reservationId = path.split('/')[0];
-            if (!isNaN(reservationId)) {
+            const reservationId = cleanPath.split('/')[0];
+            if (reservationId && !isNaN(reservationId)) {
                 const { data: reservationData, error: reservationError } = await supabaseAdmin
                     .from('reservations')
                     .select('advisor_id')
@@ -238,7 +245,7 @@ app.post('/api/files/get-secure-url', async (req, res) => {
             const { data, error } = await supabaseAdmin
                 .storage
                 .from('arch_pax')
-                .createSignedUrl(path, 60); // URL valid for 60 seconds
+                .createSignedUrl(cleanPath, 60); // URL valid for 60 seconds
 
             if (error) {
                 throw new Error('Could not create signed URL.');
