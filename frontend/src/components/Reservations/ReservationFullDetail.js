@@ -23,6 +23,7 @@ import ReservationDetailContent from './ReservationDetailContent';
 import { RESERVATION_STATUS } from '../../utils/constants';
 import LoadingOverlay from '../common/LoadingOverlay';
 import ConfirmationModal from '../common/ConfirmationModal';
+import PassengerManagementTab from '../Gestion/PassengerManagementTab'; // IMPORT THE CORRECT COMPONENT
 
 const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
     <div className="p-6">
@@ -38,190 +39,20 @@ const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
         <div className="space-y-6">
             {children}
         </div>
-        <div className="mt-8 flex justify-end">
-            <button 
-                onClick={onSave}
-                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-            >
-                Guardar Cambios
-            </button>
-        </div>
+        {onSave && (
+          <div className="mt-8 flex justify-end">
+              <button 
+                  onClick={onSave}
+                  className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+              >
+                  Guardar Cambios
+              </button>
+          </div>
+        )}
     </div>
 );
 
-const PassengerForm = ({ reservation, passengersData, setPassengersData, setViewMode, onSaveSuccess, showAlert }) => {
-  const totalPassengers = (reservation._original.passengers_adt || 0) + (reservation._original.passengers_chd || 0) + (reservation._original.passengers_inf || 0);
-  
-  const initialPassengers = (passengersData || []).map(pax => ({
-    id: pax.id || null,
-    firstName: pax.name || '',
-    lastName: pax.lastname || '',
-    documentType: pax.document_type || '',
-    documentNumber: pax.document_number || '',
-    birthDate: pax.birth_date ? pax.birth_date.split('T')[0] : '',
-    notes: pax.notes || '',
-  }));
-
-  const [passengers, setPassengers] = useState(initialPassengers);
-
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
-    defaultValues: {
-      firstName: '', lastName: '', documentType: '', documentNumber: '', birthDate: '', notes: ''
-    }
-  });
-
-  const addPassengerToList = (data) => {
-    if (passengers.length >= totalPassengers) {
-      showAlert('Límite de Pasajeros', `No se pueden agregar más pasajeros. El límite para esta reserva es ${totalPassengers}.`);
-      return;
-    }
-    
-    if (passengers.some(p => p.documentNumber === data.documentNumber && data.documentNumber)) {
-      showAlert('Pasajero Duplicado', 'El número de documento ya existe en la lista de pasajeros.');
-      return;
-    }
-
-    setPassengers(prev => [...prev, data]);
-    reset();
-  };
-
-  const removePassengerFromList = (index) => {
-    setPassengers(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const onSave = async () => {
-    const numbers = passengers.map(p => p.documentNumber);
-    const hasDup = numbers.some((n, i) => n && numbers.indexOf(n) !== i);
-    if (hasDup) {
-      showAlert('Documento Duplicado', 'El número de documento debe ser único para cada pasajero en la reserva.');
-      return;
-    }
-
-    const passengersToSave = passengers.map(pax => ({
-      id: pax.id,
-      name: pax.firstName,
-      lastname: pax.lastName,
-      document_type: pax.documentType,
-      document_number: pax.documentNumber,
-      birth_date: pax.birthDate,
-      notes: pax.notes,
-    }));
-
-    onSaveSuccess(passengersToSave);
-  };
-
-  return (
-    <DetailManagement
-      title="Gestionar Pasajeros"
-      icon={<Users className="w-5 h-5" />}
-      onBack={() => setViewMode('view')}
-      onSave={onSave}
-    >
-      <form onSubmit={handleSubmit(addPassengerToList)} className="p-4 border border-gray-200 rounded-lg space-y-4 mb-6 bg-gray-50">
-        <h4 className="text-md font-semibold text-gray-800">Añadir Nuevo Pasajero</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nombres</label>
-            <input
-              {...register('firstName', { required: true })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            />
-            {errors.firstName && <p className="text-xs text-red-500 mt-1">Requerido</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Apellidos</label>
-            <input
-              {...register('lastName', { required: true })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            />
-            {errors.lastName && <p className="text-xs text-red-500 mt-1">Requerido</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Tipo Documento</label>
-            <select
-              {...register('documentType', { required: true })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            >
-              <option value="">Seleccionar</option>
-              <option value="CC">CC</option>
-              <option value="CE">CE</option>
-              <option value="TI">TI</option>
-              <option value="PAS">PAS</option>
-            </select>
-            {errors.documentType && <p className="text-xs text-red-500 mt-1">Requerido</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Número Documento</label>
-            <input
-              {...register('documentNumber', { required: true })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            />
-            {errors.documentNumber && <p className="text-xs text-red-500 mt-1">Requerido</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Fecha Nacimiento</label>
-            <input
-              type="date"
-              {...register('birthDate', {
-                required: true,
-                validate: (v) => new Date(v) <= new Date()
-              })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            />
-            {errors.birthDate?.type === 'validate' && <p className="text-xs text-red-500 mt-1">No puede ser futura</p>}
-            {errors.birthDate?.type === 'required' && <p className="text-xs text-red-500 mt-1">Requerido</p>}
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700">Anotaciones</label>
-            <textarea
-              {...register('notes')}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
-            />
-          </div>
-        </div>
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
-          >
-            <PlusCircle className="w-5 h-5" /> Agregar Pasajero
-          </button>
-        </div>
-      </form>
-
-      <div className="space-y-4">
-        <h4 className="text-lg font-semibold text-gray-800">
-          Lista de Pasajeros ({passengers.length} de {totalPassengers})
-        </h4>
-        {passengers.length > 0 ? (
-          <ul className="divide-y divide-gray-200">
-            {passengers.map((pax, index) => (
-              <li key={index} className="py-4 flex justify-between items-start">
-                <div>
-                  <p className="font-semibold text-gray-900">{pax.firstName} {pax.lastName}</p>
-                  <p className="text-sm text-gray-600">{pax.documentType}: {pax.documentNumber}</p>
-                  <p className="text-sm text-gray-600">Nacimiento: {pax.birthDate}</p>
-                  {pax.notes && <p className="text-sm text-gray-500 mt-1 italic">"{pax.notes}"</p>}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removePassengerFromList(index)}
-                  className="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
-                >
-                  <Trash2 className="w-4 h-4" /> Quitar
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-center py-6 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">Aún no se han agregado pasajeros a la lista.</p>
-          </div>
-        )}
-      </div>
-    </DetailManagement>
-  );
-};
+// THE OLD, LOCAL PassengerForm COMPONENT IS REMOVED
 
 const AttachmentForm = ({ setViewMode, onSaveSuccess, showAlert, attachmentData }) => {
   const { control, register, handleSubmit, setValue, watch } = useForm({
@@ -342,27 +173,56 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
     );
   }
 
-  const [passengersData, setPassengersData] = useState(reservation._original.reservation_passengers || []);
   const [attachmentData, setAttachmentData] = useState(reservation._original.reservation_attachments || []);
 
   const showAlert = (title, message, type = 'warning') => {
     setAlertInfo({ isOpen: true, title, message, type });
   };
 
-  const handlePassengerSave = async (passengersToSave) => {
+  const handlePassengerSave = async (updatedReservationPayload) => {
     setIsSaving(true);
+
+    const payloadForSql = {
+        ...updatedReservationPayload,
+        clientName: updatedReservationPayload.clients.name,
+        clientEmail: updatedReservationPayload.clients.email,
+        clientPhone: updatedReservationPayload.clients.phone,
+        clientId: updatedReservationPayload.clients.id_card,
+        clientAddress: updatedReservationPayload.clients.address,
+        emergencyContact: {
+            name: updatedReservationPayload.clients.emergency_contact_name,
+            phone: updatedReservationPayload.clients.emergency_contact_phone,
+        },
+        tripType: updatedReservationPayload.trip_type,
+        passengersADT: updatedReservationPayload.passengers_adt,
+        passengersCHD: updatedReservationPayload.passengers_chd,
+        passengersINF: updatedReservationPayload.passengers_inf,
+        pricePerADT: updatedReservationPayload.price_per_adt,
+        pricePerCHD: updatedReservationPayload.price_per_chd,
+        pricePerINF: updatedReservationPayload.price_per_inf,
+        totalAmount: updatedReservationPayload.total_amount,
+        paymentOption: updatedReservationPayload.payment_option,
+    };
+
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/passengers/upsert`, {
-        method: 'POST',
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(passengersToSave),
+        body: JSON.stringify(payloadForSql),
       });
-      const savedData = await response.json();
+      
       if (!response.ok) {
-        throw new Error(savedData.message || 'Error en el servidor');
+        let errorMessage = 'Error en el servidor';
+        try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || JSON.stringify(errorData);
+        } catch (e) {
+            errorMessage = await response.text();
+        }
+        throw new Error(errorMessage);
       }
-      setPassengersData(savedData);
-      onUpdateReservation(); // This will trigger a re-fetch in the parent
+
+      onUpdateReservation();
       setViewMode('view');
       showAlert('Éxito', 'Los pasajeros se han guardado correctamente.', 'success');
     } catch (error) {
@@ -453,14 +313,18 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
       case 'view':
         return <ReservationDetailContent reservation={reservation} showAlert={showAlert} />;
       case 'passengers': 
-        return <PassengerForm 
-                    reservation={reservation} 
-                    passengersData={passengersData} 
-                    setPassengersData={setPassengersData} 
-                    setViewMode={setViewMode}
-                    onSaveSuccess={handlePassengerSave}
-                    showAlert={showAlert}
-                />;
+        return (
+          <DetailManagement
+            title="Gestionar Pasajeros"
+            icon={<Users className="w-5 h-5" />}
+            onBack={() => setViewMode('view')}
+          >
+            <PassengerManagementTab 
+              reservation={reservation} 
+              onUpdateReservation={handlePassengerSave} 
+            />
+          </DetailManagement>
+        );
       case 'attachments': 
         return <AttachmentForm 
                     attachmentData={attachmentData}

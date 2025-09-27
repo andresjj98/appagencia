@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlus, Edit, Trash2, X, Save, Loader } from 'lucide-react';
+import React, { useState } from 'react';
+import { UserPlus, Edit, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// This form is for both adding and editing a passenger.
+// It is controlled by the parent component.
 const PassengerForm = ({ passenger, onSave, onCancel }) => {
   const [formData, setFormData] = useState(
     passenger || {
@@ -20,11 +22,11 @@ const PassengerForm = ({ passenger, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    onSave(formData); // The onSave function is passed from the parent
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0.5, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -52,69 +54,53 @@ const PassengerForm = ({ passenger, onSave, onCancel }) => {
   );
 };
 
-const PassengerManagementTab = ({ reservation, onUpdate }) => {
-  const [passengers, setPassengers] = useState([]);
-  const [loading, setLoading] = useState(true);
+// The main component is now a "dumb" component.
+// It receives passengers and functions to manipulate them from its parent.
+const PassengerManagementTab = ({ reservation, onUpdateReservation }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPassenger, setEditingPassenger] = useState(null);
 
-  const reservationId = reservation._original.id;
+  // The passenger list is derived directly from the reservation prop
+  const passengers = reservation._original.reservation_passengers || [];
 
-  const fetchPassengers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/passengers`);
-      if (!response.ok) throw new Error('Failed to fetch passengers');
-      const data = await response.json();
-      setPassengers(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+  const handleSave = (passengerData) => {
+    let updatedPassengers;
+    if (editingPassenger) {
+      // Update existing passenger
+      updatedPassengers = passengers.map(p => p.id === editingPassenger.id ? { ...p, ...passengerData } : p);
+    } else {
+      // Add new passenger (assigning a temporary ID for the key)
+      const newPassenger = { ...passengerData, id: `temp-${Date.now()}` };
+      updatedPassengers = [...passengers, newPassenger];
     }
-  }, [reservationId]);
 
-  useEffect(() => {
-    fetchPassengers();
-  }, [fetchPassengers]);
-
-  const handleSave = async (passengerData) => {
-    try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/passengers/upsert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([passengerData]), // Upsert endpoint expects an array
-      });
-      if (!response.ok) throw new Error('Failed to save passenger');
-      
-      fetchPassengers(); // Refetch list
-      onUpdate(); // Notify parent
-      setIsFormOpen(false);
-      setEditingPassenger(null);
-    } catch (error) {
-      console.error(error);
-      alert(error.message);
-    }
+    // Create the full updated reservation object
+    const updatedReservation = {
+      ...reservation._original,
+      reservation_passengers: updatedPassengers,
+    };
+    
+    // Call the parent's update function with the full object
+    onUpdateReservation(updatedReservation);
+    setIsFormOpen(false);
+    setEditingPassenger(null);
   };
 
-  const handleDelete = async (passengerId) => {
+  const handleDelete = (passengerId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este pasajero?')) {
-      try {
-        const response = await fetch(`http://localhost:4000/api/passengers/${passengerId}`, { method: 'DELETE' });
-        if (!response.ok) throw new Error('Failed to delete passenger');
-        
-        fetchPassengers(); // Refetch list
-        onUpdate(); // Notify parent
-      } catch (error) {
-        console.error(error);
-        alert(error.message);
-      }
+      // Filter out the passenger to be deleted
+      const updatedPassengers = passengers.filter(p => p.id !== passengerId);
+      
+      // Create the full updated reservation object
+      const updatedReservation = {
+        ...reservation._original,
+        reservation_passengers: updatedPassengers,
+      };
+
+      // Call the parent's update function with the full object
+      onUpdateReservation(updatedReservation);
     }
   };
-
-  if (loading) {
-    return <div className="flex justify-center items-center p-8"><Loader className="animate-spin" /></div>;
-  }
 
   return (
     <div className="space-y-6">

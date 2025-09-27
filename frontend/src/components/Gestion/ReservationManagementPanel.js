@@ -8,8 +8,62 @@ import PassengerManagementTab from './PassengerManagementTab';
 import DocumentationTab from './DocumentationTab';
 import HistoryTab from './HistoryTab';
 
-const ReservationManagementPanel = ({ reservation, onBack, onUpdate }) => {
+const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, onReject }) => {
   const [activeTab, setActiveTab] = useState('info');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleUpdateReservation = async (updatedPayload) => {
+    setIsSaving(true);
+
+    const payloadForSql = {
+        ...updatedPayload,
+        // Client data mapping
+        clientName: updatedPayload.clients.name,
+        clientEmail: updatedPayload.clients.email,
+        clientPhone: updatedPayload.clients.phone,
+        clientId: updatedPayload.clients.id_card,
+        clientAddress: updatedPayload.clients.address,
+        emergencyContact: {
+            name: updatedPayload.clients.emergency_contact_name,
+            phone: updatedPayload.clients.emergency_contact_phone,
+        },
+        // Reservation data mapping (snake_case to camelCase)
+        tripType: updatedPayload.trip_type,
+        passengersADT: updatedPayload.passengers_adt,
+        passengersCHD: updatedPayload.passengers_chd,
+        passengersINF: updatedPayload.passengers_inf,
+        pricePerADT: updatedPayload.price_per_adt,
+        pricePerCHD: updatedPayload.price_per_chd,
+        pricePerINF: updatedPayload.price_per_inf,
+        totalAmount: updatedPayload.total_amount,
+        paymentOption: updatedPayload.payment_option,
+    };
+
+    try {
+      const response = await fetch(`/api/reservations/${reservation.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadForSql),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update reservation');
+      }
+      
+      if(onUpdate) {
+        onUpdate();
+      }
+      
+      alert('Reserva actualizada con éxito');
+
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const tabs = [
     { id: 'info', label: 'Información General', icon: Info },
@@ -21,13 +75,18 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate }) => {
   ];
 
   const renderContent = () => {
+    // A simple loading indicator can be added here based on isSaving state
+    if (isSaving) {
+      return <div>Guardando...</div>;
+    }
+
     switch (activeTab) {
       case 'info':
         return <GeneralInfoPanel reservation={reservation} onUpdate={onUpdate} />;
       case 'services':
         return <ServiceManagementTab reservation={reservation} onUpdate={onUpdate} />;
       case 'passengers':
-        return <PassengerManagementTab reservation={reservation} onUpdate={onUpdate} />;
+        return <PassengerManagementTab reservation={reservation} onUpdateReservation={handleUpdateReservation} />;
       case 'finance':
         return <ReservationFinanceTab reservation={reservation._original} onUpdate={onUpdate} />;
       case 'documents':

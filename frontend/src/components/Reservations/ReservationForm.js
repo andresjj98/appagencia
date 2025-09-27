@@ -343,6 +343,16 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       }
     }
 
+    // Validación para Origen y Destino en Viaje de Ida y Vuelta
+    if (formData.tripType === 'round_trip') {
+      if (!formData.segments[0]?.origin) {
+        newErrors.origin = 'El origen es obligatorio.';
+      }
+      if (!formData.segments[0]?.destination) {
+        newErrors.destination = 'El destino es obligatorio.';
+      }
+    }
+
     formData.segments.forEach((seg, idx) => {
       if (!seg.departureDate || !seg.returnDate) {
         newErrors[`segment-${idx}`] = 'Debe indicar fechas de salida y regreso.';
@@ -385,6 +395,14 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     const dataToSend = JSON.parse(JSON.stringify(formData));
     dataToSend.advisorId = user?.id; // <-- AÑADIDO: Incluye el ID del asesor
     dataToSend.reservation_type = reservationType;
+
+    // FIX: Asegurarse de que los recuentos de pasajeros y precios sean números
+    dataToSend.passengersADT = parseInt(formData.passengersADT, 10) || 0;
+    dataToSend.passengersCHD = parseInt(formData.passengersCHD, 10) || 0;
+    dataToSend.passengersINF = parseInt(formData.passengersINF, 10) || 0;
+    dataToSend.pricePerADT = parseFloat(formData.pricePerADT) || 0;
+    dataToSend.pricePerCHD = parseFloat(formData.pricePerCHD) || 0;
+    dataToSend.pricePerINF = parseFloat(formData.pricePerINF) || 0;
 
     if (dataToSend.paymentOption === 'full_payment') {
       dataToSend.installments = [{ amount: dataToSend.totalAmount, dueDate: getTodayDate() }];
