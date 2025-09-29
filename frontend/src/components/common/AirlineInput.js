@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Search } from 'lucide-react';
 
-// Simple debounce function
 const debounce = (func, delay) => {
   let timeout;
   return (...args) => {
@@ -10,7 +9,7 @@ const debounce = (func, delay) => {
   };
 };
 
-const AirportInput = ({ value, onSelect, placeholder }) => {
+const AirlineInput = ({ value, onSelect, placeholder }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,26 +17,24 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
   const [selectedValue, setSelectedValue] = useState(null);
   const wrapperRef = useRef(null);
 
-  // Effect to update the displayed text if the initial value changes
   useEffect(() => {
     if (value && !selectedValue) {
-      // If there's an initial value but no selected value object, we can't show full details.
-      // We'll just show the IATA code.
       setSearchTerm(value);
     } else if (!value) {
       setSearchTerm('');
       setSelectedValue(null);
     }
-  }, [value]);
+  }, [value, selectedValue]);
 
-  const fetchAirports = async (query) => {
+  const fetchAirlines = async (query) => {
     if (query.length < 2) {
       setResults([]);
       return;
     }
+
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:4000/api/airports/search?q=${query}`);
+      const response = await fetch(`http://localhost:4000/api/airlines/search?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -45,19 +42,19 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
       setResults(data);
       setIsDropdownVisible(true);
     } catch (error) {
-      console.error("Failed to fetch airports:", error);
+      console.error('Failed to fetch airlines:', error);
       setResults([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const debouncedFetch = useCallback(debounce(fetchAirports, 300), []);
+  const debouncedFetch = useCallback(debounce(fetchAirlines, 300), []);
 
   const handleInputChange = (e) => {
     const query = e.target.value;
     setSearchTerm(query);
-    setSelectedValue(null); // Reset selected value if user types again
+    setSelectedValue(null);
 
     const trimmedQuery = query.trim();
     onSelect(trimmedQuery);
@@ -70,16 +67,15 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
     }
   };
 
-  const handleSelect = (airport) => {
-    const displayText = `${airport.city} (${airport.iata_code}), ${airport.country}`;
+  const handleSelect = (airline) => {
+    const displayText = `${airline.name} (${airline.iata_code})`;
     setSearchTerm(displayText);
-    setSelectedValue(airport);
-    onSelect(airport.iata_code); // Pass only the IATA code to the parent
+    setSelectedValue(airline);
+    onSelect(airline.iata_code);
     setIsDropdownVisible(false);
     setResults([]);
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -90,7 +86,7 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [wrapperRef]);
+  }, []);
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
@@ -99,7 +95,7 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
           type="text"
           value={searchTerm}
           onChange={handleInputChange}
-          placeholder={placeholder || 'Buscar por ciudad, país o IATA'}
+          placeholder={placeholder || 'Buscar por aerolinea o IATA'}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg pr-10"
           onFocus={() => { if (results.length > 0) setIsDropdownVisible(true); }}
         />
@@ -113,16 +109,13 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
       </div>
       {isDropdownVisible && results.length > 0 && (
         <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {results.map((airport) => (
+          {results.map((airline) => (
             <li
-              key={airport.iata_code}
-              onClick={() => handleSelect(airport)}
+              key={airline.iata_code}
+              onClick={() => handleSelect(airline)}
               className="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
-              <p className="font-semibold">{airport.airport_name}</p>
-              <p className="text-sm text-gray-600">
-                {airport.city}, {airport.country} ({airport.iata_code})
-              </p>
+              <p className="font-semibold">{airline.name} ({airline.iata_code})</p>
             </li>
           ))}
         </ul>
@@ -131,6 +124,9 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
   );
 };
 
-export default AirportInput;
+export default AirlineInput;
+
+
+
 
 

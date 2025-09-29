@@ -39,6 +39,7 @@ import {
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
 import AirportInput from '../common/AirportInput';
+import AirlineInput from '../common/AirlineInput';
 
 // Helper to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -1108,7 +1109,11 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Aerolínea</label>
-                      <input type="text" name="airline" value={flight.airline} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Iberia" />
+                      <AirlineInput
+                        value={flight.airline}
+                        onSelect={(val) => handleFlightChange(index, { target: { name: 'airline', value: val, type: 'text' } })}
+                        placeholder="Buscar aerol�nea"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Categoría del Vuelo</label>
@@ -1679,4 +1684,6 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 };
 
 export default ReservationForm;
+
+
 

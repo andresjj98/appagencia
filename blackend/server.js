@@ -23,11 +23,13 @@ const formatTimeToTimestamp = (timeStr) => {
 const authRoutes = require('./routes/auth');
 const reservationRoutes = require('./routes/reservations');
 const airportRoutes = require('./routes/airports');
+const airlineRoutes = require('./routes/airlines');
 
 // Use routes
 app.use('/api', authRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/airports', airportRoutes);
+app.use('/api/airlines', airlineRoutes);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...
 
