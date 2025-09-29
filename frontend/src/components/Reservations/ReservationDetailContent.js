@@ -186,7 +186,7 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." fullWidth />}
             </InfoSection>
 
-            <InfoSection id="tours" title="Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
+            <InfoSection id="tours" title="Servicios y Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
                 {(tourData || []).length > 0 ? (tourData || []).map((tour, index) => (
                     <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
                         <p><strong>Nombre:</strong> {tour.name}</p>

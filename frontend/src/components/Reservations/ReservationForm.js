@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
+import AirportInput from '../common/AirportInput';
 
 // Helper to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -552,6 +553,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     setFormData(prev => ({ ...prev, segments: newSegments }));
   };
 
+  const handleAirportSelect = (index, name, iataCode) => {
+    const newSegments = [...formData.segments];
+    newSegments[index] = { ...newSegments[index], [name]: iataCode };
+    setFormData(prev => ({ ...prev, segments: newSegments }));
+  };
+
   const addSegment = () => {
     setFormData(prev => ({
       ...prev,
@@ -996,11 +1003,19 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Origen</label>
-                          <input type="text" name="origin" value={segment.origin} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de origen" />
+                          <AirportInput
+                            value={segment.origin}
+                            onSelect={(iataCode) => handleAirportSelect(index, 'origin', iataCode)}
+                            placeholder="Ciudad de origen"
+                          />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Destino</label>
-                          <input type="text" name="destination" value={segment.destination} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de destino" />
+                          <AirportInput
+                            value={segment.destination}
+                            onSelect={(iataCode) => handleAirportSelect(index, 'destination', iataCode)}
+                            placeholder="Ciudad de destino"
+                          />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Salida</label>
@@ -1042,11 +1057,25 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Origen</label>
-                    <input type="text" name="origin" value={formData.segments[0].origin} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de origen" />
+                    <AirportInput
+                      value={formData.segments[0].origin}
+                      onSelect={(iataCode) => handleAirportSelect(0, 'origin', iataCode)}
+                      placeholder="Ciudad de origen"
+                    />
+                    {errors.origin && (
+                      <p className="text-red-600 text-sm mt-1">{errors.origin}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Destino</label>
-                    <input type="text" name="destination" value={formData.segments[0].destination} onChange={(e) => handleSegmentChange(0, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad de destino" />
+                    <AirportInput
+                      value={formData.segments[0].destination}
+                      onSelect={(iataCode) => handleAirportSelect(0, 'destination', iataCode)}
+                      placeholder="Ciudad de destino"
+                    />
+                    {errors.destination && (
+                      <p className="text-red-600 text-sm mt-1">{errors.destination}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Salida</label>
@@ -1336,18 +1365,18 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
           {/* Tours Section */}
           {showTours && (
-          <CollapsibleSection title="Detalles de Tours" icon={Ticket}>
+          <CollapsibleSection title="Servicios y Tours" icon={Ticket}>
             <div className="space-y-4">
               {errors.tours && (
                 <p className="text-red-600 text-sm">{errors.tours}</p>
               )}
               {formData.tours.map((tour, index) => (
                 <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">Tour {index + 1}</h4>
+                  <h4 className="text-md font-semibold text-gray-800 mb-3">Servicio / Tour {index + 1}</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Tour</label>
-                      <input type="text" name="name" value={tour.name} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Tour por la ciudad" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Servicio / Tour</label>
+                      <input type="text" name="name" value={tour.name} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Traslados, Tour por la ciudad" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
@@ -1387,7 +1416,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 whileTap={{ scale: 0.95 }}
               >
                 <PlusCircle className="w-5 h-5" />
-                Añadir Tour
+                Añadir Servicio / Tour
               </motion.button>
             </div>
           </CollapsibleSection>
@@ -1650,3 +1679,4 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 };
 
 export default ReservationForm;
+

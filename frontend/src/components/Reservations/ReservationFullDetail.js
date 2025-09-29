@@ -268,7 +268,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
     { id: 'pasajeros', label: 'Pasajeros', icon: Users },
     { id: 'vuelos', label: 'Vuelos', icon: Plane },
     { id: 'hoteles', label: 'Hoteles', icon: Hotel },
-    { id: 'tours', label: 'Tours', icon: Sun },
+    { id: 'tours', label: 'Servicios y Tours', icon: Sun },
     { id: 'asistencias', label: 'Asistencia Médica', icon: HeartPulse },
     { id: 'pago', label: 'Información de Pago', icon: CreditCard },
     { id: 'plan-pagos', label: 'Plan de Pagos', icon: ListChecks },
