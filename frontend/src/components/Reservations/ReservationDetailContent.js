@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Hotel,
@@ -37,9 +37,10 @@ const InfoItem = ({ label, value, fullWidth = false }) => (
 
 
 const ReservationDetailContent = ({ reservation, showAlert }) => {
-    const { formatCurrency, formatDate } = useSettings();
+    const { formatCurrency, formatDate, settings } = useSettings();
     const { currentUser } = useAuth();
     const [loadingDoc, setLoadingDoc] = useState(null);
+    const [airlineNames, setAirlineNames] = useState({});
 
     const getSecureUrl = async (path) => {
         const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
@@ -99,6 +100,295 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
     const assistanceData = reservation._original.reservation_medical_assistances || [];
     const attachmentData = reservation._original.reservation_attachments || [];
     
+    const getAirlineCode = (flight) => {
+        if (!flight) {
+            return '';
+        }
+        if (flight.airline_code) {
+            return String(flight.airline_code).trim().toUpperCase();
+        }
+        if (flight.airlineCode) {
+            return String(flight.airlineCode).trim().toUpperCase();
+        }
+        if (typeof flight.airline === 'string') {
+            const trimmed = flight.airline.trim();
+            if (!trimmed) {
+                return '';
+            }
+            const match = trimmed.match(/\((\w{2,3})\)$/);
+            if (match) {
+                return match[1].toUpperCase();
+            }
+            const upper = trimmed.toUpperCase();
+            if (/^[A-Z0-9]{2,3}$/.test(upper)) {
+                return upper;
+            }
+        }
+        return '';
+    };
+
+    const hasAirlineName = (flight) => {
+        if (!flight) {
+            return false;
+        }
+        if (typeof flight.airline === 'object' && flight.airline) {
+            if (flight.airline.name || flight.airline.fullName || flight.airline.label) {
+                return true;
+            }
+        }
+        const nameFields = [flight.airline_name, flight.airlineName, flight.airline_full_name];
+        if (nameFields.some((value) => value && String(value).trim().length > 0)) {
+            return true;
+        }
+        if (typeof flight.airline === 'string') {
+            const trimmed = flight.airline.trim();
+            if (trimmed.length > 3 || trimmed.includes(' ') || (trimmed.includes('(') && trimmed.includes(')'))) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const formatLabelValue = (value) => {
+        if (!value) {
+            return '';
+        }
+        if (typeof value !== 'string') {
+            return String(value);
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return '';
+        }
+        if (!trimmed.includes('_')) {
+            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+        }
+        return trimmed
+            .split('_')
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    };
+
+    const formatBaggageInfo = (value) => {
+        if (!value) {
+            return '';
+        }
+        if (Array.isArray(value)) {
+            return value.filter(Boolean).join(', ');
+        }
+        if (typeof value === 'object') {
+            const { description, label, name } = value;
+            if (label) {
+                return String(label);
+            }
+            if (name) {
+                return String(name);
+            }
+            if (description) {
+                return String(description);
+            }
+            return Object.values(value)
+                .filter((item) => typeof item === 'string' && item.trim().length > 0)
+                .join(', ');
+        }
+        return String(value);
+    };
+
+    const formatDateValue = (value) => {
+        if (!value) {
+            return '';
+        }
+        const dateObj = value instanceof Date ? value : new Date(value);
+        if (!Number.isNaN(dateObj.getTime())) {
+            return formatDate(dateObj.toISOString());
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed || /^\d{2}:\d{2}/.test(trimmed)) {
+                return '';
+            }
+            const isoCandidate = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+            const parsed = new Date(isoCandidate);
+            if (!Number.isNaN(parsed.getTime())) {
+                return formatDate(parsed.toISOString());
+            }
+        }
+        return '';
+    };
+
+    const formatTimeValue = (value) => {
+        if (!value) {
+            return '';
+        }
+        const timeOptions = {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        };
+        if (settings?.timezone) {
+            timeOptions.timeZone = settings.timezone;
+        }
+        if (value instanceof Date) {
+            return new Intl.DateTimeFormat('es-ES', timeOptions).format(value);
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return '';
+            }
+            if (trimmed.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+                const date = new Date(trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T'));
+                if (!Number.isNaN(date.getTime())) {
+                    return new Intl.DateTimeFormat('es-ES', timeOptions).format(date);
+                }
+            }
+            const match = trimmed.match(/(\d{2}:\d{2})/);
+            if (match) {
+                return match[1];
+            }
+        }
+        return '';
+    };
+
+    const getItineraryDetails = (itinerary) => {
+        if (!itinerary) {
+            return {
+                flightNumber: 'No especificado',
+                dateLabel: '',
+                departureTimeLabel: '',
+                arrivalTimeLabel: '',
+            };
+        }
+        const flightNumber = itinerary.flightNumber || itinerary.flight_number || itinerary.number || 'No especificado';
+        const dateLabel = formatDateValue(
+            itinerary.date ||
+            itinerary.departureDate ||
+            itinerary.departure_date ||
+            itinerary.departureTime ||
+            itinerary.departure_time
+        );
+        const departureTimeLabel = formatTimeValue(itinerary.departureTime || itinerary.departure_time);
+        const arrivalTimeLabel = formatTimeValue(itinerary.arrivalTime || itinerary.arrival_time);
+        return {
+            flightNumber,
+            dateLabel,
+            departureTimeLabel,
+            arrivalTimeLabel,
+        };
+    };
+
+    const getAirlineDisplayName = (flight) => {
+        if (!flight) {
+            return 'No especificado';
+        }
+        const nameFields = [flight.airline_name, flight.airlineName, flight.airline_full_name];
+        const foundName = nameFields.find((value) => value && String(value).trim().length > 0);
+        if (foundName) {
+            return String(foundName).trim();
+        }
+        if (typeof flight.airline === 'object' && flight.airline) {
+            if (flight.airline.name) {
+                return String(flight.airline.name);
+            }
+            if (flight.airline.fullName) {
+                return String(flight.airline.fullName);
+            }
+            if (flight.airline.label) {
+                return String(flight.airline.label);
+            }
+        }
+        if (typeof flight.airline === 'string') {
+            const trimmed = flight.airline.trim();
+            if (!trimmed) {
+                return 'No especificado';
+            }
+            if (trimmed.includes('(')) {
+                const namePart = trimmed.split('(')[0].trim();
+                if (namePart) {
+                    return namePart;
+                }
+            }
+            if (trimmed.length > 3) {
+                return trimmed;
+            }
+        }
+        const code = getAirlineCode(flight);
+        if (code && airlineNames[code]) {
+            return airlineNames[code];
+        }
+        if (code) {
+            return `Nombre no disponible (codigo ${code})`;
+        }
+        return 'No especificado';
+    };
+
+    useEffect(() => {
+        const codesToFetch = new Set();
+
+        (flightData || []).forEach((flight) => {
+            if (hasAirlineName(flight)) {
+                return;
+            }
+            const code = getAirlineCode(flight);
+            if (code && !airlineNames[code]) {
+                codesToFetch.add(code);
+            }
+        });
+
+        if (codesToFetch.size === 0) {
+            return;
+        }
+
+        let isActive = true;
+
+        const fetchAirlineNames = async () => {
+            const results = await Promise.all(
+                Array.from(codesToFetch).map(async (code) => {
+                    try {
+                        const response = await fetch(`http://localhost:4000/api/airlines/search?q=${encodeURIComponent(code)}`);
+                        if (!response.ok) {
+                            return { code, name: null };
+                        }
+                        const data = await response.json();
+                        if (!Array.isArray(data)) {
+                            return { code, name: null };
+                        }
+                        const exactMatch = data.find(
+                            (item) => item && item.iata_code && item.iata_code.toUpperCase() === code
+                        );
+                        return { code, name: exactMatch ? exactMatch.name : null };
+                    } catch (error) {
+                        console.error('Failed to fetch airline name for code', code, error);
+                        return { code, name: null };
+                    }
+                })
+            );
+
+            if (!isActive) {
+                return;
+            }
+
+            setAirlineNames((prev) => {
+                const updated = { ...prev };
+                let hasChanges = false;
+                results.forEach(({ code, name }) => {
+                    if (name && !updated[code]) {
+                        updated[code] = name;
+                        hasChanges = true;
+                    }
+                });
+                return hasChanges ? updated : prev;
+            });
+        };
+
+        fetchAirlineNames();
+
+        return () => {
+            isActive = false;
+        };
+    }, [flightData, airlineNames]);
+
     const paymentOption = reservation._original.payment_option;
     const installments = reservation._original.installments || reservation._original.reservation_installments || [];
     const totalInstallmentsAmount = installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
@@ -152,13 +442,42 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             </InfoSection>
 
             <InfoSection id="vuelos" title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
-                {(flightData || []).length > 0 ? (flightData || []).map((flight, index) => (
-                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
-                        <p><strong>Aerolínea:</strong> {flight.airline}</p>
-                        <p><strong>PNR:</strong> {flight.pnr || 'No especificado'}</p>
-                    </div>
-                )) : <InfoItem label="Vuelos" value="No hay vuelos registrados." fullWidth />}
+                {(flightData || []).length > 0 ? (flightData || []).map((flight, index) => {
+                    const airlineName = getAirlineDisplayName(flight);
+                    const baggageInfo = formatBaggageInfo(flight.baggageAllowance || flight.baggage_allowance || flight.baggage);
+                    const flightCategory = formatLabelValue(flight.flightCategory || flight.flight_category);
+                    const flightCycle = flight.customFlightCycle || formatLabelValue(flight.flightCycle || flight.flight_cycle);
+                    const itineraries = flight.reservation_flight_itineraries || flight.itineraries || [];
+                    return (
+                        <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg space-y-3">
+                            <div className="grid gap-y-1 md:grid-cols-2 md:gap-x-6">
+                                <p><strong>Aerolinea:</strong> {airlineName}</p>
+                                <p><strong>PNR:</strong> {flight.pnr || flight.record_locator || 'No especificado'}</p>
+                                {flightCategory && <p><strong>Categoria:</strong> {flightCategory}</p>}
+                                {flightCycle && <p><strong>Ciclo del vuelo:</strong> {flightCycle}</p>}
+                                {baggageInfo && <p><strong>Equipaje:</strong> {baggageInfo}</p>}
+                            </div>
+                            {itineraries.length > 0 && (
+                                <div className="pt-2 border-t border-gray-200 space-y-2">
+                                    <p className="font-semibold text-gray-700">Itinerarios</p>
+                                    {itineraries.map((itinerary, itineraryIndex) => {
+                                        const { flightNumber, dateLabel, departureTimeLabel, arrivalTimeLabel } = getItineraryDetails(itinerary);
+                                        return (
+                                            <div key={itineraryIndex} className="pl-4 border-l border-gray-200 text-sm text-gray-700 space-y-1">
+                                                <p><strong>Numero de vuelo:</strong> {flightNumber}</p>
+                                                <p><strong>Fecha:</strong> {dateLabel || 'No especificada'}</p>
+                                                <p><strong>Salida:</strong> {departureTimeLabel || 'No especificada'}</p>
+                                                <p><strong>Llegada:</strong> {arrivalTimeLabel || 'No especificada'}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                }) : <InfoItem label="Vuelos" value="No hay vuelos registrados." fullWidth />}
             </InfoSection>
+
 
             <InfoSection id="hoteles" title="Hoteles" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
                 {(hotelData || []).length > 0 ? (hotelData || []).map((hotel, index) => (
