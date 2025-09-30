@@ -286,7 +286,7 @@ const MedicalAssistanceComponent = ({ data, onChange, onDelete }) => {
           <input type="text" name="company" value={data.company || ''} onChange={(e) => onChange('medicalAssistance', { ...data, company: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Assist Card" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Costo (€)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Costo ($)</label>
           <input type="number" name="cost" value={data.cost || ''} onChange={(e) => onChange('medicalAssistance', { ...data, cost: parseFloat(e.target.value) || 0 })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="0.00" />
         </div>
         <div>
@@ -359,7 +359,7 @@ const ToursComponent = ({ data, onChange, onDelete }) => {
               <input type="date" name="date" value={tour.date} onChange={(e) => handleTourChange(tourIndex, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Costo (€)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Costo ($)</label>
               <input type="number" name="cost" value={tour.cost} onChange={(e) => handleTourChange(tourIndex, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="0.00" />
             </div>
             {(data.tours || []).length > 1 && (

@@ -8,7 +8,7 @@ import {
   Users, 
   Phone, 
   Mail, 
-  Euro,
+  DollarSign,
   FileText, 
   Home, 
   HeartHandshake,
@@ -109,8 +109,11 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = fa
 
 
 const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose }) => {
-  const { settings, formatCurrency } = useSettings();
+  const { settings } = useSettings();
   const { currentUser: user } = useAuth();
+
+  const resolvedCurrency = settings?.currency === 'EUR' ? 'COP' : (settings?.currency || 'COP');
+  const formatCurrencyValue = (value) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: resolvedCurrency }).format(value || 0);
 
 
   const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
@@ -1426,7 +1429,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Costo ({settings.currency})</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Costo ({resolvedCurrency})</label>
                       <input type="number" name="cost" value={tour.cost} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="0.00" />
                     </div>
                   </div>
@@ -1535,14 +1538,14 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           {/* Booking Details */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Euro className="w-5 h-5" />
+              <DollarSign className="w-5 h-5" />
               Detalles de la Reserva
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio por Adulto (ADT) ({settings.currency})
+                  Precio por Adulto (ADT) ({resolvedCurrency})
                 </label>
                 <input
                   type="number"
@@ -1557,7 +1560,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio por Niño (CHD) ({settings.currency})
+                  Precio por Niño (CHD) ({resolvedCurrency})
                 </label>
                 <input
                   type="number"
@@ -1571,7 +1574,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio por Infante (INF) ({settings.currency})
+                  Precio por Infante (INF) ({resolvedCurrency})
                 </label>
                 <input
                   type="number"
@@ -1590,13 +1593,13 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 <Calculator className="w-6 h-6" />
                 Total del Plan:
               </h4>
-              <span className="text-2xl font-extrabold text-blue-800">{formatCurrency(formData.totalAmount)}</span>
+              <span className="text-2xl font-extrabold text-blue-800">{formatCurrencyValue(formData.totalAmount)}</span>
             </div>
             
             {/* Payment Option */}
             <div className="space-y-4 border border-gray-200 rounded-lg p-4">
               <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                <Euro className="w-5 h-5" /> Opciones de Pago
+                <DollarSign className="w-5 h-5" /> Opciones de Pago
               </h4>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Pago</label>
@@ -1646,7 +1649,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   {formData.installments.map((installment, index) => (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Monto ({settings.currency})</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Monto ({resolvedCurrency})</label>
                         <input type="number" name="amount" value={installment.amount} onChange={(e) => handleInstallmentChange(index, e)} step="0.01" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="0.00" />
                       </div>
                       <div>
@@ -1660,7 +1663,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       )}
                     </div>
                   ))}
-                  <p className="text-sm font-semibold text-gray-800 mt-4">Total Cuotas: {formatCurrency(totalInstallmentsAmount)}</p>
+                  <p className="text-sm font-semibold text-gray-800 mt-4">Total Cuotas: {formatCurrencyValue(totalInstallmentsAmount)}</p>
                   {totalInstallmentsAmount !== parseFloat(formData.totalAmount) && (
                     <p className="text-sm text-red-600 flex items-center gap-1">
                       <Info className="w-4 h-4" /> El total de las cuotas no coincide con el total del plan.
