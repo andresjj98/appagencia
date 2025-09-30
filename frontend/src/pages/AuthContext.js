@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
     setMockUser(null); // Sincronizamos el mock
   };
 
-  const value = { currentUser, signIn, login, logout };
+  const value = { currentUser, setCurrentUser, signIn, login, logout };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

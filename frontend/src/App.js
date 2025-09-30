@@ -7,6 +7,7 @@ import Reservations from './pages/Reservations';
 import UserManagement from './pages/Users'; 
 import OfficeManagement from './pages/Offices';
 import Settings from './pages/Settings'; 
+import Profile from './pages/Profile';
 import Gestion from './pages/Gestion'; 
 import Notifications from './pages/Notifications'; 
 import Reports from './pages/Reports'; 
@@ -60,6 +61,8 @@ const App = () => {
         return <UserManagement />; 
       case 'settings':
         return <Settings />; 
+      case 'profile':
+        return <Profile />;
       default:
         return <Dashboard />;
     }
@@ -77,7 +80,8 @@ const App = () => {
       analytics: 'Análisis y Reportes',
       notifications: 'Notificaciones',
       users: 'Gestión de Usuarios',
-      settings: 'Configuración'
+      settings: 'Configuración',
+      profile: 'Mi Perfil'
     };
     return titles[activeSection] || 'Dashboard';
   };

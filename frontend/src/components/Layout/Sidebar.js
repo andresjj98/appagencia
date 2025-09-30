@@ -15,10 +15,11 @@ import {
   ClipboardList,
   Bell
 } from 'lucide-react';
-import { currentUser } from '../../mock/users';
+import { useAuth } from '../../pages/AuthContext';
 import { USER_ROLES } from '../../utils/constants';
 
 const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
+  const { currentUser } = useAuth();
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['admin', 'manager', 'advisor'] },
     { id: 'reservations', label: 'Reservas', icon: Calendar, roles: ['admin', 'manager', 'advisor'] },
@@ -30,7 +31,8 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
     { id: 'analytics', label: 'Análisis', icon: BarChart3, roles: ['admin', 'manager'] },
     { id: 'notifications', label: 'Notificaciones', icon: Bell, roles: ['admin', 'manager', 'advisor'] }, // New
     { id: 'users', label: 'Usuarios', icon: User, roles: ['admin'] },
-    { id: 'settings', label: 'Configuración', icon: Settings, roles: ['admin', 'manager', 'advisor'] }
+    { id: 'profile', label: 'Mi Perfil', icon: User, roles: ['admin', 'manager', 'advisor'] },
+    { id: 'settings', label: 'Configuración', icon: Settings, roles: ['admin', 'manager'] }
   ];
 
   const filteredMenuItems = menuItems.filter(item => 
