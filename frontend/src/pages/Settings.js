@@ -1,73 +1,96 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Save, 
+import {
+  Save,
   CheckCircle,
   XCircle,
   Building,
   FileText as FileTextIcon,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Pencil,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 
-const SectionWrapper = ({ title, icon: Icon, children }) => (
-  <motion.div
-    className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100"
+const SETTINGS_SECTIONS = [
+  {
+    id: 'general',
+    label: 'General y Fiscal',
+    title: 'Informacion General y Fiscal',
+    icon: Building,
+  },
+  {
+    id: 'documents',
+    label: 'Documentacion',
+    title: 'Documentacion y Mensajes',
+    icon: FileTextIcon,
+  },
+  {
+    id: 'system',
+    label: 'Sistema y Finanzas',
+    title: 'Configuracion de Sistema y Finanzas',
+    icon: SlidersHorizontal,
+  },
+];
+
+const DEFAULT_SETTINGS = {
+  id: null,
+  agencyName: '',
+  logoUrl: '',
+  legalName: '',
+  contactInfo: '',
+  taxIdNumber: '',
+  taxRegistry: '',
+  legalRepresentativeName: '',
+  legalRepresentativeId: '',
+  taxRegime: '',
+  operatingCity: '',
+  operatingCountry: '',
+  tourismRegistryNumber: '',
+  termsAndConditions: '',
+  travelContract: '',
+  cancellationPolicies: '',
+  voucherInfo: '',
+  voucherHeader: '',
+  contractHeader: '',
+  defaultFooter: '',
+  digitalSignature: '',
+  secondaryLogoUrl: '',
+  invoiceMessage: '',
+  voucherMessage: '',
+  contractMessage: '',
+  nextInvoiceNumber: 1001,
+  invoiceFormat: 'INV-####',
+  currency: 'EUR',
+  timezone: 'Europe/Madrid',
+  taxRate: 21,
+  preferredDateFormat: 'DD/MM/AAAA',
+};
+
+const SectionWrapper = ({ id, title, icon: Icon, children, isActive }) => (
+  <motion.section
+    data-section-id={id}
+    className={`bg-white rounded-2xl p-8 shadow-lg border transition-all duration-200 ${
+      isActive ? 'border-blue-200 ring-2 ring-blue-200' : 'border-gray-100'
+    }`}
     initial={{ y: 20, opacity: 0 }}
     animate={{ y: 0, opacity: 1 }}
-    transition={{ delay: 0.1, duration: 0.5 }}
+    transition={{ duration: 0.4 }}
   >
     <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
       <Icon className="w-7 h-7 text-blue-600" />
       {title}
     </h3>
-    <div className="space-y-5">
-      {children}
-    </div>
-  </motion.div>
+    <div className="space-y-5">{children}</div>
+  </motion.section>
 );
 
-const BusinessSettings = () => {
-  const [settings, setSettings] = useState({
-    // General and Fiscal Info
-    id: null,
-    agencyName: '',
-    logoUrl: '',
-    legalName: '',
-    contactInfo: '',
-    taxIdNumber: '', // NIT
-    taxRegistry: '', // RUT
-    legalRepresentativeName: '',
-    legalRepresentativeId: '',
-    taxRegime: '',
-    operatingCity: '',
-    operatingCountry: '',
-    tourismRegistryNumber: '',
-
-    // Documentation
-    termsAndConditions: '',
-    travelContract: '',
-    cancellationPolicies: '',
-    voucherInfo: '',
-    voucherHeader: '',
-    contractHeader: '',
-    defaultFooter: '',
-    digitalSignature: '',
-    secondaryLogoUrl: '',
-    invoiceMessage: '',
-    voucherMessage: '',
-    contractMessage: '',
-
-    // System and Finance
-    nextInvoiceNumber: 1001,
-    invoiceFormat: 'INV-####',
-    currency: 'EUR',
-    timezone: 'Europe/Madrid',
-    taxRate: 21,
-    preferredDateFormat: 'DD/MM/AAAA'
-  });
+const BusinessSettings = ({ activeSection }) => {
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [formValues, setFormValues] = useState(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [error, setError] = useState('');
 
@@ -79,17 +102,27 @@ const BusinessSettings = () => {
         const response = await fetch('http://localhost:4000/api/business-settings');
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data.message || 'Error al cargar la configuración.');
+          throw new Error(data.message || 'Error al cargar la configuracion.');
         }
-        // Rellena los valores nulos de la BD con cadenas vacías para los componentes controlados
-        const sanitizedData = {};
-        for (const key in data) {
-            sanitizedData[key] = data[key] === null ? '' : data[key];
+
+        const sanitizedData = { ...DEFAULT_SETTINGS };
+        Object.entries(data || {}).forEach(([key, value]) => {
+          if (key === 'contactInfo' && value && typeof value === 'object') {
+            sanitizedData[key] = JSON.stringify(value, null, 2);
+            return;
+          }
+          sanitizedData[key] = value === null || value === undefined ? (DEFAULT_SETTINGS[key] ?? '') : value;
+        });
+
+        if (!('id' in sanitizedData)) {
+          sanitizedData.id = data?.id ?? null;
         }
+
         setSettings(sanitizedData);
+        setFormValues(sanitizedData);
       } catch (err) {
-        setError(err.message);
         console.error(err);
+        setError(err.message);
       } finally {
         setIsLoading(false);
       }
@@ -98,31 +131,93 @@ const BusinessSettings = () => {
     fetchSettings();
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setSettings(prev => ({ ...prev, [name]: value }));
+  useEffect(() => {
+    if (updateSuccess) {
+      const timer = setTimeout(() => setUpdateSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [updateSuccess]);
+
+  const bindField = (name) => ({
+    name,
+    value: formValues[name] ?? '',
+    onChange: (event) => {
+      const { value } = event.target;
+      setFormValues((prev) => ({ ...prev, [name]: value }));
+    },
+    disabled: !isEditing,
+  });
+
+  const handleStartEditing = () => {
+    setError('');
+    setFormValues(settings);
+    setIsEditing(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleCancelEditing = () => {
+    setError('');
+    setFormValues(settings);
+    setIsEditing(false);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!isEditing || isSaving) {
+      return;
+    }
+
     setIsSaving(true);
     setUpdateSuccess(false);
     setError('');
+
+    const payload = { ...formValues };
+
+    if (typeof payload.contactInfo === 'string') {
+      const trimmed = payload.contactInfo.trim();
+      if (trimmed.length === 0) {
+        payload.contactInfo = null;
+      } else {
+        try {
+          payload.contactInfo = JSON.parse(trimmed);
+        } catch (parseError) {
+          setError('La informacion de contacto debe ser un JSON valido.');
+          setIsSaving(false);
+          return;
+        }
+      }
+    }
+
     try {
       const response = await fetch('http://localhost:4000/api/business-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.message || 'Error al guardar la configuración.');
+        throw new Error(data.message || 'Error al guardar la configuracion.');
       }
+
+      const sanitizedResponse = { ...DEFAULT_SETTINGS };
+      Object.entries(data || {}).forEach(([key, value]) => {
+        if (key === 'contactInfo' && value && typeof value === 'object') {
+          sanitizedResponse[key] = JSON.stringify(value, null, 2);
+          return;
+        }
+        sanitizedResponse[key] = value === null || value === undefined ? (DEFAULT_SETTINGS[key] ?? '') : value;
+      });
+      if (!('id' in sanitizedResponse)) {
+        sanitizedResponse.id = data?.id ?? formValues.id ?? null;
+      }
+
+      setSettings(sanitizedResponse);
+      setFormValues(sanitizedResponse);
+      setIsEditing(false);
       setUpdateSuccess(true);
-      setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (err) {
-      setError(err.message);
       console.error(err);
+      setError(err.message);
     } finally {
       setIsSaving(false);
     }
@@ -130,91 +225,281 @@ const BusinessSettings = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center p-10">
-        <p className="text-lg text-gray-600">Cargando configuración del negocio...</p>
+      <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 flex items-center justify-center">
+        <p className="flex items-center gap-3 text-gray-500">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          Cargando configuracion...
+        </p>
       </div>
     );
   }
 
-  if (error && !isSaving) {
-    return <div className="text-red-600 p-10">Error: {error}</div>;
-  }
+  const sections = [
+    {
+      ...SETTINGS_SECTIONS[0],
+      content: (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Comercial</label>
+              <input type="text" {...bindField('agencyName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Viajes Global" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Legal</label>
+              <input type="text" {...bindField('legalName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre legal registrado" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Identificacion Tributaria (NIT)</label>
+              <input type="text" {...bindField('taxIdNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: 123456789-0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Registro Tributario (RUT)</label>
+              <input type="text" {...bindField('taxRegistry')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Regimen Tributario</label>
+              <input type="text" {...bindField('taxRegime')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Registro Nacional de Turismo</label>
+              <input type="text" {...bindField('tourismRegistryNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Representante Legal</label>
+              <input type="text" {...bindField('legalRepresentativeName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre completo" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Documento del Representante Legal</label>
+              <input type="text" {...bindField('legalRepresentativeId')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ciudad de Operacion</label>
+              <input type="text" {...bindField('operatingCity')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pais de Operacion</label>
+              <input type="text" {...bindField('operatingCountry')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Logotipo (URL)</label>
+            <input type="url" {...bindField('logoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="https://cdn.example.com/logo.png" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Informacion de Contacto (JSON)</label>
+            <textarea {...bindField('contactInfo')} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder='Ej: {"telefono": "+34 000 000", "email": "contacto@empresa.com"}' />
+            <p className="text-xs text-gray-500 mt-1">Introduce un JSON valido con los datos de contacto que necesites publicar.</p>
+          </div>
+        </>
+      ),
+    },
+    {
+      ...SETTINGS_SECTIONS[1],
+      content: (
+        <>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Terminos y Condiciones</label>
+              <textarea {...bindField('termsAndConditions')} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Contrato de Viaje</label>
+              <textarea {...bindField('travelContract')} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Politicas de Cancelacion</label>
+              <textarea {...bindField('cancellationPolicies')} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Informacion adicional para Voucher</label>
+              <textarea {...bindField('voucherInfo')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Encabezado de Voucher</label>
+              <textarea {...bindField('voucherHeader')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Encabezado de Contrato</label>
+              <textarea {...bindField('contractHeader')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pie de pagina predeterminado</label>
+              <input type="text" {...bindField('defaultFooter')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Firma Digital (URL o Texto)</label>
+              <input type="text" {...bindField('digitalSignature')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Logo Secundario / Marca de Agua (URL)</label>
+              <input type="url" {...bindField('secondaryLogoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t">
+            <h4 className="text-md font-semibold text-gray-800 mb-3">Mensajes automaticos por documento</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Factura</label>
+                <textarea {...bindField('invoiceMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Voucher</label>
+                <textarea {...bindField('voucherMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Contrato</label>
+                <textarea {...bindField('contractMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </>
+      ),
+    },
+    {
+      ...SETTINGS_SECTIONS[2],
+      content: (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Consecutivo de Facturas</label>
+              <input type="number" {...bindField('nextInvoiceNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Formato de Factura</label>
+              <input type="text" {...bindField('invoiceFormat')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: DV-2025-####" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Moneda Principal</label>
+              <select {...bindField('currency')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                <option value="EUR">Euro (EUR)</option>
+                <option value="USD">Dolar Americano (USD)</option>
+                <option value="COP">Peso Colombiano (COP)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Impuesto (IVA %)</label>
+              <input type="number" {...bindField('taxRate')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Formato de Fecha Preferido</label>
+              <select {...bindField('preferredDateFormat')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                <option value="DD/MM/AAAA">DD/MM/AAAA</option>
+                <option value="MM/DD/AAAA">MM/DD/AAAA</option>
+                <option value="AAAA-MM-DD">AAAA-MM-DD</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Zona Horaria</label>
+              <select {...bindField('timezone')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                <option value="Europe/Madrid">Europe/Madrid</option>
+                <option value="America/Bogota">America/Bogota</option>
+                <option value="America/New_York">America/New_York</option>
+              </select>
+            </div>
+          </div>
+        </>
+      ),
+    },
+  ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <SectionWrapper title="Información General y Fiscal" icon={Building}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Nombre Comercial (Agencia)</label><input type="text" name="agencyName" value={settings.agencyName} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Razón Social (Nombre Jurídico)</label><input type="text" name="legalName" value={settings.legalName} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-gray-500">Consulta la informacion actual y modifica solo cuando sea necesario.</p>
+          {error && !isSaving && (
+            <div className="mt-2 flex items-center gap-2 text-red-600 text-sm">
+              <XCircle className="w-4 h-4" />
+              <span>{error}</span>
+            </div>
+          )}
+          {updateSuccess && (
+            <div className="mt-2 flex items-center gap-2 text-green-600 text-sm">
+              <CheckCircle className="w-4 h-4" />
+              <span>Configuracion guardada con exito.</span>
+            </div>
+          )}
         </div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">URL del Logo</label><input type="url" name="logoUrl" value={settings.logoUrl} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">Información de Contacto (Dirección, Teléfonos, etc.)</label><textarea name="contactInfo" value={settings.contactInfo} onChange={handleChange} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-.700 mb-2">NIT (Número Identificación Tributaria)</label><input type="text" name="taxIdNumber" value={settings.taxIdNumber} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">RUT (Registro Único Tributario)</label><input type="text" name="taxRegistry" value={settings.taxRegistry} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Representante Legal</label><input type="text" name="legalRepresentativeName" value={settings.legalRepresentativeName} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Documento del Representante</label><input type="text" name="legalRepresentativeId" value={settings.legalRepresentativeId} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Régimen Tributario</label><input type="text" name="taxRegime" value={settings.taxRegime} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Régimen Común, Simple..." /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Número de Registro de Turismo</label><input type="text" name="tourismRegistryNumber" value={settings.tourismRegistryNumber} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: RNT-12345" /></div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Ciudad de Operación</label><input type="text" name="operatingCity" value={settings.operatingCity} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">País de Operación</label><input type="text" name="operatingCountry" value={settings.operatingCountry} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        </div>
-      </SectionWrapper>
-
-      <SectionWrapper title="Configuración de Documentación" icon={FileTextIcon}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Encabezado para Vouchers</label><input type="text" name="voucherHeader" value={settings.voucherHeader} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Encabezado para Contratos</label><input type="text" name="contractHeader" value={settings.contractHeader} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        </div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">Términos y Condiciones</label><textarea name="termsAndConditions" value={settings.termsAndConditions} onChange={handleChange} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">Contrato de Viaje</label><textarea name="travelContract" value={settings.travelContract} onChange={handleChange} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">Políticas de Cancelación</label><textarea name="cancellationPolicies" value={settings.cancellationPolicies} onChange={handleChange} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">Información Adicional para Voucher</label><textarea name="voucherInfo" value={settings.voucherInfo} onChange={handleChange} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">Pie de Página Predeterminado</label><input type="text" name="defaultFooter" value={settings.defaultFooter} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Firma Digital (URL o Texto)</label><input type="text" name="digitalSignature" value={settings.digitalSignature} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Logo Secundario / Marca de Agua (URL)</label><input type="url" name="secondaryLogoUrl" value={settings.secondaryLogoUrl} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        </div>
-        <div className="pt-4 border-t">
-          <h4 className="text-md font-semibold text-gray-800 mb-3">Mensajes Automáticos por Documento</h4>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Factura</label><textarea name="invoiceMessage" value={settings.invoiceMessage} onChange={handleChange} rows={2} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Voucher</label><textarea name="voucherMessage" value={settings.voucherMessage} onChange={handleChange} rows={2} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Contrato</label><textarea name="contractMessage" value={settings.contractMessage} onChange={handleChange} rows={2} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-        </div>
-      </SectionWrapper>
-
-      <SectionWrapper title="Configuración de Sistema y Finanzas" icon={SlidersHorizontal}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Inicializar Consecutivo de Facturas</label><input type="number" name="nextInvoiceNumber" value={settings.nextInvoiceNumber} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Formato de Factura</label><input type="text" name="invoiceFormat" value={settings.invoiceFormat} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: DV-2025-####" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Moneda Principal</label><select name="currency" value={settings.currency} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg"><option value="EUR">Euro ($)</option><option value="USD">Dólar Americano ($)</option><option value="COP">Peso Colombiano ($)</option></select></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Impuesto (IVA %)</label><input type="number" name="taxRate" value={settings.taxRate} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Formato de Fecha</label><select name="preferredDateFormat" value={settings.preferredDateFormat} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg"><option value="DD/MM/AAAA">DD/MM/AAAA</option><option value="MM/DD/AAAA">MM/DD/AAAA</option><option value="AAAA-MM-DD">AAAA-MM-DD</option></select></div>
-        </div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-2">Zona Horaria</label><select name="timezone" value={settings.timezone} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg"><option value="Europe/Madrid">Europa/Madrid</option><option value="America/Bogota">América/Bogotá</option><option value="America/New_York">América/New York</option></select></div>
-      </SectionWrapper>
-
-      <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-        {updateSuccess && (
-          <motion.p className="text-green-600 font-medium flex items-center gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <CheckCircle className="w-5 h-5" /> ¡Configuración guardada con éxito!
-          </motion.p>
+        {!isEditing ? (
+          <motion.button
+            type="button"
+            onClick={handleStartEditing}
+            className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Pencil className="w-4 h-4" />
+            Editar configuracion
+          </motion.button>
+        ) : (
+          <motion.button
+            type="button"
+            onClick={handleCancelEditing}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            Cancelar cambios
+          </motion.button>
         )}
+      </div>
+
+      {sections.filter(section => section.id === activeSection).map(section => (
+        <SectionWrapper
+          key={section.id}
+          id={section.id}
+          title={section.title}
+          icon={section.icon}
+          isActive
+        >
+          {section.content}
+        </SectionWrapper>
+      ))}
+
+      <div className="flex flex-wrap items-center justify-end gap-4 pt-6 border-t border-gray-200">
         {error && isSaving && (
-           <motion.p className="text-red-600 font-medium flex items-center gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <motion.p className="text-red-600 font-medium flex items-center gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <XCircle className="w-5 h-5" /> {error}
           </motion.p>
         )}
-        <motion.button type="submit" disabled={isSaving} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Save className="w-5 h-5" />
-          {isSaving ? 'Guardando...' : 'Guardar Configuración del Negocio'}
-        </motion.button>
+        <div className="flex items-center gap-3">
+          {isEditing && (
+            <motion.button
+              type="button"
+              onClick={handleCancelEditing}
+              className="px-6 py-3 text-gray-600 hover:text-gray-800 font-medium transition-colors duration-200"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Descartar
+            </motion.button>
+          )}
+          <motion.button
+            type="submit"
+            disabled={!isEditing || isSaving}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+            whileHover={{ scale: isEditing && !isSaving ? 1.02 : 1 }}
+            whileTap={{ scale: isEditing && !isSaving ? 0.98 : 1 }}
+          >
+            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {isSaving ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Guardar configuracion'}
+          </motion.button>
+        </div>
       </div>
     </form>
   );
@@ -222,25 +507,58 @@ const BusinessSettings = () => {
 
 const Settings = () => {
   const { currentUser } = useAuth();
+  const [activeSection, setActiveSection] = useState(SETTINGS_SECTIONS[0].id);
 
   if (!['admin', 'manager'].includes(currentUser.role)) {
     return (
       <div className="p-6 text-center">
-        <h2 className="text-2xl font-bold text-red-600">Acceso Denegado</h2>
-        <p className="text-gray-600 mt-2">No tienes permisos para acceder a este módulo.</p>
+        <h2 className="text-2xl font-bold text-red-600">Acceso denegado</h2>
+        <p className="text-gray-600 mt-2">No tienes permisos para acceder a este modulo.</p>
       </div>
     );
   }
 
+  const handleNavigate = (id) => {
+    setActiveSection(id);
+  };
+
   return (
     <motion.div
-      className="p-6 space-y-8"
+      className="p-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <h2 className="text-3xl font-bold text-gray-900">Configuración del Negocio</h2>
-      <BusinessSettings />
+      <h2 className="text-3xl font-bold text-gray-900 mb-6">Configuracion del Negocio</h2>
+      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+        <aside className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-fit">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Menu de secciones</h3>
+          <nav className="flex flex-col gap-2">
+            {SETTINGS_SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => handleNavigate(section.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {section.label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+        <div className="space-y-8">
+          <BusinessSettings
+            activeSection={activeSection}
+          />
+        </div>
+      </div>
     </motion.div>
   );
 };
