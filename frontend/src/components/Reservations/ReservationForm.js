@@ -154,19 +154,36 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     };
   });
 
+  const normalizeAccommodationList = (accommodation) => {
+    const normalized = (accommodation || []).map((room) => ({
+      rooms: Number(room?.rooms ?? room?.room ?? 1) || 1,
+      adt: Number(room?.adt ?? room?.adults ?? 0) || 0,
+      chd: Number(room?.chd ?? room?.children ?? 0) || 0,
+      inf: Number(room?.inf ?? room?.infants ?? 0) || 0,
+    }));
+    return normalized.length > 0 ? normalized : [{ rooms: 1, adt: 0, chd: 0, inf: 0 }];
+  };
+
+  const normalizeHotelInclusions = (inclusions) => {
+    const mapped = (inclusions || []).map((item) => {
+      if (typeof item === 'string') return item;
+      if (item?.inclusion) return item.inclusion;
+      return '';
+    });
+    return mapped.length > 0 ? mapped : [''];
+  };
+
   const mapHotels = (hotels) =>
     (hotels || []).map((h) => ({
       name: h.name || '',
       roomCategory: h.roomCategory || h.room_category || '',
-      accommodation:
-        h.accommodation ||
-        h.reservation_hotel_accommodations || [{ rooms: 1, adt: 0, chd: 0, inf: 0 }],
+      accommodation: normalizeAccommodationList(
+        h.accommodation || h.reservation_hotel_accommodations
+      ),
       mealPlan: h.mealPlan || h.meal_plan || '',
-      hotelInclusions:
-        h.hotelInclusions ||
-        (h.reservation_hotel_inclusions
-          ? h.reservation_hotel_inclusions.map((i) => i.inclusion)
-          : ['']),
+      hotelInclusions: normalizeHotelInclusions(
+        h.hotelInclusions || h.reservation_hotel_inclusions
+      ),
     }));
 
   const mapTours = (tours) =>
@@ -1722,6 +1739,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 };
 
 export default ReservationForm;
+
 
 
 
