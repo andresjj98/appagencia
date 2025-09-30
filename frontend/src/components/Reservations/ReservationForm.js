@@ -418,11 +418,40 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
     // Handle custom flight cycle text
     if (dataToSend.flights) {
+      const baggageMap = {
+        "personal_item": "Artículo Personal (Bajo el Asiento)",
+        "carry_on": "Equipaje de Mano (Cabina, Compartimento Superior)",
+        "1_checked_bag": "1 maleta facturada (hasta 23kg)",
+        "2_checked_bags": "2 maletas facturadas (hasta 23kg c/u)",
+        "heavy_bag": "1 maleta facturada (hasta 32kg)",
+        "no_baggage": "Sin equipaje",
+        "other": "Otro (especificar en notas)"
+      };
+      const categoryMap = {
+        "economica": "Económica",
+        "premium_economica": "Premium Económica",
+        "business": "Business",
+        "primera_clase": "Primera Clase"
+      };
+
       dataToSend.flights.forEach(flight => {
         if (flight.flightCycle === 'other') {
           flight.flightCycle = flight.customFlightCycle || 'Ciclo no especificado';
+        } else {
+            const cycleOption = flightCycleOptions.find(opt => opt.value === flight.flightCycle);
+            if (cycleOption) {
+                flight.flightCycle = cycleOption.label;
+            }
         }
         delete flight.customFlightCycle; // Clean up temp field
+
+        if(baggageMap[flight.baggageAllowance]) {
+            flight.baggageAllowance = baggageMap[flight.baggageAllowance];
+        }
+
+        if(categoryMap[flight.flightCategory]) {
+            flight.flightCategory = categoryMap[flight.flightCategory];
+        }
       });
     }
 
@@ -1112,7 +1141,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       <AirlineInput
                         value={flight.airline}
                         onSelect={(val) => handleFlightChange(index, { target: { name: 'airline', value: val, type: 'text' } })}
-                        placeholder="Buscar aerol�nea"
+                        placeholder="Buscar aerol�nea"
                       />
                     </div>
                     <div>
@@ -1151,7 +1180,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       <label className="block text-sm font-medium text-gray-700 mb-2">Equipaje Permitido</label>
                       <select name="baggageAllowance" value={flight.baggageAllowance} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
                         <option value="">Seleccionar</option>
-                        <option value="carry_on">Solo equipaje de mano</option>
+                        <option value="personal_item">Artículo Personal (Bajo el Asiento)</option>
+                        <option value="carry_on">Equipaje de Mano (Cabina, Compartimento Superior)</option>
                         <option value="1_checked_bag">1 maleta facturada (hasta 23kg)</option>
                         <option value="2_checked_bags">2 maletas facturadas (hasta 23kg c/u)</option>
                         <option value="heavy_bag">1 maleta facturada (hasta 32kg)</option>
@@ -1684,6 +1714,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 };
 
 export default ReservationForm;
+
+
+
+
 
 
 
