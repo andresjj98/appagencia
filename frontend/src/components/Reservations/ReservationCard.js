@@ -1,10 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Calendar, 
-  MapPin, 
-  Users, 
-  Edit, 
+import {
+  Calendar,
+  MapPin,
+  Users,
+  Edit,
   Trash2,
   Eye,
   Globe,
@@ -86,6 +86,16 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
   const statusConfig = RESERVATION_STATUS[reservation?.status] || { label: reservation?.status || 'Desconocido', bgColor: 'bg-gray-100', textColor: 'text-gray-800' };
   const paymentConfig = PAYMENT_STATUS[reservation?.paymentStatus] || { label: reservation?.paymentStatus || 'Desconocido', bgColor: 'bg-gray-100', textColor: 'text-gray-800' };
   const reservationType = reservation._original?.reservation_type || 'other';
+  const invoiceNumber =
+    reservation.invoiceNumber ??
+    reservation.invoice_number ??
+    reservation._original?.invoiceNumber ??
+    reservation._original?.invoice_number;
+  const formattedInvoiceNumber =
+    invoiceNumber !== null && invoiceNumber !== undefined && invoiceNumber !== ''
+      ? String(invoiceNumber)
+      : 'No asignada';
+  const shouldShowInvoiceNumber = reservation.status === 'confirmed';
 
   return (
     <motion.div
@@ -97,7 +107,15 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
     >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
-        <ReservationTypeIcon type={reservationType} />
+        <div className="flex items-center gap-3">
+          <ReservationTypeIcon type={reservationType} />
+          {shouldShowInvoiceNumber && (
+            <div className="flex flex-col">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Factura</span>
+              <span className="text-sm font-semibold text-gray-900 font-mono">{formattedInvoiceNumber}</span>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <motion.button onClick={() => onView?.(reservation)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} title="Ver Detalles">
             <Eye className="w-5 h-5" />
@@ -173,5 +191,7 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
   );
 };
 
-export default ReservationCard;
-
+export default ReservationCard;
+
+
+
