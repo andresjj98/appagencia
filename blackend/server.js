@@ -25,6 +25,9 @@ const reservationRoutes = require('./routes/reservations');
 const airportRoutes = require('./routes/airports');
 const airlineRoutes = require('./routes/airlines');
 const businessSettingsRoutes = require('./routes/businessSettings');
+const usersRoutes = require('./routes/users');
+const officesRoutes = require('./routes/offices');
+const { getUnassociatedUsers } = require('./controllers/offices.controller');
 
 // Use routes
 app.use('/api', authRoutes);
@@ -32,6 +35,9 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/airports', airportRoutes);
 app.use('/api/airlines', airlineRoutes);
 app.use('/api/business-settings', businessSettingsRoutes);
+app.use('/api/usuarios', usersRoutes);
+app.use('/api/offices', officesRoutes);
+app.get('/api/unassociated-users', getUnassociatedUsers);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...
 
@@ -167,4 +173,6 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Servidor ejecutÃ¡ndose en el puerto ${PORT}`);
 });
+
+
 

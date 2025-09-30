@@ -1,0 +1,233 @@
+﻿const { supabaseAdmin } = require('../supabase');
+const { hashPassword } = require('../passwordUtils');
+
+const USER_SELECT = 'id, name, last_name, id_card, username, email, role, active, avatar';
+
+const applyFallbackAvatar = (row) => {
+  if (row.avatar && row.avatar.trim()) {
+    return row.avatar;
+  }
+  const seed = row.username || row.email || `user-${row.id || 'seed'}`;
+  const encodedSeed = encodeURIComponent(seed.toString());
+  return `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodedSeed}`;
+};
+
+const mapDbUserToClient = (row) => ({
+  id: row.id,
+  name: row.name || '',
+  lastName: row.last_name || '',
+  idCard: row.id_card || '',
+  username: row.username || '',
+  email: row.email || '',
+  role: row.role || 'advisor',
+  active: row.active ?? true,
+  avatar: applyFallbackAvatar(row),
+  createdAt: row.created_at || null,
+});
+
+const buildUserPayload = async (body, { hashPasswordIfNeeded = true } = {}) => {
+  const payload = {};
+  const toTrimmed = (value) => {
+    if (value === undefined || value === null) return undefined;
+    return value.toString().trim();
+  };
+
+  if (body.name !== undefined) {
+    const name = toTrimmed(body.name);
+    if (name !== undefined) payload.name = name;
+  }
+
+  if (body.lastName !== undefined) {
+    const lastName = toTrimmed(body.lastName);
+    payload.last_name = lastName || null;
+  }
+
+  if (body.idCard !== undefined) {
+    const idCard = toTrimmed(body.idCard);
+    payload.id_card = idCard || null;
+  }
+
+  if (body.username !== undefined) {
+    const username = toTrimmed(body.username);
+    if (username !== undefined) payload.username = username;
+  }
+
+  if (body.email !== undefined) {
+    const email = toTrimmed(body.email);
+    if (email !== undefined) payload.email = email.toLowerCase();
+  }
+
+  if (body.role !== undefined) {
+    const role = toTrimmed(body.role);
+    if (role !== undefined) payload.role = role;
+  }
+
+  if (body.active !== undefined) {
+    payload.active = !!body.active;
+  }
+
+  if (body.avatar !== undefined) {
+    const avatar = toTrimmed(body.avatar);
+    payload.avatar = avatar && avatar.length > 0 ? avatar : null;
+  }
+
+  if (hashPasswordIfNeeded && body.password !== undefined) {
+    const password = toTrimmed(body.password);
+    if (password && password.length > 0) {
+      payload.password = await hashPassword(password);
+    }
+  }
+
+  return payload;
+};
+
+const validateRequiredFields = (body, { isUpdate = false } = {}) => {
+  const missing = [];
+  const checkField = (key, label) => {
+    if (!body[key] || !body[key].toString().trim()) {
+      missing.push(label);
+    }
+  };
+
+  checkField('name', 'name');
+  checkField('email', 'email');
+  checkField('username', 'username');
+  checkField('role', 'role');
+
+  if (!isUpdate) {
+    checkField('password', 'password');
+  }
+
+  return missing;
+};
+
+const getAllUsers = async (_req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .select(USER_SELECT)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching users:', error);
+      return res.status(500).json({ message: 'Error al obtener usuarios.' });
+    }
+
+    const users = (data || []).map(mapDbUserToClient);
+    return res.json(users);
+  } catch (err) {
+    console.error('Unexpected error fetching users:', err);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const createUser = async (req, res) => {
+  try {
+    const missing = validateRequiredFields(req.body || {});
+    if (missing.length > 0) {
+      return res.status(400).json({ message: `Faltan campos obligatorios: ${missing.join(', ')}` });
+    }
+
+    const payload = await buildUserPayload(req.body || {});
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .insert(payload)
+      .select(USER_SELECT)
+      .single();
+
+    if (error) {
+      console.error('Error creating user:', error);
+      if (error.code === '23505') {
+        return res.status(409).json({ message: 'El correo o username ya existe.' });
+      }
+      return res.status(500).json({ message: 'Error al crear usuario.' });
+    }
+
+    return res.status(201).json(mapDbUserToClient(data));
+  } catch (err) {
+    console.error('Unexpected error creating user:', err);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: 'ID de usuario requerido.' });
+  }
+
+  try {
+    const missing = validateRequiredFields(req.body || {}, { isUpdate: true });
+    if (missing.includes('name') || missing.includes('email') || missing.includes('username') || missing.includes('role')) {
+      return res.status(400).json({ message: 'Campos obligatorios incompletos.' });
+    }
+
+    const payload = await buildUserPayload(req.body || {});
+
+    if (Object.keys(payload).length === 0) {
+      return res.status(400).json({ message: 'No hay datos para actualizar.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .update(payload)
+      .eq('id', id)
+      .select(USER_SELECT)
+      .single();
+
+    if (error) {
+      console.error('Error updating user:', error);
+      if (error.code === '23505') {
+        return res.status(409).json({ message: 'El correo o username ya existe.' });
+      }
+      return res.status(500).json({ message: 'Error al actualizar usuario.' });
+    }
+
+    if (!data) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    return res.json(mapDbUserToClient(data));
+  } catch (err) {
+    console.error('Unexpected error updating user:', err);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: 'ID de usuario requerido.' });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error deleting user:', error);
+      return res.status(500).json({ message: 'Error al eliminar usuario.' });
+    }
+
+    if (!data) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Unexpected error deleting user:', err);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+module.exports = {
+  getAllUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+};
+
