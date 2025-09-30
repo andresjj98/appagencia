@@ -49,6 +49,28 @@ const getReservationType = (reservation) => {
     return 'Servicios Varios';
 };
 
+const transformReservationForGestion = (reservation) => {
+  if (!reservation) {
+    return reservation;
+  }
+
+  const firstSegment = reservation.reservation_segments?.[0];
+
+  return {
+    ...reservation,
+    clientName: reservation.clientName ?? reservation.clients?.name ?? '',
+    clientEmail: reservation.clientEmail ?? reservation.clients?.email ?? '',
+    clientPhone: reservation.clientPhone ?? reservation.clients?.phone ?? '',
+    clientId: reservation.clientId ?? reservation.clients?.id_card ?? '',
+    invoiceNumber: reservation.invoiceNumber ?? reservation.invoice_number ?? '',
+    createdAt: reservation.createdAt ?? reservation.created_at ?? '',
+    updatedAt: reservation.updatedAt ?? reservation.updated_at ?? '',
+    departureDate: reservation.departureDate ?? firstSegment?.departure_date ?? reservation.departure_date ?? '',
+    returnDate: reservation.returnDate ?? firstSegment?.return_date ?? reservation.return_date ?? '',
+    totalAmount: reservation.totalAmount ?? reservation.total_amount ?? 0,
+  };
+};
+
 const Gestion = () => {
   const [reservations, setReservations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,7 +87,8 @@ const Gestion = () => {
       const response = await fetch(url);
       const data = await response.json();
       if (response.ok) {
-        setReservations(data);
+        const normalizedData = Array.isArray(data) ? data : (data ? [data] : []);
+        setReservations(normalizedData.map(transformReservationForGestion));
       } else {
         console.error('Error fetching reservations:', data.message);
       }
