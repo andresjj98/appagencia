@@ -791,7 +791,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   };
 
   const calculateInstallments = () => {
-    const numInstallments = parseInt(formData.installmentsCount);
+    const numInstallments = parseInt(formData.installmentsCount, 10);
     if (isNaN(numInstallments) || numInstallments <= 0) {
       alert("Por favor, introduce un número válido de cuotas.");
       return;
@@ -803,25 +803,29 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       return;
     }
 
-    const amountPerInstallment = totalAmount / numInstallments;
+    const totalRounded = Math.round(totalAmount);
+    const baseAmount = Math.floor(totalRounded / numInstallments);
+    const remainder = totalRounded - baseAmount * numInstallments;
+
     const newInstallments = [];
     let currentDate = new Date();
     const departureDateObj = new Date(tripDepartureDate);
 
     for (let i = 0; i < numInstallments; i++) {
       let dueDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, currentDate.getDate());
-      
-      // Ensure due date is not after trip departure date
+
       if (dueDate > departureDateObj) {
         dueDate = new Date(departureDateObj);
-        dueDate.setDate(departureDateObj.getDate() - 1); // One day before departure
-        if (dueDate < currentDate) { // If even one day before departure is in the past, set to today
+        dueDate.setDate(departureDateObj.getDate() - 1);
+        if (dueDate < currentDate) {
           dueDate = new Date();
         }
       }
 
+      const roundedAmount = baseAmount + (i < remainder ? 1 : 0);
+
       newInstallments.push({
-        amount: parseFloat(amountPerInstallment.toFixed(2)),
+        amount: roundedAmount,
         dueDate: dueDate.toISOString().split('T')[0]
       });
     }
@@ -829,6 +833,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   };
 
   const totalInstallmentsAmount = formData.installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
+  const expectedInstallmentsTotal = Math.round(parseFloat(formData.totalAmount) || 0);
 
   const tripMinDate = useMemo(() => {
     if (!formData.segments || formData.segments.length === 0) return getTodayDate();
@@ -1664,7 +1669,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     </div>
                   ))}
                   <p className="text-sm font-semibold text-gray-800 mt-4">Total Cuotas: {formatCurrencyValue(totalInstallmentsAmount)}</p>
-                  {totalInstallmentsAmount !== parseFloat(formData.totalAmount) && (
+                  {totalInstallmentsAmount !== expectedInstallmentsTotal && (
                     <p className="text-sm text-red-600 flex items-center gap-1">
                       <Info className="w-4 h-4" /> El total de las cuotas no coincide con el total del plan.
                     </p>
