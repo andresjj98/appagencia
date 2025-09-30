@@ -1,4 +1,4 @@
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+﻿require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
@@ -24,12 +24,14 @@ const authRoutes = require('./routes/auth');
 const reservationRoutes = require('./routes/reservations');
 const airportRoutes = require('./routes/airports');
 const airlineRoutes = require('./routes/airlines');
+const businessSettingsRoutes = require('./routes/businessSettings');
 
 // Use routes
 app.use('/api', authRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/airports', airportRoutes);
 app.use('/api/airlines', airlineRoutes);
+app.use('/api/business-settings', businessSettingsRoutes);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...
 
@@ -163,5 +165,6 @@ app.post('/api/files/get-secure-url', async (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en el puerto ${PORT}`);
+  console.log(`Servidor ejecutÃ¡ndose en el puerto ${PORT}`);
 });
+
