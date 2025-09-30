@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Save,
@@ -79,7 +79,26 @@ const ReadOnlyValue = ({ value, placeholder = 'Sin definir', multiline = false, 
   );
 };
 
-const BusinessSettings = ({ activeSection, registerSectionRef }) => {
+const SectionWrapper = ({ section, children }) => {
+  const Icon = section.icon;
+  return (
+    <motion.section
+      key={section.id}
+      className="bg-white rounded-2xl p-8 shadow-lg border border-blue-200 ring-2 ring-blue-200"
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+        <Icon className="w-7 h-7 text-blue-600" />
+        {section.title}
+      </h3>
+      {children}
+    </motion.section>
+  );
+};
+
+const BusinessSettings = ({ activeSection }) => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [formValues, setFormValues] = useState(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
@@ -227,6 +246,315 @@ const BusinessSettings = ({ activeSection, registerSectionRef }) => {
     }
   };
 
+  const renderGeneralSection = () => (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Comercial</label>
+          {isEditing ? (
+            <input type="text" {...bindField('agencyName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Viajes Global" />
+          ) : (
+            <ReadOnlyValue value={settings.agencyName} />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Legal</label>
+          {isEditing ? (
+            <input type="text" {...bindField('legalName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre legal registrado" />
+          ) : (
+            <ReadOnlyValue value={settings.legalName} />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Identificación Tributaria (NIT)</label>
+          {isEditing ? (
+            <input type="text" {...bindField('taxIdNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: 123456789-0" />
+          ) : (
+            <ReadOnlyValue value={settings.taxIdNumber} />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Registro Tributario (RUT)</label>
+          {isEditing ? (
+            <input type="text" {...bindField('taxRegistry')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.taxRegistry} />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Régimen Tributario</label>
+          {isEditing ? (
+            <input type="text" {...bindField('taxRegime')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.taxRegime} />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Registro Nacional de Turismo</label>
+          {isEditing ? (
+            <input type="text" {...bindField('tourismRegistryNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.tourismRegistryNumber} />
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Representante Legal</label>
+          {isEditing ? (
+            <input type="text" {...bindField('legalRepresentativeName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre completo" />
+          ) : (
+            <ReadOnlyValue value={settings.legalRepresentativeName} />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Documento del Representante Legal</label>
+          {isEditing ? (
+            <input type="text" {...bindField('legalRepresentativeId')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.legalRepresentativeId} />
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Ciudad de Operación</label>
+          {isEditing ? (
+            <input type="text" {...bindField('operatingCity')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.operatingCity} />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">País de Operación</label>
+          {isEditing ? (
+            <input type="text" {...bindField('operatingCountry')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.operatingCountry} />
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Logotipo (URL)</label>
+          {isEditing ? (
+            <input type="url" {...bindField('logoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="https://cdn.example.com/logo.png" />
+          ) : (
+            <ReadOnlyValue value={settings.logoUrl} placeholder="Sin URL">
+              {hasValue(settings.logoUrl) ? (
+                <a href={settings.logoUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                  {settings.logoUrl}
+                </a>
+              ) : (
+                <span className="text-gray-400 italic">Sin URL</span>
+              )}
+            </ReadOnlyValue>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Información de Contacto (JSON)</label>
+          {isEditing ? (
+            <textarea {...bindField('contactInfo')} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder='Ej: {"telefono": "+34 000 000", "email": "contacto@empresa.com"}' />
+          ) : (
+            renderContactInfo()
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  const renderDocumentsSection = () => (
+    <>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Términos y Condiciones</label>
+          {isEditing ? (
+            <textarea {...bindField('termsAndConditions')} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.termsAndConditions} multiline />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Contrato de Viaje</label>
+          {isEditing ? (
+            <textarea {...bindField('travelContract')} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.travelContract} multiline />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Políticas de Cancelación</label>
+          {isEditing ? (
+            <textarea {...bindField('cancellationPolicies')} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.cancellationPolicies} multiline />
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Información adicional para Voucher</label>
+          {isEditing ? (
+            <textarea {...bindField('voucherInfo')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.voucherInfo} multiline />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Encabezado de Voucher</label>
+          {isEditing ? (
+            <textarea {...bindField('voucherHeader')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.voucherHeader} multiline />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Encabezado de Contrato</label>
+          {isEditing ? (
+            <textarea {...bindField('contractHeader')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.contractHeader} multiline />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Pie de página predeterminado</label>
+          {isEditing ? (
+            <input type="text" {...bindField('defaultFooter')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.defaultFooter} multiline />
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Firma Digital (URL o Texto)</label>
+          {isEditing ? (
+            <input type="text" {...bindField('digitalSignature')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.digitalSignature} multiline />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Logo Secundario / Marca de Agua (URL)</label>
+          {isEditing ? (
+            <input type="url" {...bindField('secondaryLogoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+          ) : (
+            <ReadOnlyValue value={settings.secondaryLogoUrl} placeholder="Sin URL">
+              {hasValue(settings.secondaryLogoUrl) ? (
+                <a href={settings.secondaryLogoUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                  {settings.secondaryLogoUrl}
+                </a>
+              ) : (
+                <span className="text-gray-400 italic">Sin URL</span>
+              )}
+            </ReadOnlyValue>
+          )}
+        </div>
+      </div>
+
+      <div className="pt-6 border-t mt-6">
+        <h4 className="text-md font-semibold text-gray-800 mb-3">Mensajes automáticos por documento</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Factura</label>
+            {isEditing ? (
+              <textarea {...bindField('invoiceMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            ) : (
+              <ReadOnlyValue value={settings.invoiceMessage} multiline />
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Voucher</label>
+            {isEditing ? (
+              <textarea {...bindField('voucherMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            ) : (
+              <ReadOnlyValue value={settings.voucherMessage} multiline />
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Contrato</label>
+            {isEditing ? (
+              <textarea {...bindField('contractMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            ) : (
+              <ReadOnlyValue value={settings.contractMessage} multiline />
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderSystemSection = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Consecutivo de Facturas</label>
+      
+            {isEditing ? (
+              <input type="number" {...bindField('nextInvoiceNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+            ) : (
+              <ReadOnlyValue value={settings.nextInvoiceNumber} />
+            )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Formato de Factura</label>
+        {isEditing ? (
+          <input type="text" {...bindField('invoiceFormat')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: DV-2025-####" />
+        ) : (
+          <ReadOnlyValue value={settings.invoiceFormat} />
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Moneda Principal</label>
+        {isEditing ? (
+          <select {...bindField('currency')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+            <option value="EUR">Euro (EUR)</option>
+            <option value="USD">Dólar Americano (USD)</option>
+            <option value="COP">Peso Colombiano (COP)</option>
+          </select>
+        ) : (
+          <ReadOnlyValue value={{ EUR: 'Euro (EUR)', USD: 'Dólar Americano (USD)', COP: 'Peso Colombiano (COP)' }[settings.currency] || settings.currency} />
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Impuesto (IVA %)</label>
+        {isEditing ? (
+          <input type="number" {...bindField('taxRate')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+        ) : (
+          <ReadOnlyValue value={settings.taxRate} />
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Formato de Fecha Preferido</label>
+        {isEditing ? (
+          <select {...bindField('preferredDateFormat')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+            <option value="DD/MM/AAAA">DD/MM/AAAA</option>
+            <option value="MM/DD/AAAA">MM/DD/AAAA</option>
+            <option value="AAAA-MM-DD">AAAA-MM-DD</option>
+          </select>
+        ) : (
+          <ReadOnlyValue value={settings.preferredDateFormat} />
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Zona Horaria</label>
+        {isEditing ? (
+          <select {...bindField('timezone')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+            <option value="Europe/Madrid">Europe/Madrid</option>
+            <option value="America/Bogota">America/Bogota</option>
+            <option value="America/New_York">America/New_York</option>
+          </select>
+        ) : (
+          <ReadOnlyValue value={settings.timezone} />
+        )}
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 flex items-center justify-center">
@@ -236,6 +564,17 @@ const BusinessSettings = ({ activeSection, registerSectionRef }) => {
         </p>
       </div>
     );
+  }
+
+  const sectionConfig = SETTINGS_SECTIONS.find((section) => section.id === activeSection) || SETTINGS_SECTIONS[0];
+
+  let sectionContent = null;
+  if (sectionConfig.id === 'general') {
+    sectionContent = renderGeneralSection();
+  } else if (sectionConfig.id === 'documents') {
+    sectionContent = renderDocumentsSection();
+  } else {
+    sectionContent = renderSystemSection();
   }
 
   return (
@@ -280,342 +619,7 @@ const BusinessSettings = ({ activeSection, registerSectionRef }) => {
         )}
       </div>
 
-      <motion.section
-        data-section-id="general"
-        ref={(node) => registerSectionRef?.('general', node)}
-        className={`bg-white rounded-2xl p-8 shadow-lg border transition-all duration-200 ${
-          activeSection === 'general' ? 'border-blue-200 ring-2 ring-blue-200' : 'border-gray-100'
-        }`}
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <Building className="w-7 h-7 text-blue-600" />
-          Información General y Fiscal
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Comercial</label>
-            {isEditing ? (
-              <input type="text" {...bindField('agencyName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: Viajes Global" />
-            ) : (
-              <ReadOnlyValue value={settings.agencyName} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Legal</label>
-            {isEditing ? (
-              <input type="text" {...bindField('legalName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre legal registrado" />
-            ) : (
-              <ReadOnlyValue value={settings.legalName} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Identificación Tributaria (NIT)</label>
-            {isEditing ? (
-              <input type="text" {...bindField('taxIdNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: 123456789-0" />
-            ) : (
-              <ReadOnlyValue value={settings.taxIdNumber} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Registro Tributario (RUT)</label>
-            {isEditing ? (
-              <input type="text" {...bindField('taxRegistry')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.taxRegistry} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Régimen Tributario</label>
-            {isEditing ? (
-              <input type="text" {...bindField('taxRegime')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.taxRegime} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Registro Nacional de Turismo</label>
-            {isEditing ? (
-              <input type="text" {...bindField('tourismRegistryNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.tourismRegistryNumber} />
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Representante Legal</label>
-            {isEditing ? (
-              <input type="text" {...bindField('legalRepresentativeName')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Nombre completo" />
-            ) : (
-              <ReadOnlyValue value={settings.legalRepresentativeName} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Documento del Representante Legal</label>
-            {isEditing ? (
-              <input type="text" {...bindField('legalRepresentativeId')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.legalRepresentativeId} />
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Ciudad de Operación</label>
-            {isEditing ? (
-              <input type="text" {...bindField('operatingCity')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.operatingCity} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">País de Operación</label>
-            {isEditing ? (
-              <input type="text" {...bindField('operatingCountry')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.operatingCountry} />
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Logotipo (URL)</label>
-            {isEditing ? (
-              <input type="url" {...bindField('logoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="https://cdn.example.com/logo.png" />
-            ) : (
-              <ReadOnlyValue value={settings.logoUrl} placeholder="Sin URL">
-                {hasValue(settings.logoUrl) ? (
-                  <a href={settings.logoUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
-                    {settings.logoUrl}
-                  </a>
-                ) : (
-                  <span className="text-gray-400 italic">Sin URL</span>
-                )}
-              </ReadOnlyValue>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Información de Contacto (JSON)</label>
-            {isEditing ? (
-              <textarea {...bindField('contactInfo')} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder='Ej: {"telefono": "+34 000 000", "email": "contacto@empresa.com"}' />
-            ) : (
-              renderContactInfo()
-            )}
-          </div>
-        </div>
-      </motion.section>
-
-      <motion.section
-        data-section-id="documents"
-        ref={(node) => registerSectionRef?.('documents', node)}
-        className={`bg-white rounded-2xl p-8 shadow-lg border transition-all duration-200 ${
-          activeSection === 'documents' ? 'border-blue-200 ring-2 ring-blue-200' : 'border-gray-100'
-        }`}
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <FileTextIcon className="w-7 h-7 text-blue-600" />
-          Documentación y Mensajes
-        </h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Términos y Condiciones</label>
-            {isEditing ? (
-              <textarea {...bindField('termsAndConditions')} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.termsAndConditions} multiline />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Contrato de Viaje</label>
-            {isEditing ? (
-              <textarea {...bindField('travelContract')} rows={5} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.travelContract} multiline />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Políticas de Cancelación</label>
-            {isEditing ? (
-              <textarea {...bindField('cancellationPolicies')} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.cancellationPolicies} multiline />
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Información adicional para Voucher</label>
-            {isEditing ? (
-              <textarea {...bindField('voucherInfo')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.voucherInfo} multiline />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Encabezado de Voucher</label>
-            {isEditing ? (
-              <textarea {...bindField('voucherHeader')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.voucherHeader} multiline />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Encabezado de Contrato</label>
-            {isEditing ? (
-              <textarea {...bindField('contractHeader')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.contractHeader} multiline />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Pie de página predeterminado</label>
-            {isEditing ? (
-              <input type="text" {...bindField('defaultFooter')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.defaultFooter} multiline />
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Firma Digital (URL o Texto)</label>
-            {isEditing ? (
-              <input type="text" {...bindField('digitalSignature')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.digitalSignature} multiline />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Logo Secundario / Marca de Agua (URL)</label>
-            {isEditing ? (
-              <input type="url" {...bindField('secondaryLogoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.secondaryLogoUrl} placeholder="Sin URL">
-                {hasValue(settings.secondaryLogoUrl) ? (
-                  <a href={settings.secondaryLogoUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
-                    {settings.secondaryLogoUrl}
-                  </a>
-                ) : (
-                  <span className="text-gray-400 italic">Sin URL</span>
-                )}
-              </ReadOnlyValue>
-            )}
-          </div>
-        </div>
-        <div className="pt-6 border-t mt-6">
-          <h4 className="text-md font-semibold text-gray-800 mb-3">Mensajes automáticos por documento</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Factura</label>
-              {isEditing ? (
-                <textarea {...bindField('invoiceMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-              ) : (
-                <ReadOnlyValue value={settings.invoiceMessage} multiline />
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Voucher</label>
-              {isEditing ? (
-                <textarea {...bindField('voucherMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-              ) : (
-                <ReadOnlyValue value={settings.voucherMessage} multiline />
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mensaje en Contrato</label>
-              {isEditing ? (
-                <textarea {...bindField('contractMessage')} rows={3} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-              ) : (
-                <ReadOnlyValue value={settings.contractMessage} multiline />
-              )}
-            </div>
-          </div>
-        </div>
-      </motion.section>
-
-      <motion.section
-        data-section-id="system"
-        ref={(node) => registerSectionRef?.('system', node)}
-        className={`bg-white rounded-2xl p-8 shadow-lg border transition-all duration-200 ${
-          activeSection === 'system' ? 'border-blue-200 ring-2 ring-blue-200' : 'border-gray-100'
-        }`}
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <SlidersHorizontal className="w-7 h-7 text-blue-600" />
-          Configuración de Sistema y Finanzas
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Consecutivo de Facturas</label>
-            {isEditing ? (
-              <input type="number" {...bindField('nextInvoiceNumber')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.nextInvoiceNumber} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Formato de Factura</label>
-            {isEditing ? (
-              <input type="text" {...bindField('invoiceFormat')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ej: DV-2025-####" />
-            ) : (
-              <ReadOnlyValue value={settings.invoiceFormat} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Moneda Principal</label>
-            {isEditing ? (
-              <select {...bindField('currency')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                <option value="EUR">Euro (EUR)</option>
-                <option value="USD">Dólar Americano (USD)</option>
-                <option value="COP">Peso Colombiano (COP)</option>
-              </select>
-            ) : (
-              <ReadOnlyValue value={{ EUR: 'Euro (EUR)', USD: 'Dólar Americano (USD)', COP: 'Peso Colombiano (COP)' }[settings.currency] || settings.currency} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Impuesto (IVA %)</label>
-            {isEditing ? (
-              <input type="number" {...bindField('taxRate')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-            ) : (
-              <ReadOnlyValue value={settings.taxRate} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Formato de Fecha Preferido</label>
-            {isEditing ? (
-              <select {...bindField('preferredDateFormat')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                <option value="DD/MM/AAAA">DD/MM/AAAA</option>
-                <option value="MM/DD/AAAA">MM/DD/AAAA</option>
-                <option value="AAAA-MM-DD">AAAA-MM-DD</option>
-              </select>
-            ) : (
-              <ReadOnlyValue value={settings.preferredDateFormat} />
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Zona Horaria</label>
-            {isEditing ? (
-              <select {...bindField('timezone')} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                <option value="Europe/Madrid">Europe/Madrid</option>
-                <option value="America/Bogota">America/Bogota</option>
-                <option value="America/New_York">America/New_York</option>
-              </select>
-            ) : (
-              <ReadOnlyValue value={settings.timezone} />
-            )}
-          </div>
-        </div>
-      </motion.section>
+      <SectionWrapper section={sectionConfig}>{sectionContent}</SectionWrapper>
 
       <div className="flex flex-wrap items-center justify-end gap-4 pt-6 border-t border-gray-200">
         {error && isSaving && (
@@ -654,7 +658,6 @@ const BusinessSettings = ({ activeSection, registerSectionRef }) => {
 const Settings = () => {
   const { currentUser } = useAuth();
   const [activeSection, setActiveSection] = useState(SETTINGS_SECTIONS[0].id);
-  const sectionRefs = useRef({});
 
   if (!['admin', 'manager'].includes(currentUser.role)) {
     return (
@@ -664,23 +667,6 @@ const Settings = () => {
       </div>
     );
   }
-
-  const handleRegisterSectionRef = (id, node) => {
-    if (!id) return;
-    if (node) {
-      sectionRefs.current[id] = node;
-    } else {
-      delete sectionRefs.current[id];
-    }
-  };
-
-  const handleNavigate = (id) => {
-    setActiveSection(id);
-    const node = sectionRefs.current[id];
-    if (node) {
-      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
 
   return (
     <motion.div
@@ -701,7 +687,7 @@ const Settings = () => {
                 <button
                   key={section.id}
                   type="button"
-                  onClick={() => handleNavigate(section.id)}
+                  onClick={() => setActiveSection(section.id)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                     isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
                   }`}
@@ -714,7 +700,7 @@ const Settings = () => {
           </nav>
         </aside>
         <div className="space-y-8">
-          <BusinessSettings activeSection={activeSection} registerSectionRef={handleRegisterSectionRef} />
+          <BusinessSettings activeSection={activeSection} />
         </div>
       </div>
     </motion.div>
