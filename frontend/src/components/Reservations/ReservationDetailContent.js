@@ -42,6 +42,8 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
     const [loadingDoc, setLoadingDoc] = useState(null);
     const [airlineNames, setAirlineNames] = useState({});
 
+    const formatCurrencyCOP = (value) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(value || 0));
+
     const getSecureUrl = async (path) => {
         const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
             method: 'POST',
@@ -543,13 +545,13 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             </InfoSection>
 
             <InfoSection id="pago" title="Pago" icon={<CreditCard className="w-5 h-5 text-purple-600" />}>
-                <InfoItem label="Precio ADT" value={formatCurrency(reservation._original.price_per_adt)} />
-                <InfoItem label="Precio CHD" value={formatCurrency(reservation._original.price_per_chd)} />
-                <InfoItem label="Precio INF" value={formatCurrency(reservation._original.price_per_inf)} />
-                <InfoItem label="Total" value={formatCurrency(reservation._original.total_amount)} />
+                <InfoItem label="Precio ADT" value={formatCurrencyCOP(reservation._original.price_per_adt)} />
+                <InfoItem label="Precio CHD" value={formatCurrencyCOP(reservation._original.price_per_chd)} />
+                <InfoItem label="Precio INF" value={formatCurrencyCOP(reservation._original.price_per_inf)} />
+                <InfoItem label="Total" value={formatCurrencyCOP(reservation._original.total_amount)} />
                 <InfoItem label="Opción" value={reservation._original.payment_option === 'full_payment' ? 'Pago completo' : 'Cuotas'} />
                 {(reservation._original.installments || []).map((inst, index) => (
-                    <InfoItem key={index} label={`Cuota ${index + 1}`} value={`${formatCurrency(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
+                    <InfoItem key={index} label={`Cuota ${index + 1}`} value={`${formatCurrencyCOP(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
                 ))}
             </InfoSection>
 
@@ -557,7 +559,7 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             {paymentOption === 'full_payment' ? (
                 <>
                 <InfoItem label="Fecha de pago" value={formatDate(reservation._original.payment_date)} />
-                <InfoItem label="Valor" value={formatCurrency(reservation._original.total_amount)} />
+                <InfoItem label="Valor" value={formatCurrencyCOP(reservation._original.total_amount)} />
                 <InfoItem label="Estado" value={getStatusLabel(reservation._original.payment_status)} />
                 </>
             ) : (
@@ -577,7 +579,7 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                         <tr key={idx} className="border-t">
                         <td className="py-1 pr-4">{idx + 1}</td>
                         <td className="py-1 pr-4">{formatDate(inst.due_date || inst.dueDate)}</td>
-                        <td className="py-1 pr-4">{formatCurrency(inst.amount)}</td>
+                        <td className="py-1 pr-4">{formatCurrencyCOP(inst.amount)}</td>
                         <td className="py-1 pr-4">{getStatusLabel(inst.status)}</td>
                         <td className="py-1 pr-4">{inst.payment_date ? formatDate(inst.payment_date) : '-'}</td>
                         </tr>
@@ -591,8 +593,8 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 <div className="bg-green-500 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600 mt-2">
-                <span>Pagado: {formatCurrency(paidAmount)}</span>
-                <span>Total: {formatCurrency(totalAmount)}</span>
+                <span>Pagado: {formatCurrencyCOP(paidAmount)}</span>
+                <span>Total: {formatCurrencyCOP(totalAmount)}</span>
                 </div>
             </div>
             </InfoSection>
