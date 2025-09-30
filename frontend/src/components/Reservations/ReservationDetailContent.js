@@ -412,6 +412,12 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
 
     return (
         <>
+            {reservation._original.advisor?.name && (
+                <div className="py-4 px-6 border-b border-gray-200 bg-white">
+                    <p className="text-gray-500 font-medium">Asesor</p>
+                    <p className="text-gray-900">{reservation._original.advisor.name}</p>
+                </div>
+            )}
             <InfoSection id="info-basica" title="Información Básica" icon={<FileText className="w-5 h-5 text-blue-600" />} gridColsClass="lg:grid-cols-2">
                 <InfoItem label="Cliente" value={reservation.clientName} />
                 <InfoItem label="Identificación" value={reservation.clientId} />
@@ -420,14 +426,26 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 <InfoItem label="Dirección" value={reservation._original.clients?.address} fullWidth />
                 <InfoItem label="Contacto de Emergencia" value={reservation._original.clients?.emergency_contact_name} />
                 <InfoItem label="Tel. Emergencia" value={reservation._original.clients?.emergency_contact_phone} />
-                <InfoItem label="Asesor" value={reservation._original.advisor?.name} />
-                {segments.map((segment, index) => (
-                    <React.Fragment key={index}>
-                        <InfoItem label={`Tramo ${index + 1}`} value={`${segment.origin} - ${segment.destination}`} />
-                        <InfoItem label="Salida" value={formatDate(segment.departure_date)} />
-                        <InfoItem label="Regreso" value={formatDate(segment.return_date)} />
-                    </React.Fragment>
-                ))}
+                {segments.length > 0 && (
+                    <div className="col-span-full grid gap-4">
+                        {segments.map((segment, index) => (
+                            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 rounded-lg p-3">
+                                <div>
+                                    <p className="text-gray-500 font-medium">{`Tramo ${index + 1}`}</p>
+                                    <p className="text-gray-900">{segment.origin} - {segment.destination}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 font-medium">Salida</p>
+                                    <p className="text-gray-900">{formatDate(segment.departure_date)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 font-medium">Regreso</p>
+                                    <p className="text-gray-900">{formatDate(segment.return_date)}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </InfoSection>
 
             <InfoSection id="pasajeros" title="Pasajeros" icon={<Users className="w-5 h-5 text-green-600" />}>
