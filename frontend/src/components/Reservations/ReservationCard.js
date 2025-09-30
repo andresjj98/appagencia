@@ -73,7 +73,11 @@ const StatusBadge = ({ config }) => {
 };
 
 const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) => {
-  const { formatCurrency, formatDate } = useSettings();
+  const formatCOP = (value) => {
+    const numeric = Number(value) || 0;
+    return `COP ${numeric.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+  const { formatDate } = useSettings();
 
   if (!reservation) {
     return null;
@@ -161,7 +165,7 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
             </div>
             <div>
                 <p className="text-xs text-gray-500 text-right">Total</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(reservation.totalAmount)}</p>
+                <p className="text-xl font-bold text-gray-900">{formatCOP(reservation.totalAmount)}</p>
             </div>
         </div>
       </div>
@@ -169,4 +173,5 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
   );
 };
 
-export default ReservationCard;
+export default ReservationCard;
+
