@@ -1,4 +1,4 @@
-﻿require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const express = require('express');
 const cors = require('cors');
@@ -27,6 +27,7 @@ const airlineRoutes = require('./routes/airlines');
 const businessSettingsRoutes = require('./routes/businessSettings');
 const usersRoutes = require('./routes/users');
 const officesRoutes = require('./routes/offices');
+const installmentsRoutes = require('./routes/installments');
 const { getUnassociatedUsers } = require('./controllers/offices.controller');
 
 // Use routes
@@ -37,6 +38,7 @@ app.use('/api/airlines', airlineRoutes);
 app.use('/api/business-settings', businessSettingsRoutes);
 app.use('/api/usuarios', usersRoutes);
 app.use('/api/offices', officesRoutes);
+app.use('/api/installments', installmentsRoutes);
 app.get('/api/unassociated-users', getUnassociatedUsers);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...

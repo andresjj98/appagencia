@@ -1,6 +1,150 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../pages/AuthContext';
-import { ChevronDown, ChevronRight, Upload, File as FileIcon, Loader } from 'lucide-react';
+import { Upload, File as FileIcon, Loader, Info, X } from 'lucide-react';
+
+const statusColors = {
+  paid: 'bg-green-100 text-green-800',
+  pending: 'bg-yellow-100 text-yellow-800',
+  overdue: 'bg-red-100 text-red-800',
+};
+
+const getEffectiveStatus = (payment) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (payment.status === 'pending' && new Date(payment.due_date) < today) {
+    return 'overdue';
+  }
+  return payment.status;
+};
+
+const InstallmentManager = ({ reservation, onStatusChange, onFileSelect, onFileRemove, selectedFiles, hasPendingChanges, onSave, onCancel }) => (
+  <div className="px-4 py-4 border-t border-gray-200 bg-gray-50/50">
+    {hasPendingChanges && (
+      <div className="bg-yellow-100 p-3 rounded-lg flex justify-between items-center mb-4">
+        <p className="text-sm font-medium text-yellow-800">Tienes cambios de estado sin guardar.</p>
+        <div className="space-x-2">
+          <button onClick={() => onSave(reservation.id)} className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Guardar Estados</button>
+          <button onClick={() => onCancel(reservation.id)} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-50">Cancelar</button>
+        </div>
+      </div>
+    )}
+
+    <div className="space-y-4">
+      {reservation.payments.map((payment, index) => {
+        const effectiveStatus = getEffectiveStatus(payment);
+        return (
+          <div key={payment.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center p-3 bg-white rounded-md shadow-sm">
+            <div className="md:col-span-1">
+              <p className="text-sm font-medium text-gray-800">Cuota #{index + 1} (${payment.amount})</p>
+              <p className="text-sm text-gray-500">Vence: {new Date(payment.due_date).toLocaleDateString()}</p>
+            </div>
+            <div className="md:col-span-1">
+              <select 
+                value={effectiveStatus}
+                onChange={(e) => onStatusChange(reservation.id, payment.id, e.target.value)}
+                className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md ${statusColors[effectiveStatus] || ''}`}>
+                <option value="pending">Pendiente</option>
+                <option value="paid">Pagado</option>
+                <option value="overdue">Vencido</option>
+              </select>
+            </div>
+            <div className="md:col-span-1">
+              {payment.receipt_url ? (
+                <a href={payment.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                  <FileIcon size={16} className="mr-2" />
+                  Ver Comprobante
+                </a>
+              ) : (
+                <div className="flex items-center">
+                  <input 
+                    type="file" 
+                    id={`file-upload-${payment.id}`}
+                    className="hidden" 
+                    onChange={(e) => onFileSelect(payment.id, e.target.files[0])}
+                  />
+                  <label htmlFor={`file-upload-${payment.id}`} className="cursor-pointer flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+                    <Upload size={14} className="mr-1"/> Adjuntar
+                  </label>
+                  {selectedFiles[payment.id] && (
+                    <div className="flex items-center ml-2">
+                        <span className="text-xs text-gray-600 truncate w-28">{selectedFiles[payment.id].name}</span>
+                        <button onClick={() => onFileRemove(payment.id)} className="p-1 text-red-500 hover:text-red-700">
+                            <X size={14} />
+                        </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+      {reservation.payments.length === 0 && <p className='text-sm text-gray-500'>No hay cuotas definidas para esta reserva.</p>}
+    </div>
+  </div>
+);
+
+const FinanceDetailModal = ({ reservation, onClose, children }) => {
+    if (!reservation) return null;
+
+    const totalPaid = reservation.payments
+          .filter(p => p.status === 'paid')
+          .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    const balance = parseFloat(reservation.totalAmount || 0) - totalPaid;
+
+    const DetailItem = ({ label, value }) => (
+        <div>
+            <p className="text-sm text-gray-500">{label}</p>
+            <p className="font-semibold text-gray-800">{value || 'N/A'}</p>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-full overflow-y-auto">
+                <div className="sticky top-0 bg-white p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold">Detalles de la Reserva</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X /></button>
+                </div>
+                
+                <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <DetailItem label="Factura" value={reservation.invoiceNumber} />
+                        <DetailItem label="Titular" value={reservation.clientName} />
+                        <DetailItem label="ID" value={reservation.clientIdCard} />
+                        <DetailItem label="Celular" value={reservation.clientPhone} />
+                        <DetailItem label="Email" value={reservation.clientEmail} />
+                        <DetailItem label="Dirección" value={reservation.clientAddress} />
+                        <DetailItem label="Plan" value={reservation.reservationType} />
+                        <DetailItem label="Ruta" value={reservation.destinationSummary} />
+                        <DetailItem label="Salida" value={reservation.departureDate ? new Date(reservation.departureDate).toLocaleDateString() : 'N/A'} />
+                        <DetailItem label="Regreso" value={reservation.returnDate ? new Date(reservation.returnDate).toLocaleDateString() : 'N/A'} />
+                        <DetailItem label="Tipo de Pago" value={reservation.paymentOption} />
+                    </div>
+
+                    <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                        <h4 className="font-semibold text-md text-gray-800 mb-2">Resumen Financiero</h4>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div className="font-medium text-gray-600">Total Reserva:</div>
+                            <div className="col-span-2 text-right font-semibold text-gray-900">${parseFloat(reservation.totalAmount || 0).toFixed(2)}</div>
+
+                            <div className="font-medium text-gray-600">Total Pagado:</div>
+                            <div className="col-span-2 text-right font-semibold text-green-600">${totalPaid.toFixed(2)}</div>
+
+                            <div className="font-medium text-gray-600 border-t pt-2 mt-2">Saldo Pendiente:</div>
+                            <div className="col-span-2 text-right font-bold text-red-600 border-t pt-2 mt-2">${balance.toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6">
+                        <h3 className="text-xl font-bold mb-4">Cuotas</h3>
+                        {children}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const FinancePanel = () => {
   const [reservations, setReservations] = useState([]);
@@ -8,19 +152,10 @@ const FinancePanel = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [expandedReservation, setExpandedReservation] = useState(null);
   const [pendingStatusChanges, setPendingStatusChanges] = useState({});
   const [selectedFiles, setSelectedFiles] = useState({});
+  const [modalReservation, setModalReservation] = useState(null);
   const { currentUser } = useAuth();
-
-  const getEffectiveStatus = (payment) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (payment.status === 'pending' && new Date(payment.due_date) < today) {
-      return 'overdue';
-    }
-    return payment.status;
-  };
 
   useEffect(() => {
     if (currentUser) {
@@ -35,9 +170,12 @@ const FinancePanel = () => {
       const response = await fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`);
       if (!response.ok) throw new Error('Error al cargar los datos desde el backend.');
       const data = await response.json();
+
+      const filteredData = data.filter(res => res.status === 'confirmed' && (res.invoiceNumber || res.invoice_number));
       
       const newPendingChanges = {};
-      const formattedData = data.map(res => {
+      const formattedData = filteredData.map(res => {
+        const firstSegment = res.reservation_segments?.[0];
         const sortedPayments = (res.reservation_installments || []).sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         const updatedPayments = sortedPayments.map(p => {
             const effectiveStatus = getEffectiveStatus(p);
@@ -50,6 +188,17 @@ const FinancePanel = () => {
 
         return {
           ...res,
+          invoiceNumber: res.invoiceNumber || res.invoice_number,
+          clientName: res.clients?.name || '',
+          clientIdCard: res.clients?.id_card || '',
+          clientPhone: res.clients?.phone || '',
+          clientEmail: res.clients?.email || '',
+          clientAddress: res.clients?.address || '',
+          reservationType: res.reservation_type || 'other',
+          departureDate: firstSegment?.departure_date,
+          returnDate: firstSegment?.return_date,
+          destinationSummary: firstSegment ? `${firstSegment.origin ?? 'N/A'} -> ${firstSegment.destination ?? 'N/A'}` : 'Destino no especificado',
+          paymentOption: res.payment_option,
           payments: updatedPayments,
           totalAmount: res.total_amount
         };
@@ -84,11 +233,16 @@ const FinancePanel = () => {
 
   const handleSaveStatusChanges = async (reservationId) => {
     const reservation = reservations.find(r => r.id === reservationId);
-    const pendingPaymentIds = Object.keys(pendingStatusChanges);
-    const paymentsToChange = reservation.payments.filter(p => pendingPaymentIds.includes(p.id.toString()));
+    const paymentIdsToUpdate = reservation.payments.filter(p => pendingStatusChanges[p.id]).map(p => p.id);
+
+    if (paymentIdsToUpdate.length === 0) {
+        return;
+    }
+
+    const paymentsToChange = reservation.payments.filter(p => paymentIdsToUpdate.includes(p.id));
 
     const paymentsRequiringReceipt = paymentsToChange.filter(p =>
-        (pendingStatusChanges[p.id] === 'paid' || p.status === 'paid') && !p.receipt_url && !selectedFiles[p.id]
+        (pendingStatusChanges[p.id] === 'paid') && !p.receipt_url && !selectedFiles[p.id]
     );
 
     if (paymentsRequiringReceipt.length > 0) {
@@ -100,7 +254,7 @@ const FinancePanel = () => {
 
     try {
       const uploadPromises = paymentsToChange
-        .filter(p => (pendingStatusChanges[p.id] === 'paid' || p.status === 'paid') && selectedFiles[p.id])
+        .filter(p => (pendingStatusChanges[p.id] === 'paid') && selectedFiles[p.id])
         .map(async (p) => {
           const formData = new FormData();
           formData.append('receipt', selectedFiles[p.id]);
@@ -108,7 +262,10 @@ const FinancePanel = () => {
             method: 'POST',
             body: formData,
           });
-          if (!response.ok) throw new Error(`Error al subir el comprobante para la cuota #${p.id}`);
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+            throw new Error(`Error al subir el comprobante para la cuota #${p.id}: ${errorData.message}`);
+          }
           return response.json();
         });
 
@@ -118,23 +275,32 @@ const FinancePanel = () => {
         fetch(`http://localhost:4000/api/installments/${p.id}/status`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: p.status })
+          body: JSON.stringify({ status: pendingStatusChanges[p.id] })
         }).then(res => {
-          if (!res.ok) throw new Error(`Error al actualizar el estado para la cuota #${p.id}`);
+          if (!res.ok) {
+            const errorData = res.json().catch(() => ({ message: 'Error desconocido' }));
+            throw new Error(`Error al actualizar el estado para la cuota #${p.id}: ${errorData.message}`);
+          }
         })
       );
 
       await Promise.all(statusUpdatePromises);
 
+      const newPendingChanges = { ...pendingStatusChanges };
+      const newSelectedFiles = { ...selectedFiles };
+      paymentIdsToUpdate.forEach(id => {
+        delete newPendingChanges[id];
+        delete newSelectedFiles[id];
+      });
+      setPendingStatusChanges(newPendingChanges);
+      setSelectedFiles(newSelectedFiles);
+
       await fetchFinancialData();
-      setPendingStatusChanges({});
-      setSelectedFiles({});
 
       alert('¡Cambios guardados con éxito!');
 
     } catch (err) {
       alert(`Error al guardar los cambios: ${err.message}`);
-      fetchFinancialData();
     } finally {
       setIsSaving(false);
     }
@@ -154,14 +320,10 @@ const FinancePanel = () => {
     setSelectedFiles(prev => ({ ...prev, [paymentId]: file }));
   };
 
-  const toggleReservation = (id) => {
-    setExpandedReservation(expandedReservation === id ? null : id);
-  };
-
-  const statusColors = {
-    paid: 'bg-green-100 text-green-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    overdue: 'bg-red-100 text-red-800',
+  const handleFileRemove = (paymentId) => {
+    const newSelectedFiles = { ...selectedFiles };
+    delete newSelectedFiles[paymentId];
+    setSelectedFiles(newSelectedFiles);
   };
 
   const isReservationPaidUp = (reservation) => {
@@ -174,7 +336,7 @@ const FinancePanel = () => {
   if (reservations.length === 0) return <div className="text-center p-10"><h3 className="text-lg font-semibold">No se encontraron reservaciones facturadas</h3></div>;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {isSaving && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg flex items-center">
@@ -184,9 +346,7 @@ const FinancePanel = () => {
         </div>
       )}
       {reservations.map(reservation => {
-        const originalReservation = originalReservations.find(r => r.id === reservation.id);
-        const isPaidUp = isReservationPaidUp(originalReservation);
-        const hasPendingChanges = reservation.payments.some(p => pendingStatusChanges[p.id]);
+        const isPaidUp = isReservationPaidUp(reservation);
         const pendingCount = reservation.payments.filter(p => p.status === 'pending' || p.status === 'overdue').length;
 
         const totalPaid = reservation.payments
@@ -195,96 +355,61 @@ const FinancePanel = () => {
         const balance = parseFloat(reservation.totalAmount || 0) - totalPaid;
 
         return (
-          <div key={reservation.id} className="bg-white shadow-sm rounded-lg overflow-hidden">
-            <div className="px-4 py-3 grid grid-cols-5 gap-4 items-center cursor-pointer hover:bg-gray-50" onClick={() => toggleReservation(reservation.id)}>
-              <div className="font-medium text-gray-900 col-span-2">Factura: {reservation.invoiceNumber}</div>
-              <div className="text-sm text-gray-600">{reservation.clientName}</div>
-              <div className="text-sm text-gray-600">
-                {isPaidUp ? (
-                  <span className="font-semibold text-green-600">Reserva al día</span>
-                ) : (
-                  <span className="font-semibold text-orange-600">Cuotas Pendientes: {pendingCount}</span>
-                )}
+          <div key={reservation.id} className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="px-4 py-3">
+              <div className="flex justify-between items-start">
+                  <div>
+                      <p className="font-medium text-gray-900">Factura: {reservation.invoiceNumber}</p>
+                      <p className="text-sm text-gray-600">{reservation.clientName}</p>
+                  </div>
+                  <div className="flex items-center">
+                      <div className="text-sm text-gray-600 text-right mr-4">
+                          {isPaidUp ? (
+                              <span className="font-semibold text-green-600">Reserva al día</span>
+                          ) : (
+                              <span className="font-semibold text-orange-600">Cuotas Pendientes: {pendingCount}</span>
+                          )}
+                      </div>
+                  </div>
               </div>
-              <div className="flex justify-end">{expandedReservation === reservation.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}</div>
+              <div className="mt-2 text-sm text-gray-500">
+                  {reservation.departureDate && <p>Viaje: {new Date(reservation.departureDate).toLocaleDateString()}</p>}
+                  <p>Ruta: {reservation.destinationSummary}</p>
+              </div>
+              <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-sm">
+                  <div>
+                      <p className="text-gray-500">Pagado:</p>
+                      <p className="font-semibold text-green-600">${totalPaid.toFixed(2)}</p>
+                  </div>
+                  <div>
+                      <p className="text-gray-500 text-right">Saldo:</p>
+                      <p className="font-semibold text-red-600 text-right">${balance.toFixed(2)}</p>
+                  </div>
+              </div>
             </div>
 
-            {expandedReservation === reservation.id && (
-              <div className="px-4 py-4 border-t border-gray-200 bg-gray-50/50">
-                {hasPendingChanges && (
-                  <div className="bg-yellow-100 p-3 rounded-lg flex justify-between items-center mb-4">
-                    <p className="text-sm font-medium text-yellow-800">Tienes cambios de estado sin guardar.</p>
-                    <div className="space-x-2">
-                      <button onClick={() => handleSaveStatusChanges(reservation.id)} className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700">Guardar Estados</button>
-                      <button onClick={() => handleCancelStatusChanges(reservation.id)} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-50">Cancelar</button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  {reservation.payments.map((payment, index) => {
-                    const effectiveStatus = getEffectiveStatus(payment);
-                    return (
-                      <div key={payment.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center p-3 bg-white rounded-md shadow-sm">
-                        <div className="md:col-span-1">
-                          <p className="text-sm font-medium text-gray-800">Cuota #{index + 1} (${payment.amount})</p>
-                          <p className="text-sm text-gray-500">Vence: {new Date(payment.due_date).toLocaleDateString()}</p>
-                        </div>
-                        <div className="md:col-span-1">
-                          <select 
-                            value={effectiveStatus}
-                            onChange={(e) => handleStatusChange(reservation.id, payment.id, e.target.value)}
-                            className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md ${statusColors[effectiveStatus] || ''}`}>
-                            <option value="pending">Pendiente</option>
-                            <option value="paid">Pagado</option>
-                            <option value="overdue">Vencido</option>
-                          </select>
-                        </div>
-                        <div className="md:col-span-1">
-                          {payment.receipt_url ? (
-                            <a href={payment.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                              <FileIcon size={16} className="mr-2" />
-                              Ver Comprobante
-                            </a>
-                          ) : (
-                            <div className="flex items-center">
-                              <input 
-                                type="file" 
-                                id={`file-upload-${payment.id}`}
-                                className="hidden" 
-                                onChange={(e) => handleFileSelect(payment.id, e.target.files[0])}
-                              />
-                              <label htmlFor={`file-upload-${payment.id}`} className="cursor-pointer flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
-                                <Upload size={14} className="mr-1"/> Adjuntar
-                              </label>
-                              {selectedFiles[payment.id] && <span className="ml-2 text-xs text-gray-600 truncate w-28">{selectedFiles[payment.id].name}</span>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {reservation.payments.length === 0 && <p className='text-sm text-gray-500'>No hay cuotas definidas para esta reserva.</p>}
-                </div>
-
-                <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-                  <h4 className="font-semibold text-md text-gray-800 mb-2">Resumen Financiero</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div className="font-medium text-gray-600">Total Reserva:</div>
-                    <div className="col-span-2 text-right font-semibold text-gray-900">${parseFloat(reservation.totalAmount || 0).toFixed(2)}</div>
-
-                    <div className="font-medium text-gray-600">Total Pagado:</div>
-                    <div className="col-span-2 text-right font-semibold text-green-600">${totalPaid.toFixed(2)}</div>
-
-                    <div className="font-medium text-gray-600 border-t pt-2 mt-2">Saldo Pendiente:</div>
-                    <div className="col-span-2 text-right font-bold text-red-600 border-t pt-2 mt-2">${balance.toFixed(2)}</div>
-                  </div>
-                </div>
-
-              </div>
-            )}
+            <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+                <button onClick={() => setModalReservation(reservation)} className="text-sm font-semibold text-blue-600">
+                    Ver Detalles
+                </button>
+            </div>
           </div>
         )}
+      )}
+
+      {modalReservation && (
+        <FinanceDetailModal reservation={modalReservation} onClose={() => setModalReservation(null)}>
+            <InstallmentManager 
+                reservation={reservations.find(r => r.id === modalReservation.id)} 
+                onStatusChange={handleStatusChange} 
+                onFileSelect={handleFileSelect} 
+                onFileRemove={handleFileRemove}
+                selectedFiles={selectedFiles} 
+                hasPendingChanges={reservations.find(r => r.id === modalReservation.id).payments.some(p => pendingStatusChanges[p.id])}
+                onSave={handleSaveStatusChanges}
+                onCancel={handleCancelStatusChanges}
+            />
+        </FinanceDetailModal>
       )}
     </div>
   );

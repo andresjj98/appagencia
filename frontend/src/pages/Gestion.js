@@ -289,7 +289,7 @@ const Gestion = () => {
                           </div>
                           <div>
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Factura / ID</p>
-                            <p className="text-sm font-semibold text-gray-900 font-mono">
+                            <p className="text-lg font-bold text-blue-600 font-mono">
                               {reservation.invoiceNumber || reservation.id}
                             </p>
                           </div>

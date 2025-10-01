@@ -112,7 +112,7 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
           {shouldShowInvoiceNumber && (
             <div className="flex flex-col">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Factura</span>
-              <span className="text-sm font-semibold text-gray-900 font-mono">{formattedInvoiceNumber}</span>
+              <span className="text-lg font-bold text-blue-600 font-mono">{formattedInvoiceNumber}</span>
             </div>
           )}
         </div>
