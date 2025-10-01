@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../pages/AuthContext';
-import { Upload, File as FileIcon, Loader, Info, X } from 'lucide-react';
+import { Upload, File as FileIcon, Loader, Info, X, DollarSign, Calendar, MapPin, User, Hash, Phone, Mail, FileText, CreditCard, Search } from 'lucide-react';
 
 const statusColors = {
   paid: 'bg-green-100 text-green-800',
@@ -15,6 +16,21 @@ const getEffectiveStatus = (payment) => {
     return 'overdue';
   }
   return payment.status;
+};
+
+const getReservationTypeLabel = (reservation) => {
+  if (!reservation) return 'Servicios Varios';
+  if (reservation.reservation_flights?.length > 0 && reservation.reservation_hotels?.length > 0) return 'Paquete Completo';
+  if (reservation.reservation_flights?.length > 0) return 'Solo Vuelos';
+  if (reservation.reservation_hotels?.length > 0) return 'Solo Hotel';
+  if (reservation.reservation_tours?.length > 0) return 'Tours y Actividades';
+  if (reservation.reservation_medical_assistances?.length > 0) return 'Asistencia Medica';
+  return 'Servicios Varios';
+};
+
+const paymentOptionLabels = {
+    full_payment: 'Pago Completo',
+    installments: 'Pago a Cuotas',
 };
 
 const InstallmentManager = ({ reservation, onStatusChange, onFileSelect, onFileRemove, selectedFiles, hasPendingChanges, onSave, onCancel }) => (
@@ -92,10 +108,13 @@ const FinanceDetailModal = ({ reservation, onClose, children }) => {
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
     const balance = parseFloat(reservation.totalAmount || 0) - totalPaid;
 
-    const DetailItem = ({ label, value }) => (
-        <div>
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="font-semibold text-gray-800">{value || 'N/A'}</p>
+    const DetailItem = ({ icon: Icon, label, value }) => (
+        <div className="flex items-start gap-3">
+            <Icon className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
+            <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+                <p className="text-base font-semibold text-gray-900">{value || 'N/A'}</p>
+            </div>
         </div>
     );
 
@@ -109,17 +128,18 @@ const FinanceDetailModal = ({ reservation, onClose, children }) => {
                 
                 <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <DetailItem label="Factura" value={reservation.invoiceNumber} />
-                        <DetailItem label="Titular" value={reservation.clientName} />
-                        <DetailItem label="ID" value={reservation.clientIdCard} />
-                        <DetailItem label="Celular" value={reservation.clientPhone} />
-                        <DetailItem label="Email" value={reservation.clientEmail} />
-                        <DetailItem label="Dirección" value={reservation.clientAddress} />
-                        <DetailItem label="Plan" value={reservation.reservationType} />
-                        <DetailItem label="Ruta" value={reservation.destinationSummary} />
-                        <DetailItem label="Salida" value={reservation.departureDate ? new Date(reservation.departureDate).toLocaleDateString() : 'N/A'} />
-                        <DetailItem label="Regreso" value={reservation.returnDate ? new Date(reservation.returnDate).toLocaleDateString() : 'N/A'} />
-                        <DetailItem label="Tipo de Pago" value={reservation.paymentOption} />
+                        <DetailItem icon={FileIcon} label="Factura" value={reservation.invoiceNumber} />
+                        <DetailItem icon={User} label="Titular" value={reservation.clientName} />
+                        <DetailItem icon={Hash} label="ID" value={reservation.clientIdCard} />
+                        <DetailItem icon={Phone} label="Celular" value={reservation.clientPhone} />
+                        <DetailItem icon={Mail} label="Email" value={reservation.clientEmail} />
+                        <DetailItem icon={MapPin} label="Dirección" value={reservation.clientAddress} />
+                        <DetailItem icon={FileText} label="Plan" value={getReservationTypeLabel(reservation)} />
+                        <DetailItem icon={MapPin} label="Ruta" value={reservation.destinationSummary} />
+                        <DetailItem icon={Calendar} label="Salida" value={reservation.departureDate ? new Date(reservation.departureDate).toLocaleDateString() : 'N/A'} />
+                        <DetailItem icon={Calendar} label="Regreso" value={reservation.returnDate ? new Date(reservation.returnDate).toLocaleDateString() : 'N/A'} />
+                        <DetailItem icon={CreditCard} label="Tipo de Pago" value={paymentOptionLabels[reservation.paymentOption] || reservation.paymentOption} />
+                        <DetailItem icon={User} label="Asesor" value={reservation.advisorName} />
                     </div>
 
                     <div className="mt-6 p-4 bg-gray-100 rounded-lg">
@@ -155,6 +175,8 @@ const FinancePanel = () => {
   const [pendingStatusChanges, setPendingStatusChanges] = useState({});
   const [selectedFiles, setSelectedFiles] = useState({});
   const [modalReservation, setModalReservation] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -167,11 +189,27 @@ const FinancePanel = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`);
-      if (!response.ok) throw new Error('Error al cargar los datos desde el backend.');
-      const data = await response.json();
+      const [reservationsResponse, airportsResponse] = await Promise.all([
+        fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`),
+        fetch('http://localhost:4000/api/airports')
+      ]);
 
-      const filteredData = data.filter(res => res.status === 'confirmed' && (res.invoiceNumber || res.invoice_number));
+      if (!reservationsResponse.ok) throw new Error('Error al cargar las reservaciones.');
+      if (!airportsResponse.ok) {
+        const errorData = await airportsResponse.json().catch(() => ({ message: 'Error desconocido' }));
+        const errorMessage = `Error al cargar los aeropuertos: ${errorData.message || 'Error desconocido'}. ${errorData.details ? `Detalle: ${errorData.details}` : ''}`;
+        throw new Error(errorMessage);
+      }
+
+      const reservationsData = await reservationsResponse.json();
+      const airportsData = await airportsResponse.json();
+
+      const airportsMap = airportsData.reduce((acc, airport) => {
+          acc[airport.iata_code] = airport.city;
+          return acc;
+      }, {});
+
+      const filteredData = reservationsData.filter(res => res.status === 'confirmed' && (res.invoiceNumber || res.invoice_number));
       
       const newPendingChanges = {};
       const formattedData = filteredData.map(res => {
@@ -186,6 +224,10 @@ const FinancePanel = () => {
             return p;
         });
 
+        const originName = airportsMap[firstSegment?.origin] || firstSegment?.origin || 'N/A';
+        const destinationName = airportsMap[firstSegment?.destination] || firstSegment?.destination || 'N/A';
+        const destinationSummaryWithNames = firstSegment ? `${originName} -> ${destinationName}` : 'Destino no especificado';
+
         return {
           ...res,
           invoiceNumber: res.invoiceNumber || res.invoice_number,
@@ -194,10 +236,11 @@ const FinancePanel = () => {
           clientPhone: res.clients?.phone || '',
           clientEmail: res.clients?.email || '',
           clientAddress: res.clients?.address || '',
+          advisorName: res.advisor?.name || 'No asignado',
           reservationType: res.reservation_type || 'other',
           departureDate: firstSegment?.departure_date,
           returnDate: firstSegment?.return_date,
-          destinationSummary: firstSegment ? `${firstSegment.origin ?? 'N/A'} -> ${firstSegment.destination ?? 'N/A'}` : 'Destino no especificado',
+          destinationSummary: destinationSummaryWithNames,
           paymentOption: res.payment_option,
           payments: updatedPayments,
           totalAmount: res.total_amount
@@ -326,76 +369,161 @@ const FinancePanel = () => {
     setSelectedFiles(newSelectedFiles);
   };
 
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+  };
+
   const isReservationPaidUp = (reservation) => {
     if (!reservation || !reservation.payments) return false;
     return reservation.payments.length > 0 && reservation.payments.every(p => p.status === 'paid');
   };
+
+  const getReservationPaymentStatus = (reservation) => {
+    if (isReservationPaidUp(reservation)) {
+      return 'paid';
+    }
+    if (reservation.payments.some(p => getEffectiveStatus(p) === 'overdue')) {
+      return 'overdue';
+    }
+    return 'pending';
+  };
+
+  const filteredReservations = reservations
+    .filter(reservation => {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      const clientName = reservation.clientName || '';
+      const destination = reservation.destinationSummary || '';
+      const invoice = reservation.invoiceNumber ? reservation.invoiceNumber.toString() : '';
+      return (
+        clientName.toLowerCase().includes(lowerCaseSearchTerm) ||
+        destination.toLowerCase().includes(lowerCaseSearchTerm) ||
+        invoice.toLowerCase().includes(lowerCaseSearchTerm)
+      );
+    })
+    .filter(reservation => {
+      if (!statusFilter) return true;
+      const paymentStatus = getReservationPaymentStatus(reservation);
+      return paymentStatus === statusFilter;
+    });
 
   if (loading) return <div className="text-center p-10">Cargando datos financieros...</div>;
   if (error) return <div className="text-center p-10 text-red-600 bg-red-50 rounded-lg">{error}</div>;
   if (reservations.length === 0) return <div className="text-center p-10"><h3 className="text-lg font-semibold">No se encontraron reservaciones facturadas</h3></div>;
 
   return (
-    <div className="space-y-4">
-      {isSaving && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg flex items-center">
-            <Loader className="animate-spin mr-3" />
-            <span className="font-medium">Guardando cambios...</span>
-          </div>
+    <div>
+        <div className="flex flex-wrap gap-4 mb-6">
+            <div className="relative w-full max-w-sm">
+                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                type="text"
+                placeholder="Buscar por factura, cliente o destino"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+            </div>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full max-w-xs bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <option value="">Todos los estados</option>
+                <option value="paid">Pagadas</option>
+                <option value="pending">Pendientes</option>
+                <option value="overdue">Vencidas</option>
+            </select>
+            <button onClick={handleClearFilters} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">
+                Limpiar Filtros
+            </button>
         </div>
-      )}
-      {reservations.map(reservation => {
-        const isPaidUp = isReservationPaidUp(reservation);
-        const pendingCount = reservation.payments.filter(p => p.status === 'pending' || p.status === 'overdue').length;
-
-        const totalPaid = reservation.payments
-          .filter(p => p.status === 'paid')
-          .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-        const balance = parseFloat(reservation.totalAmount || 0) - totalPaid;
-
-        return (
-          <div key={reservation.id} className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="px-4 py-3">
-              <div className="flex justify-between items-start">
-                  <div>
-                      <p className="font-medium text-gray-900">Factura: {reservation.invoiceNumber}</p>
-                      <p className="text-sm text-gray-600">{reservation.clientName}</p>
-                  </div>
-                  <div className="flex items-center">
-                      <div className="text-sm text-gray-600 text-right mr-4">
-                          {isPaidUp ? (
-                              <span className="font-semibold text-green-600">Reserva al día</span>
-                          ) : (
-                              <span className="font-semibold text-orange-600">Cuotas Pendientes: {pendingCount}</span>
-                          )}
-                      </div>
-                  </div>
-              </div>
-              <div className="mt-2 text-sm text-gray-500">
-                  {reservation.departureDate && <p>Viaje: {new Date(reservation.departureDate).toLocaleDateString()}</p>}
-                  <p>Ruta: {reservation.destinationSummary}</p>
-              </div>
-              <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-sm">
-                  <div>
-                      <p className="text-gray-500">Pagado:</p>
-                      <p className="font-semibold text-green-600">${totalPaid.toFixed(2)}</p>
-                  </div>
-                  <div>
-                      <p className="text-gray-500 text-right">Saldo:</p>
-                      <p className="font-semibold text-red-600 text-right">${balance.toFixed(2)}</p>
-                  </div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {isSaving && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded-lg flex items-center">
+                <Loader className="animate-spin mr-3" />
+                <span className="font-medium">Guardando cambios...</span>
             </div>
-
-            <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
-                <button onClick={() => setModalReservation(reservation)} className="text-sm font-semibold text-blue-600">
-                    Ver Detalles
-                </button>
             </div>
-          </div>
         )}
-      )}
+        {filteredReservations.map(reservation => {
+            const isPaidUp = isReservationPaidUp(reservation);
+            const pendingCount = reservation.payments.filter(p => p.status === 'pending' || p.status === 'overdue').length;
+
+            const totalPaid = reservation.payments
+            .filter(p => p.status === 'paid')
+            .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            const balance = parseFloat(reservation.totalAmount || 0) - totalPaid;
+
+            return (
+            <div key={reservation.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-full overflow-hidden">
+                {/* Header */}
+                <div className="flex items-start justify-between p-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-green-500">
+                    <DollarSign className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Factura</p>
+                    <p className="text-lg font-bold text-blue-600 font-mono">{reservation.invoiceNumber}</p>
+                    </div>
+                </div>
+                <div className="text-sm text-gray-600 text-right">
+                    {isPaidUp ? (
+                        <span className="font-semibold text-green-600">Reserva al día</span>
+                    ) : (
+                        <span className="font-semibold text-orange-600">Cuotas Pendientes: {pendingCount}</span>
+                    )}
+                </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-5 space-y-4 flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 truncate">{reservation.clientName}</h3>
+                    
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <MapPin className="w-5 h-5 text-gray-500" />
+                    <p className="text-sm font-medium text-gray-900">{reservation.destinationSummary}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase tracking-wider">Salida</p>
+                                <p className="font-medium text-gray-900">{reservation.departureDate ? new Date(reservation.departureDate).toLocaleDateString() : 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase tracking-wider">Regreso</p>
+                                <p className="font-medium text-gray-900">{reservation.returnDate ? new Date(reservation.returnDate).toLocaleDateString() : 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-5 border-t border-gray-200 bg-gray-50 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Pagado</p>
+                            <p className="text-xl font-bold text-green-600">${totalPaid.toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider text-right">Saldo</p>
+                            <p className="text-xl font-bold text-red-600 text-right">${balance.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end">
+                        <button onClick={() => setModalReservation(reservation)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                            <Info className="w-4 h-4" />
+                            Ver Detalles
+                        </button>
+                    </div>
+                </div>
+            </div>
+            )}
+        )}
+        </div>
 
       {modalReservation && (
         <FinanceDetailModal reservation={modalReservation} onClose={() => setModalReservation(null)}>
