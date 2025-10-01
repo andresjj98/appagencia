@@ -5,16 +5,16 @@ const DetailItem = ({ icon: Icon, label, children, isEditing, value, onChange, t
   <div className="flex items-start gap-3">
     <Icon className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
     <div>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
       {isEditing ? (
         <input
           type={type}
           value={value}
           onChange={onChange}
-          className="text-base font-semibold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none w-full"
+          className="text-lg font-semibold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none w-full"
         />
       ) : (
-        <p className="text-base font-semibold text-gray-900">{children}</p>
+        <p className="text-lg font-semibold text-gray-900">{children}</p>
       )}
     </div>
   </div>

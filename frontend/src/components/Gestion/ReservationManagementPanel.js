@@ -124,7 +124,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
           </motion.button>
           <div>
             <h2 className="text-lg font-bold text-white">Panel de Gestion</h2>
-            <p className="text-xs text-white/70 font-mono uppercase tracking-wide">{reservation._original.invoiceNumber}</p>
+            <p className="text-4xl font-bold text-yellow-300 font-mono uppercase tracking-wide">{reservation._original.invoiceNumber}</p>
           </div>
         </div>
         <nav className="flex flex-col space-y-2">
