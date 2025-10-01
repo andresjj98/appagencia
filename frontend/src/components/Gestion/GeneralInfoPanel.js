@@ -5,25 +5,25 @@ const DetailItem = ({ icon: Icon, label, children, isEditing, value, onChange, t
   <div className="flex items-start gap-3">
     <Icon className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
     <div>
-      <p className="text-sm font-medium text-gray-500">{label}</p>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
       {isEditing ? (
-        <input 
+        <input
           type={type}
           value={value}
           onChange={onChange}
-          className="text-md font-semibold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none w-full"
+          className="text-base font-semibold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none w-full"
         />
       ) : (
-        <p className="text-md font-semibold text-gray-800">{children}</p>
+        <p className="text-base font-semibold text-gray-900">{children}</p>
       )}
     </div>
   </div>
 );
 
 const Section = ({ title, children, onEdit, isEditing, onSave, onCancel }) => (
-  <div className="bg-white p-6 rounded-xl border border-gray-200 relative">
-    <div className="flex justify-between items-center mb-4">
-      <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+  <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+    <div className="flex justify-between items-center mb-5">
+      <h3 className="text-xl font-bold text-gray-800">{title}</h3>
       <div className="flex gap-2">
         {isEditing ? (
           <>
@@ -152,13 +152,13 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
   const pendingInstallments = Math.max(installments.length - paidInstallments - overdueInstallments, 0);
   const paymentStatus = normalizeStatus(reservation._original.payment_status || reservation._original.paymentStatus);
 
-  let paymentSummaryText = 'Sin informaci?n de pagos.';
+  let paymentSummaryText = 'Sin informacion de pagos.';
   let paymentStatusDetails = null;
 
   if (paymentOption === 'full_payment') {
     paymentSummaryText = paymentStatus === 'paid'
-      ? 'Pago ?nico completado.'
-      : 'Pago ?nico pendiente.';
+      ? 'Pago unico completado.'
+      : 'Pago unico pendiente.';
   } else if (paymentOption === 'installments' || installments.length > 0) {
     paymentSummaryText = `Pago a cuotas con ${installments.length} cuota(s).`;
     if (installments.length > 0) {
@@ -168,44 +168,44 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
 
   return (
     <div className="space-y-6">
-      <Section 
-        title="Informaci?n del Titular" 
-        isEditing={isEditing} 
-        onEdit={() => setIsEditing(true)} 
-        onSave={handleSave} 
+      <Section
+        title="Informacion del Titular"
+        isEditing={isEditing}
+        onEdit={() => setIsEditing(true)}
+        onSave={handleSave}
         onCancel={() => setIsEditing(false)}
       >
-        <DetailItem 
-          icon={User} 
-          label="Nombre" 
-          isEditing={isEditing} 
+        <DetailItem
+          icon={User}
+          label="Nombre"
+          isEditing={isEditing}
           value={editedData.clientName || ''}
           onChange={(e) => handleFieldChange('clientName', e.target.value)}
         >
           {clientData?.name || 'N/A'}
         </DetailItem>
-        <DetailItem 
-          icon={Mail} 
-          label="Email" 
-          isEditing={isEditing} 
+        <DetailItem
+          icon={Mail}
+          label="Email"
+          isEditing={isEditing}
           value={editedData.clientEmail || ''}
           onChange={(e) => handleFieldChange('clientEmail', e.target.value)}
         >
           {clientData?.email || 'N/A'}
         </DetailItem>
-        <DetailItem 
-          icon={Phone} 
-          label="Tel?fono" 
-          isEditing={isEditing} 
+        <DetailItem
+          icon={Phone}
+          label="Telefono"
+          isEditing={isEditing}
           value={editedData.clientPhone || ''}
           onChange={(e) => handleFieldChange('clientPhone', e.target.value)}
         >
           {clientData?.phone || 'N/A'}
         </DetailItem>
-        <DetailItem 
-          icon={Hash} 
-          label="Documento de Identidad" 
-          isEditing={isEditing} 
+        <DetailItem
+          icon={Hash}
+          label="Documento de Identidad"
+          isEditing={isEditing}
           value={editedData.clientIdCard || ''}
           onChange={(e) => handleFieldChange('clientIdCard', e.target.value)}
         >
@@ -213,7 +213,7 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
         </DetailItem>
         <DetailItem
           icon={MapPin}
-          label="Direcci?n"
+          label="Direccion"
           isEditing={isEditing}
           value={editedData.clientAddress || ''}
           onChange={(e) => handleFieldChange('clientAddress', e.target.value)}
@@ -231,7 +231,7 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
         </DetailItem>
         <DetailItem
           icon={Phone}
-          label="Tel?fono de Emergencia"
+          label="Telefono de Emergencia"
           isEditing={isEditing}
           value={editedData.emergencyContactPhone || ''}
           onChange={(e) => handleFieldChange('emergencyContactPhone', e.target.value)}
@@ -241,18 +241,18 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
         </DetailItem>
       </Section>
 
-      <Section 
+      <Section
         title="Detalles del Viaje"
-        isEditing={isEditing} 
-        onEdit={() => setIsEditing(true)} 
-        onSave={handleSave} 
+        isEditing={isEditing}
+        onEdit={() => setIsEditing(true)}
+        onSave={handleSave}
         onCancel={() => setIsEditing(false)}
       >
         <div className="col-span-2 grid grid-cols-1 gap-6">
           {(editedData.segments || []).map((segment, index) => (
-            <div key={index} className="p-4 border rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailItem 
-                icon={MapPin} 
+            <div key={index} className="p-4 border rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50">
+              <DetailItem
+                icon={MapPin}
                 label={`Origen Tramo ${index + 1}`}
                 isEditing={isEditing}
                 value={segment.origin || ''}
@@ -260,8 +260,8 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
               >
                 {formatSegmentLocation(segment, 'origin')}
               </DetailItem>
-              <DetailItem 
-                icon={MapPin} 
+              <DetailItem
+                icon={MapPin}
                 label={`Destino Tramo ${index + 1}`}
                 isEditing={isEditing}
                 value={segment.destination || ''}
@@ -269,8 +269,8 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
               >
                 {formatSegmentLocation(segment, 'destination')}
               </DetailItem>
-              <DetailItem 
-                icon={Calendar} 
+              <DetailItem
+                icon={Calendar}
                 label="Fecha de Salida"
                 isEditing={isEditing}
                 type="date"
@@ -279,8 +279,8 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
               >
                 {segment.departure_date ? new Date(segment.departure_date).toLocaleDateString() : 'N/A'}
               </DetailItem>
-              <DetailItem 
-                icon={Calendar} 
+              <DetailItem
+                icon={Calendar}
                 label="Fecha de Regreso"
                 isEditing={isEditing}
                 type="date"
@@ -299,26 +299,26 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
         </div>
       </Section>
 
-      <div className="bg-white p-6 rounded-xl border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Resumen de Servicios Contratados</h3>
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Resumen de Servicios Contratados</h3>
         <ul className="list-disc list-inside space-y-2 text-gray-700">
           {reservation._original.reservation_flights?.length > 0 && <li>{reservation._original.reservation_flights.length} Vuelo(s)</li>}
           {reservation._original.reservation_hotels?.length > 0 && <li>{reservation._original.reservation_hotels.length} Hotel(es)</li>}
           {reservation._original.reservation_tours?.length > 0 && <li>{reservation._original.reservation_tours.length} Tour(s)</li>}
-          {reservation._original.reservation_medical_assistances?.length > 0 && <li>{reservation._original.reservation_medical_assistances.length} Asistencia(s) M?dica(s)</li>}
+          {reservation._original.reservation_medical_assistances?.length > 0 && <li>{reservation._original.reservation_medical_assistances.length} Asistencia(s) Medica(s)</li>}
         </ul>
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-md font-semibold text-gray-800">Pasajeros</h4>
+            <h4 className="text-lg font-semibold text-gray-800">Pasajeros</h4>
             <p className="text-gray-700">{totalPassengersText}</p>
             <ul className="mt-2 text-sm text-gray-600 space-y-1">
               <li>Adultos (ADT): {passengersADT}</li>
-              <li>Ni?os (CHD): {passengersCHD}</li>
+              <li>Ninos (CHD): {passengersCHD}</li>
               <li>Infantes (INF): {passengersINF}</li>
             </ul>
           </div>
           <div>
-            <h4 className="text-md font-semibold text-gray-800">Plan de Pagos</h4>
+            <h4 className="text-lg font-semibold text-gray-800">Plan de Pagos</h4>
             <p className="text-gray-700">{paymentSummaryText}</p>
             {paymentStatusDetails && (
               <p className="text-sm text-gray-600 mt-2">{paymentStatusDetails}</p>

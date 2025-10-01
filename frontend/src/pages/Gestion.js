@@ -1,53 +1,85 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, 
-  User, 
-  Calendar, 
-  Edit, 
-  FileText, 
-  Upload, 
-  Download, 
-  Mail, 
+import {
+  Search,
+  Calendar,
+  Mail,
   Phone,
   Eye,
-  PlusCircle,
-  ArrowLeft,
-  DollarSign,
   Users,
   Clock,
-  Package,
-  AlertTriangle
+  MapPin,
+  Globe,
+  Plane,
+  Hotel,
+  Ticket,
+  HeartPulse,
+  Info
 } from 'lucide-react';
-import { RESERVATION_STATUS } from '../utils/constants';
+import { RESERVATION_STATUS, PAYMENT_STATUS } from '../utils/constants';
 import ReservationManagementPanel from '../components/Gestion/ReservationManagementPanel';
 import { useSettings } from '../utils/SettingsContext';
 import { useAuth } from './AuthContext';
 
 const getUrgency = (departureDate) => {
-    if (!departureDate) return null;
-    const today = new Date();
-    const departure = new Date(departureDate);
-    today.setHours(0, 0, 0, 0);
-    departure.setHours(0, 0, 0, 0);
+  if (!departureDate) return null;
+  const today = new Date();
+  const departure = new Date(departureDate);
+  today.setHours(0, 0, 0, 0);
+  departure.setHours(0, 0, 0, 0);
 
-    const diffTime = departure.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const diffTime = departure.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return { label: '¡VIAJE PASADO!', color: 'bg-gray-500 text-white' };
-    if (diffDays === 0) return { label: '¡SALE HOY!', color: 'bg-red-600 text-white animate-pulse' };
-    if (diffDays <= 3) return { label: 'URGENCIA MÁXIMA', color: 'bg-red-500 text-white' };
-    if (diffDays <= 7) return { label: 'PRÓXIMA A SALIR', color: 'bg-yellow-400 text-yellow-900' };
+  if (diffDays < 0) return { label: 'Viaje pasado', badgeClasses: 'bg-gray-100 text-gray-600' };
+  if (diffDays === 0) return { label: 'Sale hoy', badgeClasses: 'bg-red-100 text-red-700 border border-red-200 animate-pulse' };
+  if (diffDays <= 3) return { label: 'Urgente', badgeClasses: 'bg-orange-100 text-orange-700 border border-orange-200' };
+  if (diffDays <= 7) return { label: 'Proxima salida', badgeClasses: 'bg-yellow-100 text-yellow-700 border border-yellow-200' };
+  return null;
+};
+
+const getReservationTypeLabel = (reservation) => {
+  if (!reservation) return 'Servicios Varios';
+  if (reservation.reservation_flights?.length > 0 && reservation.reservation_hotels?.length > 0) return 'Paquete Completo';
+  if (reservation.reservation_flights?.length > 0) return 'Solo Vuelos';
+  if (reservation.reservation_hotels?.length > 0) return 'Solo Hotel';
+  if (reservation.reservation_tours?.length > 0) return 'Tours y Actividades';
+  if (reservation.reservation_medical_assistances?.length > 0) return 'Asistencia Medica';
+  return 'Servicios Varios';
+};
+
+const getReservationTypeIconConfig = (type) => {
+  switch (type) {
+    case 'all_inclusive':
+      return { Icon: Globe, wrapperClass: 'bg-blue-500' };
+    case 'flights_only':
+      return { Icon: Plane, wrapperClass: 'bg-sky-500' };
+    case 'hotel_only':
+      return { Icon: Hotel, wrapperClass: 'bg-purple-500' };
+    case 'tours_only':
+      return { Icon: Ticket, wrapperClass: 'bg-amber-500' };
+    case 'medical_assistance':
+      return { Icon: HeartPulse, wrapperClass: 'bg-red-500' };
+    default:
+      return { Icon: Info, wrapperClass: 'bg-gray-500' };
+  }
+};
+
+const StatusBadge = ({ config }) => {
+  if (!config) {
     return null;
+  }
+  const IconRef = config.icon;
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${config.bgColor} ${config.textColor}`}>
+      {IconRef && <IconRef className="w-3 h-3" />}
+      <span>{config.label}</span>
+    </div>
+  );
 };
 
-const getReservationType = (reservation) => {
-    if (reservation.reservation_flights?.length > 0 && reservation.reservation_hotels?.length > 0) return 'Paquete Completo';
-    if (reservation.reservation_flights?.length > 0) return 'Solo Vuelos';
-    if (reservation.reservation_hotels?.length > 0) return 'Solo Hotel';
-    if (reservation.reservation_tours?.length > 0) return 'Tours y Actividades';
-    return 'Servicios Varios';
-};
+const primaryButtonClasses = 'flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200';
+const actionButtonClasses = 'px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150';
 
 const transformReservationForGestion = (reservation) => {
   if (!reservation) {
@@ -55,6 +87,13 @@ const transformReservationForGestion = (reservation) => {
   }
 
   const firstSegment = reservation.reservation_segments?.[0];
+  const passengersADT = Number(reservation.passengers_adt ?? reservation.passengersADT ?? 0);
+  const passengersCHD = Number(reservation.passengers_chd ?? reservation.passengersCHD ?? 0);
+  const passengersINF = Number(reservation.passengers_inf ?? reservation.passengersINF ?? 0);
+  const totalPassengers = passengersADT + passengersCHD + passengersINF;
+  const totalAmount = Number(reservation.total_amount ?? reservation.totalAmount ?? 0);
+  const paymentStatus = reservation.payment_status ?? reservation.paymentStatus ?? reservation._original?.payment_status;
+  const destinationSummary = firstSegment ? `${firstSegment.origin ?? 'N/A'} -> ${firstSegment.destination ?? 'N/A'}` : 'Destino no especificado';
 
   return {
     ...reservation,
@@ -67,7 +106,13 @@ const transformReservationForGestion = (reservation) => {
     updatedAt: reservation.updatedAt ?? reservation.updated_at ?? '',
     departureDate: reservation.departureDate ?? firstSegment?.departure_date ?? reservation.departure_date ?? '',
     returnDate: reservation.returnDate ?? firstSegment?.return_date ?? reservation.return_date ?? '',
-    totalAmount: reservation.totalAmount ?? reservation.total_amount ?? 0,
+    total_amount: totalAmount,
+    passengersADT,
+    passengersCHD,
+    passengersINF,
+    totalPassengers,
+    destinationSummary,
+    paymentStatus,
   };
 };
 
@@ -104,10 +149,7 @@ const Gestion = () => {
   const filteredReservations = reservations.filter(reservation => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const clientName = reservation.clientName || '';
-    
-    const firstSegment = reservation.reservation_segments && reservation.reservation_segments[0];
-    const destination = firstSegment ? `${firstSegment.origin} - ${firstSegment.destination}` : '';
-
+    const destination = reservation.destinationSummary || '';
     const invoice = reservation.invoiceNumber ? reservation.invoiceNumber.toString() : '';
     return (
       clientName.toLowerCase().includes(lowerCaseSearchTerm) ||
@@ -126,8 +168,6 @@ const Gestion = () => {
   });
 
   const handleViewReservationDetail = (reservation) => {
-    // The detail components expect a specific structure where the full reservation object
-    // is nested under an `_original` key. We create that structure here.
     setSelectedReservation({
       ...reservation,
       _original: reservation,
@@ -150,7 +190,7 @@ const Gestion = () => {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error al aprobar la reserva');
       }
-      fetchReservations(); // Refetch to get updated data
+      fetchReservations();
     } catch (error) {
       console.error('Error approving reservation:', error);
       alert(error.message);
@@ -164,7 +204,7 @@ const Gestion = () => {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error al rechazar la reserva');
       }
-      fetchReservations(); // Refetch to get updated data
+      fetchReservations();
     } catch (error) {
       console.error('Error rejecting reservation:', error);
       alert(error.message);
@@ -186,11 +226,8 @@ const Gestion = () => {
         throw new Error(errorData.message || 'Error al actualizar la reserva');
       }
 
-      alert('Reserva actualizada con éxito');
-
-      // Refetch reservations to get the latest data
+      alert('Reserva actualizada con exito');
       fetchReservations();
-      // Update the selected reservation to show the changes immediately
       setSelectedReservation(updatedReservation);
     } catch (error) {
       console.error('Error updating reservation:', error);
@@ -200,35 +237,41 @@ const Gestion = () => {
 
   return (
     <motion.div
-      className="p-6 space-y-6"
+      className="relative min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 p-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
       {!selectedReservation && (
-        <>
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Gestión de Reservas</h2>
-            <div className="relative">
-              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Gestion de Reservas</h1>
+              <p className="text-sm text-gray-500">Controla el estado, pagos y servicios contratados con una vista unificada.</p>
+            </div>
+            <div className="relative w-full max-w-sm">
+              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Buscar cliente o reserva..."
+                placeholder="Buscar cliente, destino o factura"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <AnimatePresence>
               {sortedReservations.length > 0 ? (
                 sortedReservations.map((reservation, index) => {
                   const urgency = getUrgency(reservation.departureDate);
-                  const reservationType = getReservationType(reservation);
-                  const firstSegment = reservation.reservation_segments && reservation.reservation_segments[0];
-                  const destinationDisplay = firstSegment ? `${firstSegment.origin} - ${firstSegment.destination}` : 'Destino no especificado';
+                  const reservationTypeLabel = getReservationTypeLabel(reservation);
+                  const reservationTypeKey = reservation.reservation_type || reservation._original?.reservation_type || 'other';
+                  const { Icon: TypeIcon, wrapperClass } = getReservationTypeIconConfig(reservationTypeKey);
+                  const statusConfig = RESERVATION_STATUS[reservation.status];
+                  const paymentStatusKey = reservation.paymentStatus ?? reservation.payment_status ?? reservation._original?.payment_status;
+                  const paymentConfig = paymentStatusKey ? PAYMENT_STATUS[paymentStatusKey] : null;
 
                   return (
                     <motion.div
@@ -237,58 +280,131 @@ const Gestion = () => {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                      className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-full overflow-hidden hover:shadow-xl transition-all duration-300"
                     >
-                      <div>
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1 mr-2">
-                            <h3 className="text-lg font-bold text-gray-900 truncate" title={destinationDisplay}>{destinationDisplay}</h3>
-                            <p className="text-sm text-gray-500 font-mono">{reservation.invoiceNumber ? `Reserva numero: ${reservation.invoiceNumber}` : `ID: ${reservation.id}`}</p>
+                      <div className="flex items-start justify-between p-4 border-b border-gray-200 bg-gray-50">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${wrapperClass}`}>
+                            <TypeIcon className="w-5 h-5 text-white" />
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${RESERVATION_STATUS[reservation.status]?.bgColor} ${RESERVATION_STATUS[reservation.status]?.textColor}`}>
-                            {RESERVATION_STATUS[reservation.status]?.label}
-                          </span>
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Factura / ID</p>
+                            <p className="text-sm font-semibold text-gray-900 font-mono">
+                              {reservation.invoiceNumber || reservation.id}
+                            </p>
+                          </div>
                         </div>
-
-                        {urgency && (
-                          <div className={`mb-4 p-2 rounded-lg text-center text-xs font-bold ${urgency.color} flex items-center justify-center gap-2`}>
-                            <AlertTriangle className="w-4 h-4" />
-                            {urgency.label}
-                          </div>
-                        )}
-
-                        <div className="space-y-3 text-sm text-gray-700 mb-4">
-                          <p className="flex items-center gap-2"><User className="w-4 h-4 text-gray-400 flex-shrink-0" /> <span className="truncate" title={reservation.clientName}>{reservation.clientName}</span></p>
-                          <p className="flex items-center gap-2"><Package className="w-4 h-4 text-gray-400 flex-shrink-0" /> {reservationType}</p>
-                          <p className="flex items-center gap-2"><Clock className="w-4 h-4 text-gray-400 flex-shrink-0" /> Creada: {formatDate(reservation.createdAt)}</p>
-                          <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" /> Salida: {formatDate(reservation.departureDate)}</p>
-                          <p className="flex items-center gap-2 font-semibold text-base text-gray-800 mt-2"><DollarSign className="w-4 h-4 text-gray-400 flex-shrink-0" /> Total: {formatCurrency(reservation.total_amount)}</p>
+                        <div className="flex flex-col items-end gap-2">
+                          {urgency && (
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${urgency.badgeClasses}`}>
+                              {urgency.label}
+                            </span>
+                          )}
+                          {statusConfig && <StatusBadge config={statusConfig} />}
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-end gap-2 mt-auto pt-4 border-t border-gray-100">
-                        {reservation.status === 'pending' && (
-                          <>
-                            <motion.button onClick={() => handleApprove(reservation.id)} className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-semibold" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                              Aprobar
-                            </motion.button>
-                            <motion.button onClick={() => handleReject(reservation.id)} className="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-semibold" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                              Rechazar
-                            </motion.button>
-                          </>
-                        )}
-                        <motion.button
-                          onClick={() => handleViewReservationDetail(reservation)}
-                          className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <Eye className="w-4 h-4" />
-                          Gestionar
-                        </motion.button>
+                      <div className="p-5 space-y-4 flex-1">
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-bold text-gray-900 truncate" title={reservation.clientName || 'Cliente'}>
+                            {reservation.clientName || 'Cliente sin nombre'}
+                          </h3>
+                          <div className="grid grid-cols-1 gap-2 text-sm text-gray-600">
+                            <p className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              <span className="truncate" title={reservation.clientEmail}>{reservation.clientEmail || 'Sin correo registrado'}</span>
+                            </p>
+                            <p className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-gray-400" />
+                              <span>{reservation.clientPhone || 'Sin telefono registrado'}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                          <MapPin className="w-5 h-5 text-gray-500" />
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Itinerario</p>
+                            <p className="text-sm font-medium text-gray-900">{reservation.destinationSummary}</p>
+                            <p className="text-xs text-gray-500 mt-1">{reservationTypeLabel}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase tracking-wider">Salida</p>
+                              <p className="font-medium text-gray-900">{formatDate(reservation.departureDate) || 'N/A'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase tracking-wider">Creada</p>
+                              <p className="font-medium text-gray-900">{formatDate(reservation.createdAt) || 'N/A'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase tracking-wider">Regreso</p>
+                              <p className="font-medium text-gray-900">{formatDate(reservation.returnDate) || 'N/A'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase tracking-wider">Pasajeros</p>
+                              <p className="font-medium text-gray-900">{reservation.totalPassengers}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-5 border-t border-gray-200 bg-gray-50 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Total Servicios</p>
+                            <p className="text-2xl font-bold text-gray-900">{formatCurrency(reservation.total_amount)}</p>
+                          </div>
+                          {paymentConfig && <StatusBadge config={paymentConfig} />}
+                        </div>
+
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {reservation.status === 'pending' && (
+                            <>
+                              <motion.button
+                                onClick={() => handleApprove(reservation.id)}
+                                className={`${actionButtonClasses} bg-emerald-100 text-emerald-700 hover:bg-emerald-200`}
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                              >
+                                Aprobar
+                              </motion.button>
+                              <motion.button
+                                onClick={() => handleReject(reservation.id)}
+                                className={`${actionButtonClasses} bg-red-100 text-red-700 hover:bg-red-200`}
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                              >
+                                Rechazar
+                              </motion.button>
+                            </>
+                          )}
+                          <motion.button
+                            onClick={() => handleViewReservationDetail(reservation)}
+                            className={primaryButtonClasses}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <Eye className="w-4 h-4" />
+                            Gestionar
+                          </motion.button>
+                        </div>
                       </div>
                     </motion.div>
-                  )
+                  );
                 })
               ) : (
                 <motion.div
@@ -302,13 +418,13 @@ const Gestion = () => {
               )}
             </AnimatePresence>
           </div>
-        </>
+        </div>
       )}
 
       {selectedReservation && (
-        <ReservationManagementPanel 
-          reservation={selectedReservation} 
-          onBack={handleBackToList} 
+        <ReservationManagementPanel
+          reservation={selectedReservation}
+          onBack={handleBackToList}
           onUpdate={handleUpdateReservation}
           onApprove={handleApprove}
           onReject={handleReject}

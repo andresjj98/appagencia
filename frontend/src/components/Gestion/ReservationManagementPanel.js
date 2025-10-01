@@ -8,6 +8,12 @@ import PassengerManagementTab from './PassengerManagementTab';
 import DocumentationTab from './DocumentationTab';
 import HistoryTab from './HistoryTab';
 
+const panelContainerClasses = 'w-full max-w-7xl mx-auto bg-white rounded-3xl shadow-2xl border border-gray-100 flex overflow-hidden';
+const sidebarClasses = 'w-72 bg-gradient-to-b from-blue-600 via-blue-700 to-purple-700 text-white p-6 flex flex-col';
+const tabButtonBase = 'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200';
+const tabButtonActive = 'bg-white text-blue-600 shadow-lg';
+const tabButtonInactive = 'text-white/80 hover:bg-white/10';
+
 const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, onReject }) => {
   const [activeTab, setActiveTab] = useState('info');
   const [isSaving, setIsSaving] = useState(false);
@@ -55,7 +61,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
         onUpdate();
       }
       
-      alert('Reserva actualizada con éxito');
+      alert('Reserva actualizada con exito');
 
     } catch (error) {
       console.error(error);
@@ -66,18 +72,18 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
   };
 
   const tabs = [
-    { id: 'info', label: 'Información General', icon: Info },
-    { id: 'services', label: 'Gestión de Servicios', icon: CheckSquare },
+    { id: 'info', label: 'Informacion General', icon: Info },
+    { id: 'services', label: 'Gestion de Servicios', icon: CheckSquare },
     { id: 'passengers', label: 'Pasajeros', icon: Users },
     { id: 'finance', label: 'Finanzas y Pagos', icon: DollarSign },
-    { id: 'documents', label: 'Documentación', icon: Paperclip },
+    { id: 'documents', label: 'Documentacion', icon: Paperclip },
     { id: 'history', label: 'Actividad y Cambios', icon: History },
   ];
 
   const renderContent = () => {
     // A simple loading indicator can be added here based on isSaving state
     if (isSaving) {
-      return <div>Guardando...</div>;
+      return <div className="flex items-center justify-center py-10 text-sm text-gray-500">Guardando...</div>;
     }
 
     switch (activeTab) {
@@ -103,31 +109,31 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 flex"
+      className={panelContainerClasses}
     >
       {/* Sidebar / Tabs */}
-      <div className="w-1/4 bg-gray-50 rounded-l-2xl border-r border-gray-200 p-6 flex flex-col">
+      <div className={sidebarClasses}>
         <div className="flex items-center gap-3 mb-8">
           <motion.button
             onClick={onBack}
-            className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-full transition-colors"
+            className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Panel de Gestión</h2>
-            <p className="text-sm text-gray-500 font-mono">{reservation._original.invoiceNumber}</p>
+            <h2 className="text-lg font-bold text-white">Panel de Gestion</h2>
+            <p className="text-xs text-white/70 font-mono uppercase tracking-wide">{reservation._original.invoiceNumber}</p>
           </div>
         </div>
         <nav className="flex flex-col space-y-2">
           {reservation._original.status === 'pending' && (
-            <div className="flex items-center justify-around mb-4">
-              <motion.button onClick={() => onApprove(reservation.id)} className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-semibold" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <div className="flex items-center justify-between mb-6 gap-3">
+              <motion.button onClick={() => onApprove(reservation.id)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-emerald-600 hover:bg-emerald-50" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 Aprobar
               </motion.button>
-              <motion.button onClick={() => onReject(reservation.id)} className="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-semibold" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.button onClick={() => onReject(reservation.id)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-red-600 hover:bg-red-50" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 Rechazar
               </motion.button>
             </div>
@@ -136,11 +142,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${ 
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-              }`}
+              className={`${tabButtonBase} ${activeTab === tab.id ? tabButtonActive : tabButtonInactive}`}
             >
               <tab.icon className="w-5 h-5" />
               <span>{tab.label}</span>
@@ -150,7 +152,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
       </div>
 
       {/* Content Area */}
-      <div className="w-3/4 p-8 overflow-y-auto" style={{maxHeight: '90vh'}}>
+      <div className="flex-1 p-8 overflow-y-auto bg-white" style={{ maxHeight: '90vh' }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
