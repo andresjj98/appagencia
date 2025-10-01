@@ -16,6 +16,28 @@ import { useAuth } from './AuthContext';
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
 const ChangeRequestModal = CancelRequestModal;
 
+const getPaymentStatus = (reservation) => {
+    const installments = reservation.reservation_installments || [];
+    if (installments.length === 0) {
+        if (reservation.payment_option === 'full_payment' && reservation.status === 'confirmed') {
+            return 'paid';
+        }
+        return 'pending';
+    }
+
+    const allPaid = installments.every(p => p.status === 'paid');
+    if (allPaid) {
+      return 'paid';
+    }
+
+    const somePaid = installments.some(p => p.status === 'paid');
+    if (somePaid) {
+        return 'partial';
+    }
+
+    return 'pending';
+};
+
 const Reservations = () => {
   const [reservations, setReservations] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -95,6 +117,7 @@ const Reservations = () => {
     return apiData.map(res => {
       const firstSegment = res.reservation_segments && res.reservation_segments[0];
       const passengers = (res.passengers_adt || 0) + (res.passengers_chd || 0) + (res.passengers_inf || 0);
+      const paymentStatus = getPaymentStatus(res);
 
       return {
         id: res.id,
@@ -108,7 +131,7 @@ const Reservations = () => {
         passengers: passengers,
         totalAmount: res.total_amount,
         status: res.status,
-        paymentStatus: 'pending', // Placeholder
+        paymentStatus: paymentStatus,
         advisorName: res.advisor?.name || 'N/A', // Use advisor name from backend
         notes: res.notes,
         _original: res 
