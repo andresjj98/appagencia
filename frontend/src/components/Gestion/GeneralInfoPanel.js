@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Calendar, MapPin, Hash, Edit, Save, X, LifeBuoy } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Hash, Edit, Save, X, LifeBuoy, Plane, Hotel, Ticket, HeartPulse, DollarSign } from 'lucide-react';
 
 const DetailItem = ({ icon: Icon, label, children, isEditing, value, onChange, type = 'text' }) => (
   <div className="flex items-start gap-3">
@@ -40,6 +40,39 @@ const Section = ({ title, children, onEdit, isEditing, onSave, onCancel }) => (
     </div>
   </div>
 );
+
+const formatCurrencyCOP = (value) => {
+  const numeric = Number(value) || 0;
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(numeric));
+};
+
+const formatDateValue = (value) => {
+  if (!value) {
+    return 'N/A';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'N/A';
+  }
+  return date.toLocaleDateString('es-CO');
+};
+
+const paymentBadgeClasses = (status) => {
+  switch ((status || '').toLowerCase()) {
+    case 'paid':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'overdue':
+    case 'late':
+      return 'bg-red-100 text-red-700';
+    default:
+      return 'bg-amber-100 text-amber-700';
+  }
+};
 
 const GeneralInfoPanel = ({ reservation, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -144,27 +177,55 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
   const paymentOption = reservation._original.payment_option || reservation._original.paymentOption;
   const installments = reservation._original.reservation_installments || reservation._original.installments || [];
   const normalizeStatus = (status) => (status || '').toString().toLowerCase();
+  const sortedInstallments = [...installments].sort((a, b) => new Date(a.due_date || a.dueDate || 0) - new Date(b.due_date || b.dueDate || 0));
+  const primaryInstallment = sortedInstallments[0] || null;
   const paidInstallments = installments.filter(inst => normalizeStatus(inst.status) === 'paid').length;
   const overdueInstallments = installments.filter(inst => {
     const normalized = normalizeStatus(inst.status);
     return normalized === 'overdue' || normalized === 'late';
   }).length;
   const pendingInstallments = Math.max(installments.length - paidInstallments - overdueInstallments, 0);
-  const paymentStatus = normalizeStatus(reservation._original.payment_status || reservation._original.paymentStatus);
 
+  let paymentStatus = normalizeStatus(reservation._original.payment_status || reservation._original.paymentStatus);
   let paymentSummaryText = 'Sin informacion de pagos.';
-  let paymentStatusDetails = null;
+  let paymentDate = reservation._original.payment_date || reservation._original.paymentDate;
+  let totalAmount = reservation._original.total_amount ?? reservation._original.totalAmount ?? 0;
 
   if (paymentOption === 'full_payment') {
+    if (primaryInstallment) {
+      paymentStatus = normalizeStatus(primaryInstallment.status) || paymentStatus;
+      paymentDate = primaryInstallment.payment_date || primaryInstallment.paymentDate || primaryInstallment.due_date || primaryInstallment.dueDate || paymentDate;
+      totalAmount = primaryInstallment.amount ?? totalAmount;
+    }
     paymentSummaryText = paymentStatus === 'paid'
       ? 'Pago unico completado.'
       : 'Pago unico pendiente.';
   } else if (paymentOption === 'installments' || installments.length > 0) {
     paymentSummaryText = `Pago a cuotas con ${installments.length} cuota(s).`;
-    if (installments.length > 0) {
-      paymentStatusDetails = `Pagadas: ${paidInstallments} ? Pendientes: ${pendingInstallments} ? Atrasadas: ${overdueInstallments}`;
-    }
   }
+
+  const serviceItems = [
+    {
+      icon: Plane,
+      label: 'Vuelos',
+      count: reservation._original.reservation_flights?.length || 0,
+    },
+    {
+      icon: Hotel,
+      label: 'Hoteles',
+      count: reservation._original.reservation_hotels?.length || 0,
+    },
+    {
+      icon: Ticket,
+      label: 'Tours',
+      count: reservation._original.reservation_tours?.length || 0,
+    },
+    {
+      icon: HeartPulse,
+      label: 'Asistencias medicas',
+      count: reservation._original.reservation_medical_assistances?.length || 0,
+    },
+  ].filter(item => item.count > 0);
 
   return (
     <div className="space-y-6">
@@ -300,31 +361,107 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
       </Section>
 
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Resumen de Servicios Contratados</h3>
-        <ul className="list-disc list-inside space-y-2 text-gray-700">
-          {reservation._original.reservation_flights?.length > 0 && <li>{reservation._original.reservation_flights.length} Vuelo(s)</li>}
-          {reservation._original.reservation_hotels?.length > 0 && <li>{reservation._original.reservation_hotels.length} Hotel(es)</li>}
-          {reservation._original.reservation_tours?.length > 0 && <li>{reservation._original.reservation_tours.length} Tour(s)</li>}
-          {reservation._original.reservation_medical_assistances?.length > 0 && <li>{reservation._original.reservation_medical_assistances.length} Asistencia(s) Medica(s)</li>}
-        </ul>
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800">Pasajeros</h4>
-            <p className="text-gray-700">{totalPassengersText}</p>
-            <ul className="mt-2 text-sm text-gray-600 space-y-1">
-              <li>Adultos (ADT): {passengersADT}</li>
-              <li>Ninos (CHD): {passengersCHD}</li>
-              <li>Infantes (INF): {passengersINF}</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800">Plan de Pagos</h4>
-            <p className="text-gray-700">{paymentSummaryText}</p>
-            {paymentStatusDetails && (
-              <p className="text-sm text-gray-600 mt-2">{paymentStatusDetails}</p>
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Resumen de Servicios Contratados</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            {serviceItems.length > 0 ? (
+              serviceItems.map(({ icon: IconRef, label, count }) => (
+                <div key={label} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <IconRef className="w-5 h-5 text-blue-600" />
+                    <span className="text-sm font-semibold text-gray-800">{label}</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-600">{count}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">Sin servicios registrados.</p>
             )}
           </div>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <h4 className="text-lg font-semibold text-gray-800">Pasajeros</h4>
+            <p className="text-gray-700">{totalPassengersText}</p>
+            <div className="grid grid-cols-3 gap-3 text-sm text-gray-600">
+              <div className="bg-white rounded-md p-3 shadow-sm text-center">
+                <p className="text-xs uppercase text-gray-500">Adultos</p>
+                <p className="text-lg font-semibold text-gray-900">{passengersADT}</p>
+              </div>
+              <div className="bg-white rounded-md p-3 shadow-sm text-center">
+                <p className="text-xs uppercase text-gray-500">Ninos</p>
+                <p className="text-lg font-semibold text-gray-900">{passengersCHD}</p>
+              </div>
+              <div className="bg-white rounded-md p-3 shadow-sm text-center">
+                <p className="text-xs uppercase text-gray-500">Infantes</p>
+                <p className="text-lg font-semibold text-gray-900">{passengersINF}</p>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-gray-800">Pagos y Estado</h3>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${paymentBadgeClasses(paymentStatus)}`}>
+            {paymentStatus ? paymentStatus.toUpperCase() : 'SIN ESTADO'}
+          </span>
+        </div>
+        <p className="text-sm text-gray-600 mb-6">{paymentSummaryText}</p>
+
+        {paymentOption === 'full_payment' ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-xs uppercase text-gray-500">Fecha de pago</p>
+              <p className="font-semibold text-gray-900 mt-1">{formatDateValue(paymentDate)}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-xs uppercase text-gray-500">Valor</p>
+              <p className="font-semibold text-gray-900 mt-1">{formatCurrencyCOP(totalAmount)}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-xs uppercase text-gray-500">Estado</p>
+              <p className="font-semibold text-gray-900 mt-1">
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${paymentBadgeClasses(paymentStatus)}`}>
+                  {paymentStatus || 'N/A'}
+                </span>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {installments.length > 0 ? (
+              installments.map((inst, index) => {
+                const status = normalizeStatus(inst.status);
+                return (
+                  <div key={index} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50 rounded-lg p-4 text-sm">
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <DollarSign className="w-4 h-4 text-blue-500" />
+                      <span className="font-semibold">Cuota {index + 1}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-gray-600">
+                      <span>Vence: {formatDateValue(inst.due_date || inst.dueDate)}</span>
+                      <span>Monto: {formatCurrencyCOP(inst.amount)}</span>
+                      <span>
+                        Estado:
+                        <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${paymentBadgeClasses(status)}`}>
+                          {status || 'N/A'}
+                        </span>
+                      </span>
+                      <span>Pago: {formatDateValue(inst.payment_date || inst.paymentDate)}</span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-gray-500">No hay informacion de cuotas registrada.</p>
+            )}
+            {installments.length > 0 && (
+              <div className="text-xs text-gray-500">
+                Resumen cuotas | Pagadas: {paidInstallments} | Pendientes: {pendingInstallments} | Atrasadas: {overdueInstallments}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
