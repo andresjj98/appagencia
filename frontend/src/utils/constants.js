@@ -87,7 +87,7 @@ export const canEditReservation = (user, reservation) => {
   // Asesor solo puede editar sus propias reservas pendientes o rechazadas
   // Una vez confirmada, ya no puede editarla
   if (user.role === 'asesor') {
-    const isOwner = reservation.created_by === user.id || reservation.user_id === user.id;
+    const isOwner = reservation.advisor_id === user.id;
     const canEditStatus = reservation.status === 'pending' || reservation.status === 'rejected';
     return isOwner && canEditStatus;
   }
@@ -157,7 +157,7 @@ export const filterReservationsByRole = (reservations, user) => {
   // Asesor solo ve sus propias reservas
   if (user.role === 'asesor') {
     return reservations.filter(r =>
-      r.created_by === user.id || r.user_id === user.id
+      r.advisor_id === user.id
     );
   }
 
