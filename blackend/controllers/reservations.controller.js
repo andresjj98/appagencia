@@ -276,7 +276,7 @@ const rejectReservation = async (req, res) => {
     // Verificar que la reserva existe
     const { data: reservation, error: reservationError } = await supabaseAdmin
       .from('reservations')
-      .select('id, status, user_id, clients(name, email)')
+      .select('id, status, advisor_id, clients(name, email)')
       .eq('id', id)
       .single();
 

@@ -82,6 +82,23 @@ CREATE TABLE public.clients (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT clients_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.notifications (
+  id bigint NOT NULL DEFAULT nextval('notifications_id_seq'::regclass),
+  recipient_id uuid NOT NULL,
+  sender_id uuid,
+  type text NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  reference_id bigint,
+  reference_type text,
+  read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  read_at timestamp with time zone,
+  metadata jsonb,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES public.usuarios(id),
+  CONSTRAINT notifications_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.usuarios(id)
+);
 CREATE TABLE public.offices (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,

@@ -107,6 +107,7 @@ const transformReservationForGestion = (reservation) => {
     updatedAt: reservation.updatedAt ?? reservation.updated_at ?? '',
     departureDate: reservation.departureDate ?? firstSegment?.departure_date ?? reservation.departure_date ?? '',
     returnDate: reservation.returnDate ?? firstSegment?.return_date ?? reservation.return_date ?? '',
+    totalAmount: totalAmount,
     total_amount: totalAmount,
     passengersADT,
     passengersCHD,
@@ -114,6 +115,7 @@ const transformReservationForGestion = (reservation) => {
     totalPassengers,
     destinationSummary,
     paymentStatus,
+    advisorName: reservation.advisorName ?? reservation.advisor?.name ?? 'N/A',
   };
 };
 
