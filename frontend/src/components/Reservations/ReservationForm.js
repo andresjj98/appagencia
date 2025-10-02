@@ -1171,12 +1171,15 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Categoría del Vuelo</label>
-                      <select name="flightCategory" value={flight.flightCategory} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                      <select name="flightCategory" value={flight.flightCategory || ''} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
                         <option value="">Seleccionar</option>
                         <option value="economica">Económica</option>
                         <option value="premium_economica">Premium Económica</option>
                         <option value="business">Business</option>
                         <option value="primera_clase">Primera Clase</option>
+                        {flight.flightCategory && !['', 'economica', 'premium_economica', 'business', 'primera_clase'].includes(flight.flightCategory) && (
+                          <option value={flight.flightCategory}>{flight.flightCategory}</option>
+                        )}
                       </select>
                     </div>
                     <div>
@@ -1203,7 +1206,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     )}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Equipaje Permitido</label>
-                      <select name="baggageAllowance" value={flight.baggageAllowance} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                      <select name="baggageAllowance" value={flight.baggageAllowance || ''} onChange={(e) => handleFlightChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
                         <option value="">Seleccionar</option>
                         <option value="personal_item">Artículo Personal (Bajo el Asiento)</option>
                         <option value="carry_on">Equipaje de Mano (Cabina, Compartimento Superior)</option>
@@ -1212,6 +1215,9 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         <option value="heavy_bag">1 maleta facturada (hasta 32kg)</option>
                         <option value="no_baggage">Sin equipaje</option>
                         <option value="other">Otro (especificar en notas)</option>
+                        {flight.baggageAllowance && !['', 'personal_item', 'carry_on', '1_checked_bag', '2_checked_bags', 'heavy_bag', 'no_baggage', 'other'].includes(flight.baggageAllowance) && (
+                          <option value={flight.baggageAllowance}>{flight.baggageAllowance}</option>
+                        )}
                       </select>
                     </div>
                   </div>
