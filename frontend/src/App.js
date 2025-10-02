@@ -4,15 +4,13 @@ import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import Dashboard from './pages/Dashboard';
 import Reservations from './pages/Reservations';
-import UserManagement from './pages/Users'; 
-import OfficeManagement from './pages/Offices';
-import Settings from './pages/Settings'; 
+import Settings from './pages/Settings';
 import Profile from './pages/Profile';
-import Gestion from './pages/Gestion'; 
-import Notifications from './pages/Notifications'; 
-import Reports from './pages/Reports'; 
-import Analytics from './pages/Analytics'; 
-import Finance from './pages/Finance'; // Importar el nuevo componente
+import Gestion from './pages/Gestion';
+import Notifications from './pages/Notifications';
+import Reports from './pages/Reports';
+import Analytics from './pages/Analytics';
+import Finance from './pages/Finance';
 import Login from './pages/Login';
 import { useAuth } from './pages/AuthContext';
 import { hasPermission } from './utils/constants';
@@ -48,18 +46,14 @@ const App = () => {
             <p className="text-gray-600">Módulo de documentación en desarrollo...</p>
           </div>
         );
-      case 'offices':
-        return <OfficeManagement />; 
       case 'finance':
         return <Finance />;
       case 'reports':
-        return <Reports />; 
+        return <Reports />;
       case 'analytics':
-        return <Analytics />; 
+        return <Analytics />;
       case 'notifications':
-        return <Notifications />; 
-      case 'users':
-        return <UserManagement />; 
+        return <Notifications />;
       case 'settings':
         return <Settings />; 
       case 'profile':
@@ -75,12 +69,10 @@ const App = () => {
       reservations: 'Gestión de Reservas',
       gestion: 'Gestión de Reservas',
       documentation: 'Documentación',
-      offices: 'Oficinas',
       finance: 'Finanzas',
       reports: 'Reportes',
       analytics: 'Análisis y Reportes',
       notifications: 'Notificaciones',
-      users: 'Gestión de Usuarios',
       settings: 'Configuración',
       profile: 'Mi Perfil'
     };

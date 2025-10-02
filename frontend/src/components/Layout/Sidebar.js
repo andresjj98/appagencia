@@ -9,7 +9,6 @@ import {
   Plane,
   LogOut,
   User,
-  MapPin,
   FileText,
   DollarSign,
   ClipboardList,
@@ -25,12 +24,10 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
     { id: 'reservations', label: 'Reservas', icon: Calendar, roles: ['administrador', 'gestor', 'asesor'] },
     { id: 'gestion', label: 'Gestion', icon: Users, roles: ['administrador', 'gestor', 'asesor'] },
     { id: 'documentation', label: 'Documentación', icon: FileText, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'offices', label: 'Oficinas', icon: MapPin, roles: ['administrador', 'gestor'] },
     { id: 'finance', label: 'Finanzas', icon: DollarSign, roles: ['administrador', 'gestor'] },
     { id: 'reports', label: 'Reportes', icon: ClipboardList, roles: ['administrador', 'gestor'] },
     { id: 'analytics', label: 'Análisis', icon: BarChart3, roles: ['administrador', 'gestor'] },
     { id: 'notifications', label: 'Notificaciones', icon: Bell, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'users', label: 'Usuarios', icon: User, roles: ['administrador'] },
     { id: 'profile', label: 'Mi Perfil', icon: User, roles: ['administrador', 'gestor', 'asesor'] },
     { id: 'settings', label: 'Configuración', icon: Settings, roles: ['administrador', 'gestor'] }
   ];

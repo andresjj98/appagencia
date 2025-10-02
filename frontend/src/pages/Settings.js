@@ -12,15 +12,21 @@ import {
   Upload,
   Image as ImageIcon,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Users,
+  MapPin
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { hasPermission } from '../utils/constants';
+import UserManagement from './Users';
+import OfficeManagement from './Offices';
 
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General y Fiscal', title: 'Información General y Fiscal', icon: Building },
   { id: 'documents', label: 'Documentación', title: 'Documentación y Mensajes', icon: FileTextIcon },
   { id: 'system', label: 'Sistema y Finanzas', title: 'Configuración de Sistema y Finanzas', icon: SlidersHorizontal },
+  { id: 'users', label: 'Usuarios', title: 'Gestión de Usuarios', icon: Users },
+  { id: 'offices', label: 'Oficinas', title: 'Gestión de Oficinas', icon: MapPin },
 ];
 
 const DEFAULT_SETTINGS = {
@@ -920,7 +926,13 @@ const Settings = () => {
           </nav>
         </aside>
         <div className="space-y-8">
-          <BusinessSettings activeSection={activeSection} />
+          {activeSection === 'users' ? (
+            <UserManagement />
+          ) : activeSection === 'offices' ? (
+            <OfficeManagement />
+          ) : (
+            <BusinessSettings activeSection={activeSection} />
+          )}
         </div>
       </div>
     </motion.div>
