@@ -16,8 +16,9 @@ import {
   HeartPulse,
   Info
 } from 'lucide-react';
-import { RESERVATION_STATUS, PAYMENT_STATUS } from '../utils/constants';
+import { RESERVATION_STATUS, PAYMENT_STATUS, filterReservationsByRole, canEditReservation } from '../utils/constants';
 import ReservationManagementPanel from '../components/Gestion/ReservationManagementPanel';
+import RejectReservationModal from '../components/Gestion/RejectReservationModal';
 import { useSettings } from '../utils/SettingsContext';
 import { useAuth } from './AuthContext';
 
@@ -120,6 +121,8 @@ const Gestion = () => {
   const [reservations, setReservations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [reservationToReject, setReservationToReject] = useState(null);
   const { formatCurrency, formatDate } = useSettings();
   const { currentUser } = useAuth();
 
@@ -133,7 +136,9 @@ const Gestion = () => {
       const data = await response.json();
       if (response.ok) {
         const normalizedData = Array.isArray(data) ? data : (data ? [data] : []);
-        setReservations(normalizedData.map(transformReservationForGestion));
+        // Filtrar reservas según el rol del usuario
+        const filteredData = filterReservationsByRole(normalizedData, currentUser);
+        setReservations(filteredData.map(transformReservationForGestion));
       } else {
         console.error('Error fetching reservations:', data.message);
       }
@@ -197,17 +202,38 @@ const Gestion = () => {
     }
   };
 
-  const handleReject = async (reservationId) => {
+  const handleRejectClick = (reservation) => {
+    setReservationToReject(reservation);
+    setShowRejectModal(true);
+  };
+
+  const handleReject = async (reservationId, reason) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/reject`, { method: 'POST' });
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason,
+          rejectedBy: currentUser.id
+        })
+      });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error al rechazar la reserva');
       }
+
+      // Cerrar modal y refrescar
+      setShowRejectModal(false);
+      setReservationToReject(null);
+      setSelectedReservation(null);
       fetchReservations();
+
+      // TODO: Aquí podrías mostrar un mensaje de éxito
+      alert('Reserva rechazada correctamente. El asesor ha sido notificado.');
     } catch (error) {
       console.error('Error rejecting reservation:', error);
-      alert(error.message);
+      throw error; // Re-lanzar para que el modal lo maneje
     }
   };
 
@@ -383,7 +409,7 @@ const Gestion = () => {
                                 Aprobar
                               </motion.button>
                               <motion.button
-                                onClick={() => handleReject(reservation.id)}
+                                onClick={() => handleRejectClick(reservation)}
                                 className={`${actionButtonClasses} bg-red-100 text-red-700 hover:bg-red-200`}
                                 whileHover={{ scale: 1.03 }}
                                 whileTap={{ scale: 0.97 }}
@@ -427,7 +453,23 @@ const Gestion = () => {
           onBack={handleBackToList}
           onUpdate={handleUpdateReservation}
           onApprove={handleApprove}
+          onReject={(reservationId) => {
+            const reservation = reservations.find(r => r.id === reservationId);
+            if (reservation) {
+              handleRejectClick(reservation);
+            }
+          }}
+        />
+      )}
+
+      {showRejectModal && reservationToReject && (
+        <RejectReservationModal
+          reservation={reservationToReject}
           onReject={handleReject}
+          onClose={() => {
+            setShowRejectModal(false);
+            setReservationToReject(null);
+          }}
         />
       )}
     </motion.div>

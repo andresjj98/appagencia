@@ -885,11 +885,12 @@ const Settings = () => {
   const { currentUser } = useAuth();
   const [activeSection, setActiveSection] = useState(SETTINGS_SECTIONS[0].id);
 
-  if (!hasPermission(currentUser, ['administrador', 'gestor'])) {
+  // Solo super admin puede acceder a configuración
+  if (!currentUser?.isSuperAdmin) {
     return (
       <div className="p-6 text-center">
         <h2 className="text-2xl font-bold text-red-600">Acceso denegado</h2>
-        <p className="text-gray-600 mt-2">No tienes permisos para acceder a este módulo.</p>
+        <p className="text-gray-600 mt-2">Solo super administradores tienen acceso a este módulo.</p>
       </div>
     );
   }

@@ -224,10 +224,14 @@ CREATE TABLE public.reservations (
   assistance_status_ok boolean DEFAULT false,
   reservation_type text,
   updated_at timestamp with time zone,
+  rejection_reason text,
+  rejected_at timestamp with time zone,
+  rejected_by uuid,
   CONSTRAINT reservations_pkey PRIMARY KEY (id),
   CONSTRAINT reservations_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
   CONSTRAINT reservations_advisor_id_fkey FOREIGN KEY (advisor_id) REFERENCES public.usuarios(id),
-  CONSTRAINT reservations_manager_id_fkey FOREIGN KEY (manager_id) REFERENCES public.usuarios(id)
+  CONSTRAINT reservations_manager_id_fkey FOREIGN KEY (manager_id) REFERENCES public.usuarios(id),
+  CONSTRAINT reservations_rejected_by_fkey FOREIGN KEY (rejected_by) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.usuarios (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

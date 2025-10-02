@@ -7,6 +7,8 @@ import ServiceManagementTab from './ServiceManagementTab';
 import PassengerManagementTab from './PassengerManagementTab';
 import DocumentationTab from './DocumentationTab';
 import HistoryTab from './HistoryTab';
+import { useAuth } from '../../pages/AuthContext';
+import { canEditReservation, canApproveReservation } from '../../utils/constants';
 
 const panelContainerClasses = 'w-full max-w-7xl mx-auto bg-white rounded-3xl shadow-2xl border border-gray-100 flex overflow-hidden';
 const sidebarClasses = 'w-72 bg-gradient-to-b from-blue-600 via-blue-700 to-purple-700 text-white p-6 flex flex-col';
@@ -17,6 +19,11 @@ const tabButtonInactive = 'text-white/80 hover:bg-white/10';
 const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, onReject }) => {
   const [activeTab, setActiveTab] = useState('info');
   const [isSaving, setIsSaving] = useState(false);
+  const { currentUser } = useAuth();
+
+  // Verificar permisos del usuario
+  const canEdit = canEditReservation(currentUser, reservation._original);
+  const canApprove = canApproveReservation(currentUser, reservation._original);
 
   const handleUpdateReservation = async (updatedPayload) => {
     setIsSaving(true);
@@ -88,15 +95,15 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
     switch (activeTab) {
       case 'info':
-        return <GeneralInfoPanel reservation={reservation} onUpdate={onUpdate} />;
+        return <GeneralInfoPanel reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
       case 'services':
-        return <ServiceManagementTab reservation={reservation} onUpdate={onUpdate} />;
+        return <ServiceManagementTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
       case 'passengers':
-        return <PassengerManagementTab reservation={reservation} onUpdateReservation={handleUpdateReservation} />;
+        return <PassengerManagementTab reservation={reservation} onUpdateReservation={handleUpdateReservation} readOnly={!canEdit} />;
       case 'finance':
-        return <ReservationFinanceTab reservation={reservation._original} onUpdate={onUpdate} />;
+        return <ReservationFinanceTab reservation={reservation._original} onUpdate={onUpdate} readOnly={!canEdit} />;
       case 'documents':
-        return <DocumentationTab reservation={reservation} onUpdate={onUpdate} />;
+        return <DocumentationTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
       case 'history':
         return <HistoryTab reservation={reservation} onUpdate={onUpdate} />;
       default:
@@ -128,7 +135,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
           </div>
         </div>
         <nav className="flex flex-col space-y-2">
-          {reservation._original.status === 'pending' && (
+          {canApprove && (
             <div className="flex items-center justify-between mb-6 gap-3">
               <motion.button onClick={() => onApprove(reservation.id)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-emerald-600 hover:bg-emerald-50" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 Aprobar
@@ -136,6 +143,11 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
               <motion.button onClick={() => onReject(reservation.id)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-red-600 hover:bg-red-50" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 Rechazar
               </motion.button>
+            </div>
+          )}
+          {reservation._original.status === 'pending' && !canApprove && (
+            <div className="mb-6 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800 font-medium">⏳ Pendiente de aprobación por un Administrador</p>
             </div>
           )}
           {tabs.map(tab => (

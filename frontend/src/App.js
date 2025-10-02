@@ -13,7 +13,7 @@ import Analytics from './pages/Analytics';
 import Finance from './pages/Finance';
 import Login from './pages/Login';
 import { useAuth } from './pages/AuthContext';
-import { hasPermission } from './utils/constants';
+import { canAccessModule } from './utils/constants';
 
 const App = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -23,22 +23,26 @@ const App = () => {
     return <Login />;
   }
 
+  const renderAccessDenied = () => (
+    <div className="p-6 text-center">
+      <h2 className="text-2xl font-bold text-red-600">Acceso Denegado</h2>
+      <p className="text-gray-600 mt-2">No tienes permisos para acceder a este módulo.</p>
+    </div>
+  );
+
   const renderContent = () => {
+    // Verificar acceso al módulo
+    if (!canAccessModule(currentUser, activeSection)) {
+      return renderAccessDenied();
+    }
+
     switch (activeSection) {
       case 'dashboard':
         return <Dashboard />;
       case 'reservations':
         return <Reservations />;
       case 'gestion':
-        if (hasPermission(currentUser, ['gestor', 'administrador'])) {
-          return <Gestion />;
-        }
-        return (
-          <div className="p-6 text-center">
-            <h2 className="text-2xl font-bold text-red-600">Acceso Denegado</h2>
-            <p className="text-gray-600 mt-2">No tienes permisos para acceder a este módulo.</p>
-          </div>
-        );
+        return <Gestion />;
       case 'documentation':
         return (
           <div className="p-6">
@@ -55,7 +59,7 @@ const App = () => {
       case 'notifications':
         return <Notifications />;
       case 'settings':
-        return <Settings />; 
+        return <Settings />;
       case 'profile':
         return <Profile />;
       default:

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../pages/AuthContext';
 import { Upload, File as FileIcon, Loader, Info, X, DollarSign, Calendar, MapPin, User, Hash, Phone, Mail, FileText, CreditCard, Search } from 'lucide-react';
+import { filterReservationsByRole, canAccessOffice } from '../../utils/constants';
 
 const statusColors = {
   paid: 'bg-green-100 text-green-800',
@@ -209,8 +210,10 @@ const FinancePanel = () => {
           return acc;
       }, {});
 
-      const filteredData = reservationsData.filter(res => res.status === 'confirmed' && (res.invoiceNumber || res.invoice_number));
-      
+      // Filtrar solo reservas confirmadas con factura Y según el rol del usuario
+      const confirmedData = reservationsData.filter(res => res.status === 'confirmed' && (res.invoiceNumber || res.invoice_number));
+      const filteredData = filterReservationsByRole(confirmedData, currentUser);
+
       const newPendingChanges = {};
       const formattedData = filteredData.map(res => {
         const firstSegment = res.reservation_segments?.[0];

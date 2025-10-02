@@ -15,8 +15,9 @@ import {
   Info
 } from 'lucide-react';
 import { calculateDays } from '../../utils/helpers';
-import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
+import { RESERVATION_STATUS, PAYMENT_STATUS, canEditReservation } from '../../utils/constants';
 import { useSettings } from '../../utils/SettingsContext';
+import { useAuth } from '../../pages/AuthContext';
 
 // Helper component to display an icon based on reservation type
 const ReservationTypeIcon = ({ type }) => {
@@ -78,6 +79,10 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
     return `COP ${numeric.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
   const { formatDate } = useSettings();
+  const { currentUser } = useAuth();
+
+  // Verificar si el usuario puede editar esta reserva
+  const canEdit = canEditReservation(currentUser, reservation._original);
 
   if (!reservation) {
     return null;
@@ -120,12 +125,16 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
           <motion.button onClick={() => onView?.(reservation)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} title="Ver Detalles">
             <Eye className="w-5 h-5" />
           </motion.button>
-          <motion.button onClick={() => onEdit?.(reservation)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} title="Editar">
-            <Edit className="w-5 h-5" />
-          </motion.button>
-          <motion.button onClick={() => onDelete?.(reservation)} className="p-2 text-red-600 hover:bg-red-100 rounded-full" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} title="Eliminar">
-            <Trash2 className="w-5 h-5" />
-          </motion.button>
+          {canEdit && (
+            <>
+              <motion.button onClick={() => onEdit?.(reservation)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} title="Editar">
+                <Edit className="w-5 h-5" />
+              </motion.button>
+              <motion.button onClick={() => onDelete?.(reservation)} className="p-2 text-red-600 hover:bg-red-100 rounded-full" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} title="Eliminar">
+                <Trash2 className="w-5 h-5" />
+              </motion.button>
+            </>
+          )}
         </div>
       </div>
 

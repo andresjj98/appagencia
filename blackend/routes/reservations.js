@@ -6,6 +6,7 @@ const {
   createReservation,
   updateReservation,
   approveReservation,
+  rejectReservation,
   deleteReservation,
 } = require('../controllers/reservations.controller.js');
 
@@ -23,6 +24,9 @@ router.put('/:id', updateReservation);
 
 // POST to approve a reservation
 router.post('/:id/approve', approveReservation);
+
+// POST to reject a reservation
+router.post('/:id/reject', rejectReservation);
 
 // DELETE a reservation
 router.delete('/:id', deleteReservation);

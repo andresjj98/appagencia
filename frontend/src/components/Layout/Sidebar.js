@@ -15,25 +15,25 @@ import {
   Bell
 } from 'lucide-react';
 import { useAuth } from '../../pages/AuthContext';
-import { USER_ROLES, hasPermission } from '../../utils/constants';
+import { USER_ROLES, canAccessModule } from '../../utils/constants';
 
 const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
   const { currentUser } = useAuth();
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'reservations', label: 'Reservas', icon: Calendar, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'gestion', label: 'Gestion', icon: Users, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'documentation', label: 'Documentación', icon: FileText, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'finance', label: 'Finanzas', icon: DollarSign, roles: ['administrador', 'gestor'] },
-    { id: 'reports', label: 'Reportes', icon: ClipboardList, roles: ['administrador', 'gestor'] },
-    { id: 'analytics', label: 'Análisis', icon: BarChart3, roles: ['administrador', 'gestor'] },
-    { id: 'notifications', label: 'Notificaciones', icon: Bell, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'profile', label: 'Mi Perfil', icon: User, roles: ['administrador', 'gestor', 'asesor'] },
-    { id: 'settings', label: 'Configuración', icon: Settings, roles: ['administrador', 'gestor'] }
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'reservations', label: 'Reservas', icon: Calendar },
+    { id: 'gestion', label: 'Gestión', icon: Users },
+    { id: 'documentation', label: 'Documentación', icon: FileText },
+    { id: 'finance', label: 'Finanzas', icon: DollarSign },
+    { id: 'reports', label: 'Reportes', icon: ClipboardList },
+    { id: 'analytics', label: 'Análisis', icon: BarChart3 },
+    { id: 'notifications', label: 'Notificaciones', icon: Bell },
+    { id: 'profile', label: 'Mi Perfil', icon: User },
+    { id: 'settings', label: 'Configuración', icon: Settings }
   ];
 
   const filteredMenuItems = menuItems.filter(item =>
-    hasPermission(currentUser, item.roles)
+    canAccessModule(currentUser, item.id)
   );
 
   return (

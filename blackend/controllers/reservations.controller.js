@@ -46,7 +46,7 @@ const getAllReservations = async (req, res) => {
       .from('reservations')
       .select(fullReservationSelect);
 
-    if (userRole === 'advisor' && userId) {
+    if (userRole === 'asesor' && userId) {
       query = query.eq('advisor_id', userId);
     }
 
@@ -263,10 +263,68 @@ const approveReservation = async (req, res) => {
   }
 };
 
+const rejectReservation = async (req, res) => {
+  const { id } = req.params;
+  const { reason, rejectedBy } = req.body;
+
+  try {
+    // Validar que se proporcionó un motivo
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ message: 'Debes proporcionar un motivo de rechazo.' });
+    }
+
+    // Verificar que la reserva existe
+    const { data: reservation, error: reservationError } = await supabaseAdmin
+      .from('reservations')
+      .select('id, status, user_id, clients(name, email)')
+      .eq('id', id)
+      .single();
+
+    if (reservationError || !reservation) {
+      console.error('Error fetching reservation for rejection:', reservationError);
+      return res.status(404).json({ message: 'Reserva no encontrada.' });
+    }
+
+    // Solo se pueden rechazar reservas pendientes
+    if (reservation.status !== 'pending') {
+      return res.status(400).json({ message: 'Solo se pueden rechazar reservas pendientes.' });
+    }
+
+    // Actualizar la reserva a estado rechazado
+    const { data: updatedReservation, error: updateError } = await supabaseAdmin
+      .from('reservations')
+      .update({
+        status: 'rejected',
+        rejection_reason: reason.trim(),
+        rejected_at: new Date().toISOString(),
+        rejected_by: rejectedBy || null
+      })
+      .eq('id', id)
+      .select(fullReservationSelect)
+      .maybeSingle();
+
+    if (updateError || !updatedReservation) {
+      console.error('Error rejecting reservation:', updateError);
+      return res.status(500).json({ message: 'Error al rechazar la reserva.' });
+    }
+
+    // TODO: Aquí podrías agregar lógica para enviar notificación al asesor
+    // Por ejemplo: enviar email o crear notificación en la BD
+
+    return res.json({
+      message: 'Reserva rechazada correctamente.',
+      reservation: updatedReservation,
+    });
+  } catch (error) {
+    console.error('Unexpected error rejecting reservation:', error);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
 const deleteReservation = async (req, res) => {
   const { id } = req.params;
   try {
-    const { error } = await supabaseAdmin.rpc('delete_full_reservation', { 
+    const { error } = await supabaseAdmin.rpc('delete_full_reservation', {
       reservation_id_input: id
     });
 
@@ -289,5 +347,6 @@ module.exports = {
   createReservation,
   updateReservation,
   approveReservation,
+  rejectReservation,
   deleteReservation,
 };

@@ -13,6 +13,7 @@ import ConfirmationModal from '../components/common/ConfirmationModal';
 import LoadingOverlay from '../components/common/LoadingOverlay'; // Import the new component
 
 import { useAuth } from './AuthContext';
+import { filterReservationsByRole, canEditReservation } from '../utils/constants';
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
 const ChangeRequestModal = CancelRequestModal;
 
@@ -156,7 +157,12 @@ const Reservations = () => {
 
       if (response.ok) {
         const transformedData = transformReservationData(data);
-        setReservations(transformedData);
+        // Filtrar reservas según el rol del usuario
+        const filteredData = filterReservationsByRole(transformedData.map(r => r._original), currentUser);
+        const finalData = transformedData.filter(r =>
+          filteredData.some(fr => fr.id === r.id)
+        );
+        setReservations(finalData);
       } else {
         console.error('Error fetching reservations:', data.message);
       }
