@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Save,
@@ -8,7 +8,11 @@ import {
   FileText as FileTextIcon,
   SlidersHorizontal,
   Pencil,
-  Loader2
+  Loader2,
+  Upload,
+  Image as ImageIcon,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 
@@ -106,6 +110,10 @@ const BusinessSettings = ({ activeSection }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadMessage, setLogoUploadMessage] = useState({ text: '', type: '' });
+  const logoInputRef = useRef(null);
+  const secondaryLogoInputRef = useRef(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -229,6 +237,109 @@ const BusinessSettings = ({ activeSection }) => {
     }
   };
 
+  const handleLogoUpload = async (file, type) => {
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      setLogoUploadMessage({ text: 'Solo se permiten imágenes JPG, PNG, WEBP o SVG', type: 'error' });
+      setTimeout(() => setLogoUploadMessage({ text: '', type: '' }), 4000);
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoUploadMessage({ text: 'La imagen no debe superar los 5MB', type: 'error' });
+      setTimeout(() => setLogoUploadMessage({ text: '', type: '' }), 4000);
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    setLogoUploadMessage({ text: `Subiendo logo ${type === 'primary' ? 'principal' : 'secundario'}...`, type: 'info' });
+
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+
+      console.log(`Uploading ${type} logo to:`, `http://localhost:4000/api/business-settings/logo/${type}`);
+
+      const response = await fetch(`http://localhost:4000/api/business-settings/logo/${type}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      console.log('Upload response status:', response.status);
+      const result = await response.json();
+      console.log('Upload result:', result);
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Error al subir logo');
+      }
+
+      // Actualizar settings con la respuesta
+      const sanitized = { ...DEFAULT_SETTINGS };
+      Object.entries(result.settings || {}).forEach(([key, value]) => {
+        if (key === 'contactInfo' && value && typeof value === 'object') {
+          sanitized[key] = JSON.stringify(value, null, 2);
+          return;
+        }
+        sanitized[key] = value === null || value === undefined ? DEFAULT_SETTINGS[key] ?? '' : value;
+      });
+
+      setSettings(sanitized);
+      setFormValues(sanitized);
+      setLogoUploadMessage({ text: result.message || '¡Logo actualizado con éxito!', type: 'success' });
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      setLogoUploadMessage({ text: error.message || 'Error al subir el logo', type: 'error' });
+    } finally {
+      setIsUploadingLogo(false);
+      setTimeout(() => setLogoUploadMessage({ text: '', type: '' }), 5000);
+    }
+  };
+
+  const handleLogoDelete = async (type) => {
+    if (!window.confirm(`¿Estás seguro de eliminar el logo ${type === 'primary' ? 'principal' : 'secundario'}?`)) {
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    setLogoUploadMessage({ text: 'Eliminando logo...', type: 'info' });
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/business-settings/logo/${type}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Error al eliminar logo');
+      }
+
+      // Actualizar settings con la respuesta
+      const sanitized = { ...DEFAULT_SETTINGS };
+      Object.entries(result.settings || {}).forEach(([key, value]) => {
+        if (key === 'contactInfo' && value && typeof value === 'object') {
+          sanitized[key] = JSON.stringify(value, null, 2);
+          return;
+        }
+        sanitized[key] = value === null || value === undefined ? DEFAULT_SETTINGS[key] ?? '' : value;
+      });
+
+      setSettings(sanitized);
+      setFormValues(sanitized);
+      setLogoUploadMessage({ text: result.message || '¡Logo eliminado con éxito!', type: 'success' });
+    } catch (error) {
+      console.error('Error deleting logo:', error);
+      setLogoUploadMessage({ text: error.message || 'Error al eliminar el logo', type: 'error' });
+    } finally {
+      setIsUploadingLogo(false);
+      setTimeout(() => setLogoUploadMessage({ text: '', type: '' }), 5000);
+    }
+  };
+
   const renderContactInfo = () => {
     const { contactInfo } = settings;
     if (!hasValue(contactInfo)) {
@@ -339,20 +450,68 @@ const BusinessSettings = ({ activeSection }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Logotipo (URL)</label>
-          {isEditing ? (
-            <input type="url" {...bindField('logoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="https://cdn.example.com/logo.png" />
-          ) : (
-            <ReadOnlyValue value={settings.logoUrl} placeholder="Sin URL">
-              {hasValue(settings.logoUrl) ? (
-                <a href={settings.logoUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
-                  {settings.logoUrl}
-                </a>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Logotipo Principal</label>
+          <div className="space-y-3">
+            {hasValue(settings.logoUrl) && (
+              <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-shrink-0 w-20 h-20 bg-white rounded-lg p-2 shadow-sm flex items-center justify-center">
+                    <img src={settings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Logo cargado</p>
+                    <a href={settings.logoUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all">
+                      Ver en tamaño completo
+                    </a>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleLogoDelete('primary')}
+                  disabled={isUploadingLogo}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 font-medium rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 w-full justify-center text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar logo
+                </button>
+              </div>
+            )}
+            <input
+              type="file"
+              ref={logoInputRef}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) handleLogoUpload(file, 'primary');
+                e.target.value = '';
+              }}
+              accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={isUploadingLogo}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 w-full justify-center"
+            >
+              {isUploadingLogo ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Subiendo...
+                </>
               ) : (
-                <span className="text-gray-400 italic">Sin URL</span>
+                <>
+                  <Upload className="w-4 h-4" />
+                  {hasValue(settings.logoUrl) ? 'Cambiar logo' : 'Subir logo'}
+                </>
               )}
-            </ReadOnlyValue>
-          )}
+            </button>
+            {isEditing && (
+              <input type="url" {...bindField('logoUrl')} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm" placeholder="O ingrese una URL directamente" />
+            )}
+            <p className="text-xs text-gray-500">
+              Formatos: JPG, PNG, WEBP, SVG • Máx: 5MB
+            </p>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Información de Contacto (JSON)</label>
@@ -440,20 +599,68 @@ const BusinessSettings = ({ activeSection }) => {
           )}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Logo Secundario / Marca de Agua (URL)</label>
-          {isEditing ? (
-            <input type="url" {...bindField('secondaryLogoUrl')} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
-          ) : (
-            <ReadOnlyValue value={settings.secondaryLogoUrl} placeholder="Sin URL">
-              {hasValue(settings.secondaryLogoUrl) ? (
-                <a href={settings.secondaryLogoUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
-                  {settings.secondaryLogoUrl}
-                </a>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Logo Secundario / Marca de Agua</label>
+          <div className="space-y-3">
+            {hasValue(settings.secondaryLogoUrl) && (
+              <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-shrink-0 w-20 h-20 bg-white rounded-lg p-2 shadow-sm flex items-center justify-center">
+                    <img src={settings.secondaryLogoUrl} alt="Logo Secundario" className="max-w-full max-h-full object-contain" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Logo secundario cargado</p>
+                    <a href={settings.secondaryLogoUrl} target="_blank" rel="noreferrer" className="text-xs text-purple-600 hover:underline break-all">
+                      Ver en tamaño completo
+                    </a>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleLogoDelete('secondary')}
+                  disabled={isUploadingLogo}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 font-medium rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 w-full justify-center text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar logo secundario
+                </button>
+              </div>
+            )}
+            <input
+              type="file"
+              ref={secondaryLogoInputRef}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) handleLogoUpload(file, 'secondary');
+                e.target.value = '';
+              }}
+              accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => secondaryLogoInputRef.current?.click()}
+              disabled={isUploadingLogo}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 w-full justify-center"
+            >
+              {isUploadingLogo ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Subiendo...
+                </>
               ) : (
-                <span className="text-gray-400 italic">Sin URL</span>
+                <>
+                  <Upload className="w-4 h-4" />
+                  {hasValue(settings.secondaryLogoUrl) ? 'Cambiar logo secundario' : 'Subir logo secundario'}
+                </>
               )}
-            </ReadOnlyValue>
-          )}
+            </button>
+            {isEditing && (
+              <input type="url" {...bindField('secondaryLogoUrl')} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm" placeholder="O ingrese una URL directamente" />
+            )}
+            <p className="text-xs text-gray-500">
+              Formatos: JPG, PNG, WEBP, SVG • Máx: 5MB
+            </p>
+          </div>
         </div>
       </div>
 
@@ -592,6 +799,18 @@ const BusinessSettings = ({ activeSection }) => {
             <div className="mt-2 flex items-center gap-2 text-green-600 text-sm">
               <CheckCircle className="w-4 h-4" />
               <span>Configuración guardada con éxito.</span>
+            </div>
+          )}
+          {logoUploadMessage.text && (
+            <div className={`mt-2 flex items-center gap-2 text-sm ${
+              logoUploadMessage.type === 'success' ? 'text-green-600' :
+              logoUploadMessage.type === 'error' ? 'text-red-600' :
+              'text-blue-600'
+            }`}>
+              {logoUploadMessage.type === 'success' ? <CheckCircle className="w-4 h-4" /> :
+               logoUploadMessage.type === 'error' ? <XCircle className="w-4 h-4" /> :
+               <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{logoUploadMessage.text}</span>
             </div>
           )}
         </div>

@@ -224,10 +224,113 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const uploadAvatar = async (req, res) => {
+  const { id } = req.params;
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ message: 'No se ha subido ningún archivo.' });
+  }
+
+  try {
+    // Verificar que el usuario existe
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('usuarios')
+      .select('id, avatar')
+      .eq('id', id)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    // Subir archivo a Supabase Storage
+    const filePath = `avatars/${id}/${Date.now()}-${file.originalname}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Error uploading avatar to Supabase Storage:', uploadError);
+      throw new Error(uploadError.message);
+    }
+
+    // Obtener URL pública
+    const { data: urlData } = supabaseAdmin.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    // Agregar timestamp para evitar caché del navegador
+    const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    // Actualizar URL en la base de datos
+    const { data, error: updateError } = await supabaseAdmin
+      .from('usuarios')
+      .update({ avatar: avatarUrl })
+      .eq('id', id)
+      .select(USER_SELECT)
+      .single();
+
+    if (updateError) {
+      console.error('Error updating user with avatar URL:', updateError);
+      throw new Error('Error al actualizar el avatar del usuario.');
+    }
+
+    return res.status(200).json({
+      message: 'Avatar subido exitosamente.',
+      user: mapDbUserToClient(data)
+    });
+
+  } catch (error) {
+    console.error('Server error in avatar upload:', error);
+    return res.status(500).json({
+      message: 'Error del servidor al subir avatar.',
+      details: error.message
+    });
+  }
+};
+
+const deleteAvatar = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Actualizar avatar a null para que use el fallback
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .update({ avatar: null })
+      .eq('id', id)
+      .select(USER_SELECT)
+      .single();
+
+    if (error) {
+      console.error('Error deleting avatar:', error);
+      return res.status(500).json({ message: 'Error al eliminar avatar.' });
+    }
+
+    if (!data) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    return res.json({
+      message: 'Avatar eliminado exitosamente.',
+      user: mapDbUserToClient(data)
+    });
+  } catch (err) {
+    console.error('Unexpected error deleting avatar:', err);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
 module.exports = {
   getAllUsers,
   createUser,
   updateUser,
   deleteUser,
+  uploadAvatar,
+  deleteAvatar,
 };
 

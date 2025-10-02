@@ -20,9 +20,38 @@ const getAllAirports = async (req, res) => {
 };
 
 const searchAirports = async (req, res) => {
-    // This is a placeholder to avoid crashing the server.
-    // The original search logic should be restored here.
-    res.json([]);
+    try {
+        const query = req.query.q;
+
+        if (!query || query.trim().length < 2) {
+            return res.json([]);
+        }
+
+        const searchTerm = query.trim().toLowerCase();
+
+        // Search in multiple fields: airport_name, city, country, iata_code
+        const { data, error } = await supabaseAdmin
+            .from('catalog_airports')
+            .select('*')
+            .or(`airport_name.ilike.%${searchTerm}%,city.ilike.%${searchTerm}%,country.ilike.%${searchTerm}%,iata_code.ilike.%${searchTerm}%`)
+            .limit(10);
+
+        if (error) {
+            console.error('Supabase error searching airports:', error);
+            return res.status(500).json({
+                message: 'Error searching airports from database.',
+                details: error.message
+            });
+        }
+
+        res.json(data || []);
+    } catch (error) {
+        console.error('Unexpected error in searchAirports:', error);
+        res.status(500).json({
+            message: 'Unexpected server error while searching airports',
+            details: error.message
+        });
+    }
 };
 
 module.exports = { 

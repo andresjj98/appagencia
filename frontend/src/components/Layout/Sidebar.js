@@ -65,10 +65,11 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
       {/* User Info */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <img 
-            src={currentUser.avatar} 
+          <img
+            src={currentUser.avatar}
             alt={currentUser.name}
             className="w-10 h-10 rounded-full object-cover"
+            key={currentUser.avatar}
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">

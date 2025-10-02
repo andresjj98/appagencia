@@ -226,7 +226,149 @@ const upsertBusinessSettings = async (req, res) => {
   }
 };
 
+const uploadLogo = async (req, res) => {
+  const { type } = req.params; // 'primary' o 'secondary'
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ message: 'No se ha subido ningún archivo.' });
+  }
+
+  if (!['primary', 'secondary'].includes(type)) {
+    return res.status(400).json({ message: 'Tipo de logo inválido. Use "primary" o "secondary".' });
+  }
+
+  try {
+    // Obtener configuración actual
+    const { data: settings, error: settingsError } = await supabaseAdmin
+      .from('business_settings')
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+
+    if (settingsError) {
+      console.error('Error fetching business settings:', settingsError);
+      return res.status(500).json({ message: 'Error al obtener configuración.' });
+    }
+
+    // Subir archivo a Supabase Storage
+    const filePath = `logos/${type}/${Date.now()}-${file.originalname}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('business-assets')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Error uploading logo to Supabase Storage:', uploadError);
+      throw new Error(uploadError.message);
+    }
+
+    // Obtener URL pública con timestamp para evitar caché
+    const { data: urlData } = supabaseAdmin.storage
+      .from('business-assets')
+      .getPublicUrl(filePath);
+
+    const logoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    // Determinar qué campo actualizar
+    const fieldToUpdate = type === 'primary' ? 'logo_url' : 'secondary_logo_url';
+
+    // Actualizar o crear configuración
+    const upsertData = {
+      [fieldToUpdate]: logoUrl
+    };
+
+    if (settings?.id) {
+      upsertData.id = settings.id;
+    }
+
+    const { data, error: updateError } = await supabaseAdmin
+      .from('business_settings')
+      .upsert(upsertData, { onConflict: 'id' })
+      .select('*')
+      .maybeSingle();
+
+    if (updateError) {
+      console.error('Error updating business settings with logo URL:', updateError);
+      throw new Error('Error al actualizar la configuración con el logo.');
+    }
+
+    const mapped = mapDbToApp(data);
+    return res.status(200).json({
+      message: `Logo ${type === 'primary' ? 'principal' : 'secundario'} subido exitosamente.`,
+      settings: sanitizeSettings(mapped)
+    });
+
+  } catch (error) {
+    console.error('Server error in logo upload:', error);
+    return res.status(500).json({
+      message: 'Error del servidor al subir logo.',
+      details: error.message
+    });
+  }
+};
+
+const deleteLogo = async (req, res) => {
+  const { type } = req.params; // 'primary' o 'secondary'
+
+  if (!['primary', 'secondary'].includes(type)) {
+    return res.status(400).json({ message: 'Tipo de logo inválido. Use "primary" o "secondary".' });
+  }
+
+  try {
+    // Obtener configuración actual
+    const { data: settings, error: settingsError } = await supabaseAdmin
+      .from('business_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+
+    if (settingsError) {
+      console.error('Error fetching business settings:', settingsError);
+      return res.status(500).json({ message: 'Error al obtener configuración.' });
+    }
+
+    if (!settings) {
+      return res.status(404).json({ message: 'No se encontró configuración del negocio.' });
+    }
+
+    // Determinar qué campo actualizar
+    const fieldToUpdate = type === 'primary' ? 'logo_url' : 'secondary_logo_url';
+
+    // Actualizar configuración eliminando el logo
+    const { data, error: updateError } = await supabaseAdmin
+      .from('business_settings')
+      .update({ [fieldToUpdate]: null })
+      .eq('id', settings.id)
+      .select('*')
+      .maybeSingle();
+
+    if (updateError) {
+      console.error('Error removing logo from business settings:', updateError);
+      throw new Error('Error al eliminar el logo de la configuración.');
+    }
+
+    const mapped = mapDbToApp(data);
+    return res.status(200).json({
+      message: `Logo ${type === 'primary' ? 'principal' : 'secundario'} eliminado exitosamente.`,
+      settings: sanitizeSettings(mapped)
+    });
+
+  } catch (error) {
+    console.error('Server error in logo deletion:', error);
+    return res.status(500).json({
+      message: 'Error del servidor al eliminar logo.',
+      details: error.message
+    });
+  }
+};
+
 module.exports = {
   getBusinessSettings,
   upsertBusinessSettings,
+  uploadLogo,
+  deleteLogo,
 };
