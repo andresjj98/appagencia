@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
   Calendar,
@@ -19,6 +19,7 @@ import { USER_ROLES, canAccessModule } from '../../utils/constants';
 
 const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
   const { currentUser } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'reservations', label: 'Reservas', icon: Calendar },
@@ -35,6 +36,43 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
   const filteredMenuItems = menuItems.filter(item =>
     canAccessModule(currentUser, item.id)
   );
+
+  // Fetch unread notification count
+  const fetchUnreadCount = useCallback(async () => {
+    if (!currentUser) return;
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/notifications/user/${currentUser.id}/unread-count`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setUnreadCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, [currentUser]);
+
+  // Fetch count on mount and when switching to notifications
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [fetchUnreadCount]);
+
+  // Poll for new notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUnreadCount();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
+
+  // Refresh count when navigating to notifications
+  useEffect(() => {
+    if (activeSection === 'notifications') {
+      fetchUnreadCount();
+    }
+  }, [activeSection, fetchUnreadCount]);
 
   return (
     <motion.div 
@@ -85,12 +123,13 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
           {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeSection === item.id;
-            
+            const showBadge = item.id === 'notifications' && unreadCount > 0;
+
             return (
               <motion.li key={item.id}>
                 <motion.button
                   onClick={() => onSectionChange(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 relative ${
                     isActive
                       ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -99,7 +138,26 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
                   whileTap={{ scale: 0.98 }}
                 >
                   <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium flex-1">{item.label}</span>
+
+                  {/* Notification Badge */}
+                  <AnimatePresence>
+                    {showBadge && (
+                      <motion.span
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                        className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold rounded-full ${
+                          isActive
+                            ? 'bg-white text-blue-600'
+                            : 'bg-red-600 text-white'
+                        }`}
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </motion.button>
               </motion.li>
             );
