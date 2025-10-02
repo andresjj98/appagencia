@@ -229,14 +229,6 @@ CREATE TABLE public.reservations (
   CONSTRAINT reservations_advisor_id_fkey FOREIGN KEY (advisor_id) REFERENCES public.usuarios(id),
   CONSTRAINT reservations_manager_id_fkey FOREIGN KEY (manager_id) REFERENCES public.usuarios(id)
 );
-CREATE TABLE public.sales_point_users (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  office_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  CONSTRAINT sales_point_users_pkey PRIMARY KEY (id),
-  CONSTRAINT sales_point_users_office_id_fkey FOREIGN KEY (office_id) REFERENCES public.offices(id),
-  CONSTRAINT sales_point_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.usuarios(id)
-);
 CREATE TABLE public.usuarios (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -248,9 +240,13 @@ CREATE TABLE public.usuarios (
   password text NOT NULL,
   active boolean DEFAULT true,
   avatar text,
-  CONSTRAINT usuarios_pkey PRIMARY KEY (id)
+  office_id uuid,
+  is_super_admin boolean DEFAULT false,
+  CONSTRAINT usuarios_pkey PRIMARY KEY (id),
+  CONSTRAINT usuarios_office_id_fkey FOREIGN KEY (office_id) REFERENCES public.offices(id)
 );
 
+-- INICIO FUNCIONES
 DECLARE
     new_client_id UUID;
     new_reservation_id BIGINT;

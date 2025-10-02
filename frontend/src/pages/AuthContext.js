@@ -17,9 +17,25 @@ export const AuthProvider = ({ children }) => {
       if (!response.ok) {
         throw new Error(data.message || 'Error en el inicio de sesión');
       }
-      setCurrentUser(data.user);
-      setMockUser(data.user); // Keep mock in sync
-      return { user: data.user, error: null };
+
+      // Mapear el usuario del backend al formato del frontend
+      const mappedUser = {
+        id: data.user.id,
+        name: data.user.name,
+        lastName: data.user.last_name,
+        idCard: data.user.id_card,
+        username: data.user.username,
+        email: data.user.email,
+        role: data.user.role,
+        active: data.user.active,
+        avatar: data.user.avatar,
+        officeId: data.user.office_id,
+        isSuperAdmin: data.user.is_super_admin || false
+      };
+
+      setCurrentUser(mappedUser);
+      setMockUser(mappedUser); // Keep mock in sync
+      return { user: mappedUser, error: null };
     } catch (error) {
       return { user: null, error };
     }

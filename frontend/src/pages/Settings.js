@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import { hasPermission } from '../utils/constants';
 
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General y Fiscal', title: 'Información General y Fiscal', icon: Building },
@@ -878,7 +879,7 @@ const Settings = () => {
   const { currentUser } = useAuth();
   const [activeSection, setActiveSection] = useState(SETTINGS_SECTIONS[0].id);
 
-  if (!['admin', 'manager'].includes(currentUser.role)) {
+  if (!hasPermission(currentUser, ['administrador', 'gestor'])) {
     return (
       <div className="p-6 text-center">
         <h2 className="text-2xl font-bold text-red-600">Acceso denegado</h2>

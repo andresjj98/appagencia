@@ -10,7 +10,7 @@ const login = async (req, res) => {
   try {
     const { data: user, error } = await supabaseAdmin
       .from('usuarios')
-      .select('id, name, last_name, id_card, username, email, role, password, active, avatar')
+      .select('id, name, last_name, id_card, username, email, role, password, active, avatar, office_id, is_super_admin')
       .eq('email', email)
       .single();
 

@@ -1,7 +1,7 @@
 ﻿const { supabaseAdmin } = require('../supabase');
 const { hashPassword } = require('../passwordUtils');
 
-const USER_SELECT = 'id, name, last_name, id_card, username, email, role, active, avatar';
+const USER_SELECT = 'id, name, last_name, id_card, username, email, role, active, avatar, office_id, is_super_admin';
 
 const applyFallbackAvatar = (row) => {
   if (row.avatar && row.avatar.trim()) {
@@ -22,6 +22,8 @@ const mapDbUserToClient = (row) => ({
   role: row.role || 'advisor',
   active: row.active ?? true,
   avatar: applyFallbackAvatar(row),
+  officeId: row.office_id || null,
+  isSuperAdmin: row.is_super_admin ?? false,
   createdAt: row.created_at || null,
 });
 
@@ -69,6 +71,15 @@ const buildUserPayload = async (body, { hashPasswordIfNeeded = true } = {}) => {
   if (body.avatar !== undefined) {
     const avatar = toTrimmed(body.avatar);
     payload.avatar = avatar && avatar.length > 0 ? avatar : null;
+  }
+
+  if (body.officeId !== undefined) {
+    const officeId = toTrimmed(body.officeId);
+    payload.office_id = officeId && officeId.length > 0 ? officeId : null;
+  }
+
+  if (body.isSuperAdmin !== undefined) {
+    payload.is_super_admin = !!body.isSuperAdmin;
   }
 
   if (hashPasswordIfNeeded && body.password !== undefined) {

@@ -28,7 +28,6 @@ const businessSettingsRoutes = require('./routes/businessSettings');
 const usersRoutes = require('./routes/users');
 const officesRoutes = require('./routes/offices');
 const installmentsRoutes = require('./routes/installments');
-const { getUnassociatedUsers } = require('./controllers/offices.controller');
 
 // Use routes
 app.use('/api', authRoutes);
@@ -39,7 +38,6 @@ app.use('/api/business-settings', businessSettingsRoutes);
 app.use('/api/usuarios', usersRoutes);
 app.use('/api/offices', officesRoutes);
 app.use('/api/installments', installmentsRoutes);
-app.get('/api/unassociated-users', getUnassociatedUsers);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...
 
@@ -131,7 +129,7 @@ app.post('/api/files/get-secure-url', async (req, res) => {
         let hasPermission = false;
 
         // Admins and managers have automatic permission
-        if (userRole === 'admin' || userRole === 'manager') {
+        if (userRole === 'administrador' || userRole === 'gestor') {
             hasPermission = true;
         } else {
             // 2. For other roles, check if they are the advisor on the reservation

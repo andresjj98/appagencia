@@ -15,6 +15,7 @@ import Analytics from './pages/Analytics';
 import Finance from './pages/Finance'; // Importar el nuevo componente
 import Login from './pages/Login';
 import { useAuth } from './pages/AuthContext';
+import { hasPermission } from './utils/constants';
 
 const App = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -31,7 +32,7 @@ const App = () => {
       case 'reservations':
         return <Reservations />;
       case 'gestion':
-        if (currentUser.role === 'manager' || currentUser.role === 'admin') {
+        if (hasPermission(currentUser, ['gestor', 'administrador'])) {
           return <Gestion />;
         }
         return (

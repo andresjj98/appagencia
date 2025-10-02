@@ -24,7 +24,15 @@ export const PAYMENT_STATUS = {
 };
 
 export const USER_ROLES = {
-  admin: { label: 'Administrador', color: 'purple' },
-  manager: { label: 'Gestor', color: 'blue' },
-  advisor: { label: 'Asesor', color: 'green' }
+  administrador: { label: 'Administrador', color: 'purple' },
+  gestor: { label: 'Gestor', color: 'blue' },
+  asesor: { label: 'Asesor', color: 'green' }
+};
+
+// Helper para verificar permisos
+export const hasPermission = (user, allowedRoles) => {
+  // Super admins tienen acceso a todo
+  if (user?.isSuperAdmin) return true;
+  // Verificar si el rol del usuario está en los roles permitidos
+  return allowedRoles.includes(user?.role);
 };

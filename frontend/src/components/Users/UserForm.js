@@ -1,25 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, User, Mail, Phone, Lock, Check, Briefcase, IdCard, Eye, EyeOff } from 'lucide-react';
+import { X, Save, User, Mail, Lock, Briefcase, IdCard, Eye, EyeOff, Building2, Shield } from 'lucide-react';
 import { USER_ROLES } from '../../utils/constants';
 
 
 const UserForm = ({ user = null, onSave, onClose }) => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
-    lastName: user?.lastName || '', 
-    idCard: user?.idCard || '', 
+    lastName: user?.lastName || '',
+    idCard: user?.idCard || '',
     username: user?.username || '', // New field
     email: user?.email || '',
-    role: user?.role || 'advisor',
-    password: '', 
-    active: user?.active !== undefined ? user.active : true, 
-    avatar: user?.avatar || 'https://api.dicebear.com/7.x/lorelei/svg?seed=default' 
+    role: user?.role || 'asesor',
+    password: '',
+    active: user?.active !== undefined ? user.active : true,
+    avatar: user?.avatar || 'https://api.dicebear.com/7.x/lorelei/svg?seed=default',
+    officeId: user?.officeId || '',
+    isSuperAdmin: user?.isSuperAdmin || false
   });
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [offices, setOffices] = useState([]);
 
   useEffect(() => {
+    // Fetch offices
+    const fetchOffices = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/offices');
+        const data = await response.json();
+        setOffices(data);
+        console.log('Offices loaded:', data);
+      } catch (error) {
+        console.error('Error fetching offices:', error);
+      }
+    };
+    fetchOffices();
+
     if (user) {
       setFormData({
         name: user.name,
@@ -28,14 +44,16 @@ const UserForm = ({ user = null, onSave, onClose }) => {
         username: user.username || '',
         email: user.email,
         role: user.role,
-        password: '', 
+        password: '',
         active: user.active,
-        avatar: user.avatar
+        avatar: user.avatar,
+        officeId: user.officeId || '',
+        isSuperAdmin: user.isSuperAdmin || false
       });
     } else {
       setFormData(prev => ({
         ...prev,
-        avatar: `https://api.dicebear.com/7.x/lorelei/svg?seed=${Date.now()}` 
+        avatar: `https://api.dicebear.com/7.x/lorelei/svg?seed=${Date.now()}`
       }));
     }
   }, [user]);
@@ -220,6 +238,44 @@ const UserForm = ({ user = null, onSave, onClose }) => {
               >
                 {Object.entries(USER_ROLES).map(([key, value]) => (
                   <option key={key} value={key}>{value.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Mostrar campo Super Admin solo si el rol es administrador */}
+          {formData.role === 'administrador' && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <input
+                type="checkbox"
+                id="isSuperAdmin"
+                name="isSuperAdmin"
+                checked={formData.isSuperAdmin}
+                onChange={handleChange}
+                className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="isSuperAdmin" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-blue-600" />
+                Jefe / Super Administrador (acceso completo)
+              </label>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Oficina Asignada
+            </label>
+            <div className="relative">
+              <Building2 className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <select
+                name="officeId"
+                value={formData.officeId}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Sin oficina asignada</option>
+                {offices.map(office => (
+                  <option key={office.id} value={office.id}>{office.name}</option>
                 ))}
               </select>
             </div>

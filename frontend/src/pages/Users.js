@@ -70,7 +70,7 @@ const UserManagement = () => {
 
   const handleSaveUser = async (userData) => {
     if (editingUser) {
-      const hasChanges = ['name','lastName','idCard','username','email','role','active','avatar'].some(
+      const hasChanges = ['name','lastName','idCard','username','email','role','active','avatar','officeId','isSuperAdmin'].some(
         key => userData[key] !== editingUser[key]
       ) || (userData.password && userData.password.length > 0);
 

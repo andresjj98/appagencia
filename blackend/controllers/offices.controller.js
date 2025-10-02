@@ -1,22 +1,6 @@
 ﻿const { supabaseAdmin } = require('../supabase');
 
 const OFFICE_SELECT = 'id, name, address, phone, email, manager, active';
-const USER_SELECT = 'id, name, last_name, email, username, avatar, active';
-
-const applyFallbackAvatar = (user) => {
-  if (user.avatar && user.avatar.trim()) {
-    return user.avatar;
-  }
-  const seed = user.username || user.email || user.name || `user-${user.id || 'seed'}`;
-  return `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(seed)}`;
-};
-
-const mapDbUserToClient = (user) => ({
-  id: user.id,
-  name: user.last_name ? `${user.name} ${user.last_name}`.trim() : user.name || '',
-  email: user.email || '',
-  avatar: applyFallbackAvatar(user),
-});
 
 const sanitizeOfficePayload = (body = {}) => {
   const toTrimmed = (value) => {
@@ -77,22 +61,29 @@ const getAllOffices = async (_req, res) => {
       return res.status(500).json({ message: 'Error al obtener oficinas.' });
     }
 
-    const { data: relations, error: relationsError } = await supabaseAdmin
-      .from('sales_point_users')
-      .select('office_id, usuarios ( id, name, last_name, email, username, avatar )');
+    // Obtener usuarios asignados a cada oficina
+    const { data: users, error: usersError } = await supabaseAdmin
+      .from('usuarios')
+      .select('id, name, last_name, email, username, avatar, office_id')
+      .not('office_id', 'is', null);
 
-    if (relationsError) {
-      console.error('Error fetching office relations:', relationsError);
-      return res.status(500).json({ message: 'Error al obtener usuarios asociados.' });
+    if (usersError) {
+      console.error('Error fetching users for offices:', usersError);
+      return res.status(500).json({ message: 'Error al obtener usuarios de oficinas.' });
     }
 
+    // Agrupar usuarios por oficina
     const usersByOffice = new Map();
-    for (const relation of relations || []) {
-      if (!relation.office_id || !relation.usuarios) continue;
-      if (!usersByOffice.has(relation.office_id)) {
-        usersByOffice.set(relation.office_id, []);
+    for (const user of users || []) {
+      if (!usersByOffice.has(user.office_id)) {
+        usersByOffice.set(user.office_id, []);
       }
-      usersByOffice.get(relation.office_id).push(mapDbUserToClient(relation.usuarios));
+      usersByOffice.get(user.office_id).push({
+        id: user.id,
+        name: user.last_name ? `${user.name} ${user.last_name}`.trim() : user.name || '',
+        email: user.email || '',
+        avatar: user.avatar || `https://api.dicebear.com/7.x/lorelei/svg?seed=${user.username || user.email}`,
+      });
     }
 
     const response = (offices || []).map((office) => ({
@@ -141,7 +132,6 @@ const createOffice = async (req, res) => {
       email: data.email || '',
       manager: data.manager || '',
       active: data.active ?? true,
-      associatedUsers: [],
     });
   } catch (err) {
     console.error('Unexpected error creating office:', err);
@@ -183,21 +173,6 @@ const updateOffice = async (req, res) => {
       return res.status(404).json({ message: 'Oficina no encontrada.' });
     }
 
-    const { data: relations, error: relationsError } = await supabaseAdmin
-      .from('sales_point_users')
-      .select('usuarios ( id, name, last_name, email, username, avatar )')
-      .eq('office_id', id);
-
-    if (relationsError) {
-      console.error('Error fetching office relations after update:', relationsError);
-      return res.status(500).json({ message: 'Error al obtener usuarios asociados.' });
-    }
-
-    const associatedUsers = (relations || [])
-      .map((relation) => relation.usuarios)
-      .filter(Boolean)
-      .map(mapDbUserToClient);
-
     return res.json({
       id: data.id,
       name: data.name,
@@ -206,7 +181,6 @@ const updateOffice = async (req, res) => {
       email: data.email || '',
       manager: data.manager || '',
       active: data.active ?? true,
-      associatedUsers,
     });
   } catch (err) {
     console.error('Unexpected error updating office:', err);
@@ -221,14 +195,20 @@ const deleteOffice = async (req, res) => {
   }
 
   try {
-    const { error: relationDeleteError } = await supabaseAdmin
-      .from('sales_point_users')
-      .delete()
-      .eq('office_id', id);
+    // Verificar si hay usuarios asignados a esta oficina
+    const { data: usersInOffice, error: usersError } = await supabaseAdmin
+      .from('usuarios')
+      .select('id')
+      .eq('office_id', id)
+      .limit(1);
 
-    if (relationDeleteError) {
-      console.error('Error deleting office relations:', relationDeleteError);
-      return res.status(500).json({ message: 'Error al eliminar asociaciones de la oficina.' });
+    if (usersError) {
+      console.error('Error checking users in office:', usersError);
+      return res.status(500).json({ message: 'Error al verificar usuarios de la oficina.' });
+    }
+
+    if (usersInOffice && usersInOffice.length > 0) {
+      return res.status(400).json({ message: 'No se puede eliminar la oficina porque tiene usuarios asignados.' });
     }
 
     const { data, error } = await supabaseAdmin
@@ -254,127 +234,15 @@ const deleteOffice = async (req, res) => {
   }
 };
 
-const updateOfficeUsers = async (req, res) => {
-  const { id } = req.params;
-  const { userIds } = req.body || {};
+// Esta función ya no es necesaria - la asociación se hace desde usuarios
+// const updateOfficeUsers = async (req, res) => { ... }
 
-  if (!id) {
-    return res.status(400).json({ message: 'ID de oficina requerido.' });
-  }
-
-  if (!Array.isArray(userIds)) {
-    return res.status(400).json({ message: 'userIds debe ser un arreglo.' });
-  }
-
-  try {
-    const { data: existingRelations, error: relationsError } = await supabaseAdmin
-      .from('sales_point_users')
-      .select('id, user_id')
-      .eq('office_id', id);
-
-    if (relationsError) {
-      console.error('Error fetching existing relations:', relationsError);
-      return res.status(500).json({ message: 'Error al obtener asociaciones existentes.' });
-    }
-
-    const existingIds = new Set((existingRelations || []).map((r) => r.user_id));
-    const incomingIds = new Set(userIds.filter(Boolean));
-
-    const toInsert = [];
-    for (const userId of incomingIds) {
-      if (!existingIds.has(userId)) {
-        toInsert.push({ office_id: id, user_id: userId });
-      }
-    }
-
-    const toDelete = (existingRelations || [])
-      .filter((relation) => !incomingIds.has(relation.user_id))
-      .map((relation) => relation.id);
-
-    if (toInsert.length > 0) {
-      const { error: insertError } = await supabaseAdmin
-        .from('sales_point_users')
-        .insert(toInsert);
-
-      if (insertError) {
-        console.error('Error inserting office relations:', insertError);
-        return res.status(500).json({ message: 'Error al asociar usuarios a la oficina.' });
-      }
-    }
-
-    if (toDelete.length > 0) {
-      const { error: deleteError } = await supabaseAdmin
-        .from('sales_point_users')
-        .delete()
-        .in('id', toDelete);
-
-      if (deleteError) {
-        console.error('Error removing office relations:', deleteError);
-        return res.status(500).json({ message: 'Error al eliminar asociaciones de la oficina.' });
-      }
-    }
-
-    const { data: relations, error: relationsFetchError } = await supabaseAdmin
-      .from('sales_point_users')
-      .select('usuarios ( id, name, last_name, email, username, avatar )')
-      .eq('office_id', id);
-
-    if (relationsFetchError) {
-      console.error('Error fetching relations after update:', relationsFetchError);
-      return res.status(500).json({ message: 'Error al obtener usuarios asociados.' });
-    }
-
-    const associatedUsers = (relations || [])
-      .map((relation) => relation.usuarios)
-      .filter(Boolean)
-      .map(mapDbUserToClient);
-
-    return res.json({ associatedUsers });
-  } catch (err) {
-    console.error('Unexpected error updating office users:', err);
-    return res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-};
-
-const getUnassociatedUsers = async (_req, res) => {
-  try {
-    const { data: associatedRows, error: associatedError } = await supabaseAdmin
-      .from('sales_point_users')
-      .select('user_id');
-
-    if (associatedError) {
-      console.error('Error fetching associated users:', associatedError);
-      return res.status(500).json({ message: 'Error al obtener usuarios asociados.' });
-    }
-
-    const associatedSet = new Set((associatedRows || []).map((row) => row.user_id));
-
-    const { data: users, error: usersError } = await supabaseAdmin
-      .from('usuarios')
-      .select(USER_SELECT)
-      .order('name', { ascending: true });
-
-    if (usersError) {
-      console.error('Error fetching users for unassociated list:', usersError);
-      return res.status(500).json({ message: 'Error al obtener usuarios.' });
-    }
-
-    const response = (users || [])
-      .filter((user) => !associatedSet.has(user.id))
-      .map(mapDbUserToClient);
-
-    return res.json(response);
-  } catch (err) {
-    console.error('Unexpected error fetching unassociated users:', err);
-    return res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-};
+// Esta función ya no es necesaria - la asociación se hace desde usuarios
+// const getUnassociatedUsers = async (_req, res) => { ... }
 
 module.exports = {
   getAllOffices,
   createOffice,
   updateOffice,
   deleteOffice,
-  updateOfficeUsers,
-  getUnassociatedUsers,
 };
