@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../pages/AuthContext';
 import { Upload, File as FileIcon, Loader, Info, X, DollarSign, Calendar, MapPin, User, Hash, Phone, Mail, FileText, CreditCard, Search } from 'lucide-react';
@@ -191,7 +190,7 @@ const FinancePanel = () => {
     setError(null);
     try {
       const [reservationsResponse, airportsResponse] = await Promise.all([
-        fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`),
+        fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}&officeId=${currentUser.officeId}`),
         fetch('http://localhost:4000/api/airports')
       ]);
 

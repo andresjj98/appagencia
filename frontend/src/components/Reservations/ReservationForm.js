@@ -375,13 +375,15 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       }
     }
 
-    formData.segments.forEach((seg, idx) => {
-      if (!seg.departureDate || !seg.returnDate) {
-        newErrors[`segment-${idx}`] = 'Debe indicar fechas de salida y regreso.';
-      } else if (new Date(seg.returnDate) < new Date(seg.departureDate)) {
-        newErrors[`segment-${idx}`] = 'La fecha de regreso debe ser posterior a la fecha de salida.';
-      }
-    });
+    if (formData.tripType === 'multi_city') {
+      formData.segments.forEach((seg, idx) => {
+        if (!seg.departureDate || !seg.returnDate) {
+          newErrors[`segment-${idx}`] = 'Debe indicar fechas de salida y regreso.';
+        } else if (new Date(seg.returnDate) < new Date(seg.departureDate)) {
+          newErrors[`segment-${idx}`] = 'La fecha de regreso debe ser posterior a la fecha de salida.';
+        }
+      });
+    }
 
     const toursOutOfRange = formData.tours.some(t => !isDateWithinRange(t.date, tripDepartureDate, tripReturnDate));
     if (toursOutOfRange) {

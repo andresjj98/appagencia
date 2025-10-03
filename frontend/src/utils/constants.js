@@ -79,9 +79,11 @@ export const canEditReservation = (user, reservation) => {
   }
 
   // Gestor solo puede editar reservas que ya están confirmadas
+  // y que pertenecen a su oficina (si tiene una asignada)
   // NO puede editar reservas pendientes (esas las aprueba el admin)
   if (user.role === 'gestor') {
-    return reservation.status === 'confirmed';
+    const canAccess = !user.officeId || reservation.office_id === user.officeId;
+    return canAccess && reservation.status === 'confirmed';
   }
 
   // Asesor solo puede editar sus propias reservas pendientes o rechazadas
@@ -105,13 +107,20 @@ export const canApproveReservation = (user, reservation) => {
   // Super admin puede aprobar todo
   if (user.isSuperAdmin) return true;
 
+  // Gestores NO pueden aprobar NUNCA, solo ver
+  if (user.role === 'gestor') return false;
+
   // Solo administradores pueden aprobar/rechazar
   // Y solo las reservas de su oficina
   if (user.role === 'administrador') {
-    return !user.officeId || reservation.office_id === user.officeId;
+    // Si el admin no tiene oficina asignada, puede aprobar todas
+    if (!user.officeId) return true;
+
+    // Si tiene oficina, solo puede aprobar reservas de su misma oficina
+    return reservation.office_id === user.officeId;
   }
 
-  // Gestores NO pueden aprobar, solo ver
+  // Por defecto, nadie más puede aprobar
   return false;
 };
 
@@ -122,9 +131,6 @@ export const canAccessOffice = (user, officeId) => {
   // Super admin tiene acceso a todas las oficinas
   if (user.isSuperAdmin) return true;
 
-  // Gestor tiene acceso a todas las oficinas
-  if (user.role === 'gestor') return true;
-
   // Administrador solo tiene acceso a su oficina asignada
   if (user.role === 'administrador') {
     return !user.officeId || user.officeId === officeId;
@@ -132,6 +138,11 @@ export const canAccessOffice = (user, officeId) => {
 
   // Asesor solo tiene acceso a su oficina
   if (user.role === 'asesor') {
+    return !user.officeId || user.officeId === officeId;
+  }
+
+  // Gestor solo tiene acceso a su oficina asignada
+  if (user.role === 'gestor') {
     return !user.officeId || user.officeId === officeId;
   }
 
@@ -145,8 +156,11 @@ export const filterReservationsByRole = (reservations, user) => {
   // Super admin ve todas las reservas
   if (user.isSuperAdmin) return reservations;
 
-  // Gestor ve todas las reservas
-  if (user.role === 'gestor') return reservations;
+  // Gestor ve todas las reservas de su oficina
+  if (user.role === 'gestor') {
+    if (!user.officeId) return reservations; // Si no tiene oficina, ve todo
+    return reservations.filter(r => r.office_id === user.officeId);
+  }
 
   // Administrador ve todas las reservas de su oficina
   if (user.role === 'administrador') {

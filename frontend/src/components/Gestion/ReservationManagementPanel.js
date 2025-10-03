@@ -135,19 +135,26 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
           </div>
         </div>
         <nav className="flex flex-col space-y-2">
-          {canApprove && (
+          {reservation._original.status === 'pending' && (
             <div className="flex items-center justify-between mb-6 gap-3">
-              <motion.button onClick={() => onApprove(reservation.id)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-emerald-600 hover:bg-emerald-50" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.button
+                onClick={() => onApprove(reservation.id)}
+                disabled={!canApprove}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-emerald-600 hover:bg-emerald-50 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                whileHover={{ scale: canApprove ? 1.05 : 1 }}
+                whileTap={{ scale: canApprove ? 0.95 : 1 }}
+              >
                 Aprobar
               </motion.button>
-              <motion.button onClick={() => onReject(reservation.id)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-red-600 hover:bg-red-50" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.button
+                onClick={() => onReject(reservation.id)}
+                disabled={!canApprove}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-red-600 hover:bg-red-50 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                whileHover={{ scale: canApprove ? 1.05 : 1 }}
+                whileTap={{ scale: canApprove ? 0.95 : 1 }}
+              >
                 Rechazar
               </motion.button>
-            </div>
-          )}
-          {reservation._original.status === 'pending' && !canApprove && (
-            <div className="mb-6 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800 font-medium">⏳ Pendiente de aprobación por un Administrador</p>
             </div>
           )}
           {tabs.map(tab => (

@@ -244,11 +244,13 @@ CREATE TABLE public.reservations (
   rejection_reason text,
   rejected_at timestamp with time zone,
   rejected_by uuid,
+  office_id uuid NOT NULL,
   CONSTRAINT reservations_pkey PRIMARY KEY (id),
   CONSTRAINT reservations_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
   CONSTRAINT reservations_advisor_id_fkey FOREIGN KEY (advisor_id) REFERENCES public.usuarios(id),
   CONSTRAINT reservations_manager_id_fkey FOREIGN KEY (manager_id) REFERENCES public.usuarios(id),
-  CONSTRAINT reservations_rejected_by_fkey FOREIGN KEY (rejected_by) REFERENCES public.usuarios(id)
+  CONSTRAINT reservations_rejected_by_fkey FOREIGN KEY (rejected_by) REFERENCES public.usuarios(id),
+  CONSTRAINT reservations_office_id_fkey FOREIGN KEY (office_id) REFERENCES public.offices(id)
 );
 CREATE TABLE public.usuarios (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -266,11 +268,11 @@ CREATE TABLE public.usuarios (
   CONSTRAINT usuarios_pkey PRIMARY KEY (id),
   CONSTRAINT usuarios_office_id_fkey FOREIGN KEY (office_id) REFERENCES public.offices(id)
 );
-
 -- INICIO FUNCIONES
 DECLARE
     new_client_id UUID;
     new_reservation_id BIGINT;
+    advisor_office_id UUID; -- <--- NUEVA DECLARACIÓN: Variable para guardar el ID de la oficina
     segment JSONB;
     flight JSONB;
     itinerary JSONB;
@@ -281,25 +283,15 @@ DECLARE
     assistance JSONB;
     installment JSONB;
 BEGIN
-    -- Paso 1: Intentar insertar el cliente. Si el EMAIL ya existe, actualizar
-    -- los datos (nombre, teléfono, etc.) y OBTENER el ID existente.
+    -- Paso 1: Insertar o actualizar cliente (Upsert)
     INSERT INTO public.clients (
-        name,
-        email,
-        phone,
-        id_card,
-        address,
-        emergency_contact_name,
-        emergency_contact_phone
+        name, email, phone, id_card, address,
+        emergency_contact_name, emergency_contact_phone
     )
     VALUES (
-        payload->>'clientName',
-        payload->>'clientEmail',
-        payload->>'clientPhone',
-        payload->>'clientId',
-        payload->>'clientAddress',
-        payload->'emergencyContact'->>'name',
-        payload->'emergencyContact'->>'phone'
+        payload->>'clientName', payload->>'clientEmail', payload->>'clientPhone',
+        payload->>'clientId', payload->>'clientAddress',
+        payload->'emergencyContact'->>'name', payload->'emergencyContact'->>'phone'
     )
     ON CONFLICT (email) DO UPDATE 
     SET 
@@ -311,9 +303,22 @@ BEGIN
         emergency_contact_phone = EXCLUDED.emergency_contact_phone
     RETURNING id INTO new_client_id;
 
+    ----------------------------------------------------------------------
+    -- NUEVO PASO: Obtener el office_id del asesor antes de crear la reserva
+    ----------------------------------------------------------------------
+    SELECT office_id 
+    INTO advisor_office_id
+    FROM public.usuarios
+    WHERE id = (payload->>'advisorId')::UUID;
+    ----------------------------------------------------------------------
+
     -- Paso 2: Crear la reserva principal
     INSERT INTO public.reservations (
-        client_id, advisor_id, trip_type, reservation_type,
+        client_id, 
+        advisor_id, 
+        office_id, -- <--- MODIFICADO: Se agrega la columna office_id
+        trip_type, 
+        reservation_type,
         passengers_adt, passengers_chd, passengers_inf,
         price_per_adt, price_per_chd, price_per_inf,
         total_amount, payment_option, status, notes
@@ -321,6 +326,7 @@ BEGIN
     VALUES (
         new_client_id,
         (payload->>'advisorId')::UUID,
+        advisor_office_id, -- <--- MODIFICADO: Se inserta el valor de la oficina
         payload->>'tripType',
         payload->>'reservation_type',
         (payload->>'passengersADT')::INT,
@@ -337,6 +343,7 @@ BEGIN
     RETURNING id INTO new_reservation_id;
 
     -- Paso 3: Insertar datos en tablas relacionadas
+    
     -- Segmentos
     FOR segment IN SELECT * FROM jsonb_array_elements(payload->'segments')
     LOOP
@@ -413,7 +420,6 @@ BEGIN
         INSERT INTO public.reservation_installments (reservation_id, amount, due_date, status)
         VALUES (new_reservation_id, (installment->>'amount')::NUMERIC, (installment->>'dueDate')::DATE, 'pending');
     END LOOP;
-
 END;
 
 DECLARE
