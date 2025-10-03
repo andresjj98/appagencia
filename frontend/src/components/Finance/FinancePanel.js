@@ -189,8 +189,9 @@ const FinancePanel = () => {
     setLoading(true);
     setError(null);
     try {
+      const officeIdParam = currentUser.officeId ? `&officeId=${currentUser.officeId}` : '';
       const [reservationsResponse, airportsResponse] = await Promise.all([
-        fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}&officeId=${currentUser.officeId}`),
+        fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}${officeIdParam}`),
         fetch('http://localhost:4000/api/airports')
       ]);
 
