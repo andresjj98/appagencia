@@ -29,10 +29,12 @@ const usersRoutes = require('./routes/users');
 const officesRoutes = require('./routes/offices');
 const installmentsRoutes = require('./routes/installments');
 const notificationsRoutes = require('./routes/notifications');
+const transfersRoutes = require('./routes/transfers');
 
 // Use routes
 app.use('/api', authRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/reservations', transfersRoutes);
 app.use('/api/airports', airportRoutes);
 app.use('/api/airlines', airlineRoutes);
 app.use('/api/business-settings', businessSettingsRoutes);

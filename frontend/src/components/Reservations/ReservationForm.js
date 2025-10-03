@@ -66,6 +66,22 @@ const formatDateForField = (dateStr) => {
   return dateStr.split('T')[0];
 };
 
+// Formatear número con separador de miles (punto)
+const formatNumberWithThousands = (value) => {
+  if (!value || value === 0 || value === '0') return '';
+  const num = typeof value === 'string' ? parseFloat(value.replace(/\./g, '')) : value;
+  if (isNaN(num)) return '';
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+// Parsear número desde formato con miles a número puro
+const parseNumberFromFormatted = (value) => {
+  if (!value || value === '') return 0;
+  const cleaned = typeof value === 'string' ? value.replace(/\./g, '') : value;
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+};
+
 // Reusable Collapsible Section Component
 const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = false }) => {
   const [isMinimized, setIsMinimized] = useState(defaultMinimized);
@@ -124,10 +140,11 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   // Map API data (snake_case) to form-friendly camelCase structure
   const mapSegments = (segments) =>
     (segments || []).map((s) => ({
+      id: s.id,
       origin: s.origin || '',
       destination: s.destination || '',
       departureDate: formatDate(s.departureDate || s.departure_date),
-      returnDate: formatDate(s.returnDate || s.return_date),
+      returnDate: formatDate(s.returnDate || s.return_date)
     }));
 
   const mapFlights = (flights) => (flights || []).map((f) => {
@@ -191,6 +208,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       name: t.name || '',
       date: formatDate(t.date),
       cost: t.cost || 0,
+      includeCost: t.includeCost || false,
     }));
 
   const mapMedical = (medical) =>
@@ -207,8 +225,13 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     }));
 
   const initialSegments = reservation
-    ? mapSegments(reservation.reservation_segments)
-    : [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }];
+    ? mapSegments(reservation.reservation_segments, [])
+    : [{
+        origin: '',
+        destination: '',
+        departureDate: getTodayDate(),
+        returnDate: getTodayDate()
+      }];
   const initialTripDepartureDate = initialSegments[0]?.departureDate || getTodayDate();
   const initialTripReturnDate =
     initialSegments[initialSegments.length - 1]?.returnDate || initialTripDepartureDate;
@@ -224,7 +247,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         phone: reservation?.clients?.emergency_contact_phone || ''
     },
     tripType: reservation?.tripType || 'round_trip',
-    segments: reservation ? mapSegments(reservation.reservation_segments) : [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
+    segments: initialSegments,
     passengersADT: reservation?.passengers_adt || 1,
     passengersCHD: reservation?.passengers_chd || 0,
     passengersINF: reservation?.passengers_inf || 0,
@@ -268,10 +291,27 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           },
         ]
       : [],
+    transfers: reservation?.reservation_transfers
+      ? (() => {
+          // Agrupar traslados por segmento
+          const transfersBySegment = {};
+          reservation.reservation_transfers.forEach(t => {
+            const segIdx = reservation.reservation_segments.findIndex(s => s.id === t.segment_id);
+            if (segIdx !== -1) {
+              if (!transfersBySegment[segIdx]) {
+                transfersBySegment[segIdx] = { hasIn: false, hasOut: false };
+              }
+              if (t.transfer_type === 'arrival') transfersBySegment[segIdx].hasIn = true;
+              if (t.transfer_type === 'departure') transfersBySegment[segIdx].hasOut = true;
+            }
+          });
+          return transfersBySegment;
+        })()
+      : { 0: { hasIn: false, hasOut: false } },
     tours: reservation
       ? mapTours(reservation.reservation_tours)
       : showTours
-      ? [{ name: '', date: initialTripDepartureDate, cost: 0 }]
+      ? [{ name: '', date: initialTripDepartureDate, cost: 0, includeCost: false }]
       : [],
     medicalAssistances: reservation
       ? mapMedical(reservation.reservation_medical_assistances)
@@ -293,6 +333,30 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const [totalPassengersCalculated, setTotalPassengersCalculated] = useState({
     total: 0, adt: 0, chd: 0, inf: 0
   });
+
+  // Sincronizar traslados con segmentos cuando cambia el número de segmentos
+  useEffect(() => {
+    setFormData(prev => {
+      const newTransfers = { ...(prev.transfers || {}) };
+
+      // Asegurar que cada segmento tenga su entrada de traslados
+      prev.segments.forEach((_, index) => {
+        if (!newTransfers[index]) {
+          newTransfers[index] = { hasIn: false, hasOut: false };
+        }
+      });
+
+      // Limpiar traslados de segmentos que ya no existen
+      Object.keys(newTransfers).forEach(key => {
+        const idx = parseInt(key);
+        if (idx >= prev.segments.length) {
+          delete newTransfers[idx];
+        }
+      });
+
+      return { ...prev, transfers: newTransfers };
+    });
+  }, [formData.segments.length]);
   const [errors, setErrors] = useState({});
 
   const isDateWithinRange = (date, start, end) => {
@@ -344,12 +408,22 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   }, [formData.passengersADT, formData.passengersCHD, formData.passengersINF]);
 
   useEffect(() => {
-    const calculatedTotal =
+    const basePriceTotal =
       (totalPassengersCalculated.adt * (parseFloat(formData.pricePerADT) || 0)) +
       (totalPassengersCalculated.chd * (parseFloat(formData.pricePerCHD) || 0)) +
       (totalPassengersCalculated.inf * (parseFloat(formData.pricePerINF) || 0));
+
+    // Sumar costos de tours que tienen includeCost activado
+    const toursCostTotal = formData.tours
+      .filter(tour => tour.includeCost)
+      .reduce((sum, tour) => {
+        const costPerPax = parseFloat(tour.cost) || 0;
+        return sum + (costPerPax * totalPassengersCalculated.total);
+      }, 0);
+
+    const calculatedTotal = basePriceTotal + toursCostTotal;
     setFormData(prev => ({ ...prev, totalAmount: calculatedTotal.toFixed(2) }));
-  }, [totalPassengersCalculated, formData.pricePerADT, formData.pricePerCHD, formData.pricePerINF]);
+  }, [totalPassengersCalculated, formData.pricePerADT, formData.pricePerCHD, formData.pricePerINF, formData.tours]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -502,11 +576,31 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       });
     }
 
+    // Los transfers se envían tal cual para el preview
+    // Se convertirán al formato del backend justo antes de guardar
     onSave(dataToSend);
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Validaciones específicas por campo
+    let processedValue = value;
+
+    if (name === 'clientId') {
+      // Solo números, sin puntos ni otros caracteres
+      processedValue = value.replace(/[^0-9]/g, '').toUpperCase();
+    } else if (name === 'clientPhone') {
+      // Solo números y el símbolo +
+      processedValue = value.replace(/[^0-9+]/g, '');
+    } else if (['clientName', 'clientAddress'].includes(name) && type === 'text') {
+      // Convertir a mayúsculas
+      processedValue = value.toUpperCase();
+    } else if (['pricePerADT', 'pricePerCHD', 'pricePerINF'].includes(name)) {
+      // Campos de precio: permitir solo números y punto
+      const cleanValue = value.replace(/[^\d]/g, '');
+      processedValue = cleanValue === '' ? 0 : parseInt(cleanValue);
+    }
 
     if (name === 'tripType') {
       // If trip type changes, reset related form sections but keep client/passenger data.
@@ -525,6 +619,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           status: prev.status, // Keep original status if editing
           notes: '',
           segments: [{ origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }],
+          transfers: { 0: { hasIn: false, hasOut: false } },
           flights: showFlights ? [
               {
                   airline: '',
@@ -546,7 +641,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   hotelInclusions: [''],
               },
           ] : [],
-          tours: showTours ? [{ name: '', date: newTripDepartureDate, cost: 0 }] : [],
+          tours: showTours ? [{ name: '', date: newTripDepartureDate, cost: 0, includeCost: false }] : [],
           medicalAssistances: showMedical ? [
               {
                   planType: 'traditional_tourism',
@@ -575,19 +670,43 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           ...blankStateForReset,
         };
       });
+    } else if (name === 'paymentOption') {
+      // Si cambia a pago completo, establecer una cuota con la fecha de hoy
+      if (processedValue === 'full_payment') {
+        setFormData(prev => ({
+          ...prev,
+          paymentOption: processedValue,
+          installments: [{ amount: prev.totalAmount || 0, dueDate: getTodayDate() }],
+          installmentsCount: 1
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: processedValue
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
-        [name]: type === 'checkbox' ? checked : value
+        [name]: type === 'checkbox' ? checked : processedValue
       }));
     }
   };
 
   const handleEmergencyContactChange = (e) => {
     const { name, value } = e.target;
+    let processedValue = value;
+
+    if (name === 'name') {
+      processedValue = value.toUpperCase();
+    } else if (name === 'phone') {
+      // Solo números y el símbolo +
+      processedValue = value.replace(/[^0-9+]/g, '');
+    }
+
     setFormData(prev => ({
       ...prev,
-      emergencyContact: { ...prev.emergencyContact, [name]: value }
+      emergencyContact: { ...prev.emergencyContact, [name]: processedValue }
     }));
   };
 
@@ -602,6 +721,20 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         newSegments[index].returnDate = value;
       }
     }
+
+    // Si cambia la fecha de regreso de un segmento, ajustar la fecha de salida del siguiente segmento
+    if (name === 'returnDate' && value && index < newSegments.length - 1) {
+      const nextSegment = newSegments[index + 1];
+      // Si la fecha de salida del siguiente segmento es anterior a la nueva fecha de regreso, ajustarla
+      if (!nextSegment.departureDate || nextSegment.departureDate < value) {
+        newSegments[index + 1] = { ...nextSegment, departureDate: value };
+        // También ajustar la fecha de regreso del siguiente segmento si es necesaria
+        if (!nextSegment.returnDate || nextSegment.returnDate < value) {
+          newSegments[index + 1].returnDate = value;
+        }
+      }
+    }
+
     setFormData(prev => ({ ...prev, segments: newSegments }));
   };
 
@@ -614,7 +747,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const addSegment = () => {
     setFormData(prev => ({
       ...prev,
-      segments: [...prev.segments, { origin: '', destination: '', departureDate: getTodayDate(), returnDate: getTodayDate() }]
+      segments: [...prev.segments, {
+        origin: '',
+        destination: '',
+        departureDate: getTodayDate(),
+        returnDate: getTodayDate()
+      }]
     }));
   };
 
@@ -627,8 +765,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   // --- Flight Handlers ---
   const handleFlightChange = (index, e) => {
     const { name, value, type, checked } = e.target;
+    const upperCaseFields = ['trackingCode'];
+    const processedValue = upperCaseFields.includes(name) ? value.toUpperCase() : value;
     const newFlights = [...formData.flights];
-    newFlights[index] = { ...newFlights[index], [name]: type === 'checkbox' ? checked : value };
+    newFlights[index] = { ...newFlights[index], [name]: type === 'checkbox' ? checked : processedValue };
     setFormData(prev => ({ ...prev, flights: newFlights }));
   };
 
@@ -656,9 +796,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   const handleItineraryChange = (flightIndex, itineraryIndex, e) => {
     const { name, value } = e.target;
+    const processedValue = name === 'flightNumber' ? value.toUpperCase() : value;
     const newFlights = [...formData.flights];
     const newItineraries = [...(newFlights[flightIndex].itineraries || [])];
-    newItineraries[itineraryIndex] = { ...newItineraries[itineraryIndex], [name]: value };
+    newItineraries[itineraryIndex] = { ...newItineraries[itineraryIndex], [name]: processedValue };
     newFlights[flightIndex] = { ...newFlights[flightIndex], itineraries: newItineraries };
     setFormData(prev => ({ ...prev, flights: newFlights }));
   };
@@ -678,8 +819,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   // --- Hotel Handlers ---
   const handleHotelChange = (index, e) => {
     const { name, value } = e.target;
+    const upperCaseFields = ['name', 'roomCategory'];
+    const processedValue = upperCaseFields.includes(name) ? value.toUpperCase() : value;
     const newHotels = [...formData.hotels];
-    newHotels[index] = { ...newHotels[index], [name]: value };
+    newHotels[index] = { ...newHotels[index], [name]: processedValue };
     setFormData(prev => ({ ...prev, hotels: newHotels }));
   };
 
@@ -720,7 +863,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const handleHotelInclusionChange = (hotelIndex, inclusionIndex, e) => {
     const newHotels = [...formData.hotels];
     const newHotelInclusions = [...(newHotels[hotelIndex].hotelInclusions || [])];
-    newHotelInclusions[inclusionIndex] = e.target.value;
+    newHotelInclusions[inclusionIndex] = e.target.value.toUpperCase();
     newHotels[hotelIndex] = { ...newHotels[hotelIndex], hotelInclusions: newHotelInclusions };
     setFormData(prev => ({ ...prev, hotels: newHotels }));
   };
@@ -739,16 +882,30 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   // --- Tour Handlers ---
   const handleTourChange = (index, e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    let processedValue;
+
+    if (type === 'checkbox') {
+      processedValue = checked;
+    } else if (name === 'name') {
+      processedValue = value.toUpperCase();
+    } else if (name === 'cost') {
+      // Campos de precio: permitir solo números
+      const cleanValue = value.replace(/[^\d]/g, '');
+      processedValue = cleanValue === '' ? 0 : parseInt(cleanValue);
+    } else {
+      processedValue = value;
+    }
+
     const newTours = [...formData.tours];
-    newTours[index] = { ...newTours[index], [name]: name === 'cost' ? parseFloat(value) || 0 : value };
+    newTours[index] = { ...newTours[index], [name]: processedValue };
     setFormData(prev => ({ ...prev, tours: newTours }));
   };
 
   const addTour = () => {
     setFormData(prev => ({
       ...prev,
-      tours: [...prev.tours, { name: '', date: tripDepartureDate, cost: 0 }]
+      tours: [...prev.tours, { name: '', date: tripDepartureDate, cost: 0, includeCost: false }]
     }));
   };
 
@@ -792,7 +949,16 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const handleInstallmentChange = (index, e) => {
     const { name, value } = e.target;
     const newInstallments = [...formData.installments];
-    newInstallments[index] = { ...newInstallments[index], [name]: name === 'amount' ? parseFloat(value) || 0 : value };
+
+    if (name === 'amount') {
+      // Campos de precio: permitir solo números
+      const cleanValue = value.replace(/[^\d]/g, '');
+      const processedValue = cleanValue === '' ? 0 : parseInt(cleanValue);
+      newInstallments[index] = { ...newInstallments[index], [name]: processedValue };
+    } else {
+      newInstallments[index] = { ...newInstallments[index], [name]: value };
+    }
+
     setFormData(prev => ({ ...prev, installments: newInstallments }));
   };
 
@@ -1076,16 +1242,31 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Salida</label>
-                          <input type="date" name="departureDate" value={segment.departureDate} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={getTodayDate()} />
+                          <input
+                            type="date"
+                            name="departureDate"
+                            value={segment.departureDate}
+                            onChange={(e) => handleSegmentChange(index, e)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                            min={index === 0 ? getTodayDate() : (formData.segments[index - 1].returnDate || getTodayDate())}
+                          />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Regreso</label>
-                          <input type="date" name="returnDate" value={segment.returnDate} onChange={(e) => handleSegmentChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" min={segment.departureDate || getTodayDate()} />
+                          <input
+                            type="date"
+                            name="returnDate"
+                            value={segment.returnDate}
+                            onChange={(e) => handleSegmentChange(index, e)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                            min={segment.departureDate || (index === 0 ? getTodayDate() : (formData.segments[index - 1].returnDate || getTodayDate()))}
+                          />
                         </div>
                         {errors[`segment-${index}`] && (
                           <p className="text-red-600 text-sm md:col-span-2">{errors[`segment-${index}`]}</p>
                         )}
                       </div>
+
                       {formData.segments.length > 1 && (
                         <motion.button
                           type="button"
@@ -1379,7 +1560,13 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Alimentación</label>
                     <select name="mealPlan" value={hotel.mealPlan} onChange={(e) => handleHotelChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                      <option value="">Seleccionar</option><option value="solo_alojamiento">Solo Alojamiento (SA)</option><option value="desayuno">Desayuno (AD)</option><option value="media_pension">Media Pensión (MP)</option><option value="pension_completa">Pensión Completa (PC)</option><option value="todo_incluido">Todo Incluido (TI)</option>
+                      <option value="">Seleccionar</option>
+                      <option value="PE">PE: SOLO ALOJAMIENTO</option>
+                      <option value="PC">PC: SOLO DESAYUNO</option>
+                      <option value="PAM">PAM: DESAYUNO Y CENA</option>
+                      <option value="PA">PA: DESAYUNO, ALMUERZO Y CENA (1 MENÚ)</option>
+                      <option value="PAE">PAE: DESAYUNO, ALMUERZO Y CENA TIPO BUFFET</option>
+                      <option value="FULL">FULL: DESAYUNO, ALMUERZO Y CENA TIPO BUFFET + BAR ABIERTO + SNACKS</option>
                     </select>
                   </div>
                   
@@ -1431,6 +1618,112 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           </CollapsibleSection>
            )}
 
+          {/* Transfers Section */}
+          <CollapsibleSection title="Traslados" icon={Car}>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Indica si la reserva incluye traslados de llegada (IN) y/o salida (OUT). Los detalles de horarios se conocen a través de los itinerarios de vuelos.
+              </p>
+
+              {formData.tripType === 'multi_city' ? (
+                // Modo múltiples ciudades: mostrar traslados por segmento
+                <div className="space-y-4">
+                  {formData.segments.map((segment, index) => (
+                    <div key={index} className="p-4 border border-gray-300 rounded-lg bg-gray-50">
+                      <h5 className="font-semibold text-gray-800 mb-3">
+                        Traslados - Segmento {index + 1}: {segment.origin || '...'} → {segment.destination || '...'}
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-white">
+                          <input
+                            type="checkbox"
+                            id={`transfer-in-${index}`}
+                            checked={formData.transfers?.[index]?.hasIn || false}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              transfers: {
+                                ...(prev.transfers || {}),
+                                [index]: { ...(prev.transfers?.[index] || {}), hasIn: e.target.checked }
+                              }
+                            }))}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <label htmlFor={`transfer-in-${index}`} className="flex items-center gap-2 cursor-pointer font-medium text-gray-700 text-sm">
+                            <PlaneLanding className="w-4 h-4 text-green-600" />
+                            Traslado IN
+                          </label>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-white">
+                          <input
+                            type="checkbox"
+                            id={`transfer-out-${index}`}
+                            checked={formData.transfers?.[index]?.hasOut || false}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              transfers: {
+                                ...(prev.transfers || {}),
+                                [index]: { ...(prev.transfers?.[index] || {}), hasOut: e.target.checked }
+                              }
+                            }))}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <label htmlFor={`transfer-out-${index}`} className="flex items-center gap-2 cursor-pointer font-medium text-gray-700 text-sm">
+                            <PlaneTakeoff className="w-4 h-4 text-blue-600" />
+                            Traslado OUT
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                // Modo ida y vuelta: un solo par de traslados
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <input
+                      type="checkbox"
+                      id="hasTransferIn"
+                      checked={formData.transfers?.[0]?.hasIn || false}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        transfers: {
+                          ...(prev.transfers || {}),
+                          0: { ...(prev.transfers?.[0] || {}), hasIn: e.target.checked }
+                        }
+                      }))}
+                      className="w-5 h-5 text-blue-600 rounded"
+                    />
+                    <label htmlFor="hasTransferIn" className="flex items-center gap-2 cursor-pointer font-medium text-gray-700">
+                      <PlaneLanding className="w-5 h-5 text-green-600" />
+                      Traslado de Llegada (IN)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <input
+                      type="checkbox"
+                      id="hasTransferOut"
+                      checked={formData.transfers?.[0]?.hasOut || false}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        transfers: {
+                          ...(prev.transfers || {}),
+                          0: { ...(prev.transfers?.[0] || {}), hasOut: e.target.checked }
+                        }
+                      }))}
+                      className="w-5 h-5 text-blue-600 rounded"
+                    />
+                    <label htmlFor="hasTransferOut" className="flex items-center gap-2 cursor-pointer font-medium text-gray-700">
+                      <PlaneTakeoff className="w-5 h-5 text-blue-600" />
+                      Traslado de Salida (OUT)
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
           {/* Tours Section */}
           {showTours && (
           <CollapsibleSection title="Servicios y Tours" icon={Ticket}>
@@ -1458,9 +1751,30 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         max={tripReturnDate}
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Costo ({resolvedCurrency})</label>
-                      <input type="number" name="cost" value={tour.cost} onChange={(e) => handleTourChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="0.00" />
+                    <div className="md:col-span-2">
+                      <label className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          name="includeCost"
+                          checked={tour.includeCost}
+                          onChange={(e) => handleTourChange(index, e)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Incluir costo adicional por PAX</span>
+                      </label>
+                      {tour.includeCost && (
+                        <div className="mt-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Costo por PAX ({resolvedCurrency})</label>
+                          <input
+                            type="text"
+                            name="cost"
+                            value={formatNumberWithThousands(tour.cost)}
+                            onChange={(e) => handleTourChange(index, e)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                            placeholder="0"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                   {formData.tours.length > 1 && (
@@ -1490,54 +1804,80 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           </CollapsibleSection>
           )}
 
-          {/* Medical Assistance Section */}
+          {/* Medical Assistance and Insurance Section */}
           {showMedical && (
-          <CollapsibleSection title="Asistencias Médicas" icon={BriefcaseMedical}>
+          <CollapsibleSection title="Asistencias Médicas y Seguros" icon={BriefcaseMedical}>
             <div className="space-y-4">
               {errors.medicalAssistances && (
                 <p className="text-red-600 text-sm">{errors.medicalAssistances}</p>
               )}
               {formData.medicalAssistances.map((ma, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg relative bg-gray-50">
-                  <h4 className="text-md font-semibold text-gray-800 mb-3">Asistencia Médica {index + 1}</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div key={index} className="p-6 border-2 border-gray-200 rounded-xl relative bg-gradient-to-br from-gray-50 to-white shadow-md">
+                  <h4 className="text-lg font-bold text-gray-900 mb-5 pb-2 border-b border-gray-200">
+                    Asistencia / Seguro #{index + 1}
+                  </h4>
+
+                  <div className="space-y-5">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Plan</label>
-                      <select name="planType" value={ma.planType} onChange={(e) => handleMedicalAssistanceChange(index, e)} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                      <label className="block text-base font-semibold text-gray-700 mb-2">
+                        Tipo de Plan / Seguro
+                      </label>
+                      <select
+                        name="planType"
+                        value={ma.planType}
+                        onChange={(e) => handleMedicalAssistanceChange(index, e)}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
                         <option value="traditional_tourism">Turismo Tradicional</option>
                         <option value="international_assistance">Asistencia Internacional</option>
+                        <option value="national_cancellation_insurance">Seguro de Cancelación Nacional</option>
+                        <option value="international_cancellation_insurance">Seguro de Cancelación Internacional</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio Cobertura</label>
-                      <input
-                        type="date"
-                        name="startDate"
-                        value={ma.startDate}
-                        onChange={(e) => handleMedicalAssistanceChange(index, e)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                        min={tripDepartureDate}
-                        max={tripReturnDate}
-                      />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio Cobertura</label>
+                        <input
+                          type="date"
+                          name="startDate"
+                          value={ma.startDate}
+                          onChange={(e) => handleMedicalAssistanceChange(index, e)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                          min={tripDepartureDate}
+                          max={tripReturnDate}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin Cobertura</label>
+                        <input
+                          type="date"
+                          name="endDate"
+                          value={ma.endDate}
+                          onChange={(e) => handleMedicalAssistanceChange(index, e)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                          min={ma.startDate || tripDepartureDate}
+                          max={tripReturnDate}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin Cobertura</label>
-                      <input
-                        type="date"
-                        name="endDate"
-                        value={ma.endDate}
-                        onChange={(e) => handleMedicalAssistanceChange(index, e)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                        min={ma.startDate || tripDepartureDate}
-                        max={tripReturnDate}
-                      />
+
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="font-semibold text-blue-900 mb-2">Resumen de Cobertura:</p>
+                      <p className="text-sm text-blue-800">
+                        Tipo: {
+                          ma.planType === 'traditional_tourism' ? 'Turismo Tradicional' :
+                          ma.planType === 'international_assistance' ? 'Asistencia Internacional' :
+                          ma.planType === 'national_cancellation_insurance' ? 'Seguro de Cancelación Nacional' :
+                          ma.planType === 'international_cancellation_insurance' ? 'Seguro de Cancelación Internacional' : ''
+                        }
+                      </p>
+                      <p className="text-sm text-blue-800">
+                        Duración: {calculateDaysBetweenDates(ma.startDate || tripDepartureDate, ma.endDate || tripReturnDate)} días
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-                    <p className="font-semibold">Resumen de Cobertura:</p>
-                    <p>Tipo: {ma.planType === 'traditional_tourism' ? 'Turismo Tradicional' : 'Asistencia Internacional'}</p>
-                    <p>Duración: {calculateDaysBetweenDates(ma.startDate || tripDepartureDate, ma.endDate || tripReturnDate)} días</p>
-                  </div>
+
                   {formData.medicalAssistances.length > 1 && (
                     <motion.button
                       type="button"
@@ -1554,12 +1894,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               <motion.button
                 type="button"
                 onClick={addMedicalAssistance}
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium mt-4"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className="w-full mt-4 py-3 px-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 font-medium flex items-center justify-center gap-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <PlusCircle className="w-5 h-5" />
-                Añadir Asistencia Médica
+                Añadir Asistencia / Seguro
               </motion.button>
             </div>
           </CollapsibleSection>
@@ -1578,28 +1918,26 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   Precio por Adulto (ADT) ({resolvedCurrency})
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   name="pricePerADT"
-                  value={formData.pricePerADT}
+                  value={formatNumberWithThousands(formData.pricePerADT)}
                   onChange={handleChange}
-                  step="0.01"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Precio por Niño (CHD) ({resolvedCurrency})
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   name="pricePerCHD"
-                  value={formData.pricePerCHD}
+                  value={formatNumberWithThousands(formData.pricePerCHD)}
                   onChange={handleChange}
-                  step="0.01"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -1607,13 +1945,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   Precio por Infante (INF) ({resolvedCurrency})
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   name="pricePerINF"
-                  value={formData.pricePerINF}
+                  value={formatNumberWithThousands(formData.pricePerINF)}
                   onChange={handleChange}
-                  step="0.01"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
             </div>
@@ -1680,7 +2017,14 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Monto ({resolvedCurrency})</label>
-                        <input type="number" name="amount" value={installment.amount} onChange={(e) => handleInstallmentChange(index, e)} step="0.01" className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" placeholder="0.00" />
+                        <input
+                          type="text"
+                          name="amount"
+                          value={formatNumberWithThousands(installment.amount)}
+                          onChange={(e) => handleInstallmentChange(index, e)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+                          placeholder="0"
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de Vencimiento</label>

@@ -216,6 +216,25 @@ CREATE TABLE public.reservation_tours (
   CONSTRAINT reservation_tours_pkey PRIMARY KEY (id),
   CONSTRAINT reservation_tours_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.reservations(id)
 );
+CREATE TABLE public.reservation_transfers (
+  id bigint NOT NULL DEFAULT nextval('reservation_transfers_id_seq'::regclass),
+  reservation_id bigint NOT NULL,
+  segment_id bigint,
+  transfer_type character varying NOT NULL CHECK (transfer_type::text = ANY (ARRAY['arrival'::character varying, 'departure'::character varying, 'inter_hotel'::character varying]::text[])),
+  pickup_location character varying,
+  dropoff_location character varying,
+  transfer_date date,
+  transfer_time time without time zone,
+  cost numeric DEFAULT 0,
+  include_cost boolean DEFAULT false,
+  vehicle_type character varying,
+  notes text,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT reservation_transfers_pkey PRIMARY KEY (id),
+  CONSTRAINT reservation_transfers_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.reservations(id),
+  CONSTRAINT reservation_transfers_segment_id_fkey FOREIGN KEY (segment_id) REFERENCES public.reservation_segments(id)
+);
 CREATE TABLE public.reservations (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   invoice_number text UNIQUE,
@@ -269,6 +288,19 @@ CREATE TABLE public.usuarios (
   CONSTRAINT usuarios_office_id_fkey FOREIGN KEY (office_id) REFERENCES public.offices(id)
 );
 -- INICIO FUNCIONES
+--cleanup_old_notifications
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM public.notifications
+  WHERE read = TRUE
+  AND read_at < NOW() - (days_old || ' days')::INTERVAL;
+
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count;
+END;
+
+--'create_full_reservation' function
 DECLARE
     new_client_id UUID;
     new_reservation_id BIGINT;
@@ -422,6 +454,7 @@ BEGIN
     END LOOP;
 END;
 
+--'delete_full_reservation' function
 DECLARE
     client_id_to_check UUID;
 BEGIN
@@ -447,34 +480,7 @@ BEGIN
 
 END;
 
-DECLARE
-    settings_row public.business_settings;
-    result_str text;
-BEGIN
-    -- Atomically select and lock the single settings row for update
-    SELECT *
-    INTO settings_row
-    FROM public.business_settings
-    LIMIT 1
-    FOR UPDATE;
-
-    -- If no settings row exists, raise an exception
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'No se encontró la configuración del negocio (business_settings).';
-    END IF;
-
-    -- Format the invoice number using the current value
-    -- Replaces '####' with the number, padded with leading zeros to 4 digits
-    result_str := replace(settings_row.invoice_format, '####', lpad(settings_row.next_invoice_number::text, 4, '0'));
-
-    -- Increment the number for the next time, using the specific row ID
-    UPDATE public.business_settings
-    SET next_invoice_number = settings_row.next_invoice_number + 1
-    WHERE id = settings_row.id; -- This WHERE clause is crucial to satisfy Supabase's security
-
-    RETURN result_str;
-END;
-
+--'update_full_reservation' function
 DECLARE
     -- Variables para IDs
     client_id_from_db UUID;
@@ -736,4 +742,244 @@ BEGIN
         END LOOP;
     END IF;
 
+END;
+
+--'get_and_increment_invoice_number' function
+
+DECLARE
+    settings_row public.business_settings;
+    result_str text;
+BEGIN
+    -- Atomically select and lock the single settings row for update
+    SELECT *
+    INTO settings_row
+    FROM public.business_settings
+    LIMIT 1
+    FOR UPDATE;
+
+    -- If no settings row exists, raise an exception
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'No se encontró la configuración del negocio (business_settings).';
+    END IF;
+
+    -- Format the invoice number using the current value
+    -- Replaces '####' with the number, padded with leading zeros to 4 digits
+    result_str := replace(settings_row.invoice_format, '####', lpad(settings_row.next_invoice_number::text, 4, '0'));
+
+    -- Increment the number for the next time, using the specific row ID
+    UPDATE public.business_settings
+    SET next_invoice_number = settings_row.next_invoice_number + 1
+    WHERE id = settings_row.id; -- This WHERE clause is crucial to satisfy Supabase's security
+
+    RETURN result_str;
+END;
+
+--'get_my_claim' function
+SELECT nullif(current_setting('request.jwt.claims', true)::jsonb ->> claim, '')::text;
+
+--'get_my_role' function
+SELECT role FROM public.usuarios WHERE id = auth.uid();
+
+--'handle_updated_at' function
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+
+--'mark_all_notifications_read' function
+BEGIN
+  UPDATE public.notifications
+  SET read = TRUE, read_at = NOW()
+  WHERE recipient_id = user_id AND read = FALSE;
+END;
+
+--'mark_notification_read' function
+BEGIN
+  UPDATE public.notifications
+  SET read = TRUE, read_at = NOW()
+  WHERE id = notification_id;
+END;
+
+--'notify_new_reservation' function
+DECLARE
+  admin_user RECORD;
+  gestor_user RECORD;
+  advisor_name TEXT;
+  advisor_office_id UUID;
+  client_name TEXT;
+BEGIN
+  -- Get advisor name and office_id
+  SELECT name, office_id
+  INTO advisor_name, advisor_office_id
+  FROM public.usuarios
+  WHERE id = NEW.advisor_id;
+
+  -- Get client name
+  SELECT name INTO client_name FROM public.clients WHERE id = NEW.client_id;
+
+  -- Notify all admins in the same office (or all if no office)
+  FOR admin_user IN
+    SELECT id FROM public.usuarios
+    WHERE role = 'administrador'
+    AND active = TRUE
+    AND (office_id = advisor_office_id OR office_id IS NULL OR advisor_office_id IS NULL)
+  LOOP
+    INSERT INTO public.notifications (
+      recipient_id,
+      sender_id,
+      type,
+      title,
+      message,
+      reference_id,
+      reference_type,
+      metadata
+    ) VALUES (
+      admin_user.id,
+      NEW.advisor_id,
+      'reservation_created',
+      'Nueva Reserva Pendiente',
+      'El asesor ' || advisor_name || ' ha creado una nueva reserva para ' || client_name || '. Requiere aprobación.',
+      NEW.id,
+      'reservation',
+      jsonb_build_object(
+        'reservation_id', NEW.id,
+        'client_name', client_name,
+        'advisor_name', advisor_name,
+        'total_amount', NEW.total_amount,
+        'status', NEW.status
+      )
+    );
+  END LOOP;
+
+  -- Notify all gestores
+  FOR gestor_user IN
+    SELECT id FROM public.usuarios
+    WHERE role = 'gestor'
+    AND active = TRUE
+  LOOP
+    INSERT INTO public.notifications (
+      recipient_id,
+      sender_id,
+      type,
+      title,
+      message,
+      reference_id,
+      reference_type,
+      metadata
+    ) VALUES (
+      gestor_user.id,
+      NEW.advisor_id,
+      'reservation_created',
+      'Nueva Reserva Pendiente',
+      'El asesor ' || advisor_name || ' ha creado una nueva reserva para ' || client_name || '.',
+      NEW.id,
+      'reservation',
+      jsonb_build_object(
+        'reservation_id', NEW.id,
+        'client_name', client_name,
+        'advisor_name', advisor_name,
+        'total_amount', NEW.total_amount,
+        'status', NEW.status
+      )
+    );
+  END LOOP;
+
+  RETURN NEW;
+END;
+
+--'notify_reservation_approved' function
+DECLARE
+  admin_name TEXT;
+  client_name TEXT;
+  invoice_num TEXT;
+BEGIN
+  -- Only trigger when status changes to 'confirmed'
+  IF OLD.status = 'pending' AND NEW.status = 'confirmed' THEN
+    -- Get admin name (assuming there's a field tracking who approved)
+    SELECT name INTO admin_name FROM public.usuarios WHERE id = NEW.manager_id;
+
+    -- Get client name
+    SELECT name INTO client_name FROM public.clients WHERE id = NEW.client_id;
+
+    -- Get invoice number
+    invoice_num := COALESCE(NEW.invoice_number, 'Pendiente');
+
+    -- Notify the advisor
+    INSERT INTO public.notifications (
+      recipient_id,
+      sender_id,
+      type,
+      title,
+      message,
+      reference_id,
+      reference_type,
+      metadata
+    ) VALUES (
+      NEW.advisor_id,
+      NEW.manager_id,
+      'reservation_approved',
+      '✅ Reserva Aprobada',
+      'Tu reserva para ' || client_name || ' ha sido aprobada. Número de factura: ' || invoice_num,
+      NEW.id,
+      'reservation',
+      jsonb_build_object(
+        'reservation_id', NEW.id,
+        'client_name', client_name,
+        'invoice_number', invoice_num,
+        'total_amount', NEW.total_amount,
+        'approved_by', admin_name
+      )
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+
+--'notify_reservation_rejected' function
+DECLARE
+  admin_name TEXT;
+  client_name TEXT;
+BEGIN
+  -- Only trigger when status changes to 'rejected'
+  IF OLD.status = 'pending' AND NEW.status = 'rejected' THEN
+    -- Get admin name
+    SELECT name INTO admin_name FROM public.usuarios WHERE id = NEW.rejected_by;
+
+    -- Get client name
+    SELECT name INTO client_name FROM public.clients WHERE id = NEW.client_id;
+
+    -- Notify the advisor
+    INSERT INTO public.notifications (
+      recipient_id,
+      sender_id,
+      type,
+      title,
+      message,
+      reference_id,
+      reference_type,
+      metadata
+    ) VALUES (
+      NEW.advisor_id,
+      NEW.rejected_by,
+      'reservation_rejected',
+      '❌ Reserva Rechazada',
+      'Tu reserva para ' || client_name || ' ha sido rechazada por ' || COALESCE(admin_name, 'un administrador') || '. Motivo: ' || NEW.rejection_reason,
+      NEW.id,
+      'reservation',
+      jsonb_build_object(
+        'reservation_id', NEW.id,
+        'client_name', client_name,
+        'rejection_reason', NEW.rejection_reason,
+        'rejected_by', admin_name
+      )
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+
+--'update_transfer_updated_at' function
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
 END;

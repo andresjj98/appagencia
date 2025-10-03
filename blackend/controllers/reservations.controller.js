@@ -36,7 +36,8 @@ const fullReservationSelect = `
   reservation_installments(*),
   change_requests(*),
   reservation_passengers(*),
-  reservation_attachments(*)
+  reservation_attachments(*),
+  reservation_transfers(*)
 `;
 
 const getAllReservations = async (req, res) => {
