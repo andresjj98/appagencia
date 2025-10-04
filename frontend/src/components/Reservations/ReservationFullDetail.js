@@ -15,7 +15,8 @@ import {
   Trash2,
   ListChecks,
   PlusCircle,
-  MessageSquare
+  MessageSquare,
+  Bus
 } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useSettings } from '../../utils/SettingsContext';
@@ -268,6 +269,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
     { id: 'pasajeros', label: 'Pasajeros', icon: Users },
     { id: 'vuelos', label: 'Vuelos', icon: Plane },
     { id: 'hoteles', label: 'Hoteles', icon: Hotel },
+    { id: 'traslados', label: 'Traslados', icon: Bus },
     { id: 'tours', label: 'Servicios y Tours', icon: Sun },
     { id: 'asistencias', label: 'Asistencia Médica', icon: HeartPulse },
     { id: 'pago', label: 'Información de Pago', icon: CreditCard },

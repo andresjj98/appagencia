@@ -74,7 +74,7 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
     const displayText = `${airport.city} (${airport.iata_code}), ${airport.country}`;
     setSearchTerm(displayText);
     setSelectedValue(airport);
-    onSelect(airport.iata_code); // Pass only the IATA code to the parent
+    onSelect(airport.city.toUpperCase()); // Pass the city name in uppercase to the parent
     setIsDropdownVisible(false);
     setResults([]);
   };

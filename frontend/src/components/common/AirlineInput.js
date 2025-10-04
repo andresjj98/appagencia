@@ -71,7 +71,7 @@ const AirlineInput = ({ value, onSelect, placeholder }) => {
     const displayText = `${airline.name} (${airline.iata_code})`;
     setSearchTerm(displayText);
     setSelectedValue(airline);
-    onSelect(airline.iata_code);
+    onSelect(airline.name);
     setIsDropdownVisible(false);
     setResults([]);
   };

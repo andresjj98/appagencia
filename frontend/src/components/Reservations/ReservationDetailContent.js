@@ -10,7 +10,8 @@ import {
   ListChecks,
   Paperclip,
   Loader2,
-  MessageSquare
+  MessageSquare,
+  Bus
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
@@ -101,6 +102,7 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
     const tourData = reservation._original.reservation_tours || [];
     const assistanceData = reservation._original.reservation_medical_assistances || [];
     const attachmentData = reservation._original.reservation_attachments || [];
+    const transferData = reservation._original.reservation_transfers || [];
     
     const getAirlineCode = (flight) => {
         if (!flight) {
@@ -523,6 +525,32 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                         )}
                     </div>
                 )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." fullWidth />}
+            </InfoSection>
+
+            <InfoSection id="traslados" title="Traslados" icon={<Bus className="w-5 h-5 text-teal-600" />}>
+                {(transferData || []).length > 0 ? (
+                    <div className="col-span-full space-y-3">
+                        {segments.map((segment, segmentIndex) => {
+                            const segmentTransfers = transferData.filter(t => t.segment_id === segment.id);
+                            if (segmentTransfers.length === 0) return null;
+
+                            return (
+                                <div key={segmentIndex} className="text-base p-3 bg-gray-50 rounded-lg">
+                                    <p className="font-semibold text-gray-700 mb-2">
+                                        Tramo {segmentIndex + 1}: {segment.origin} - {segment.destination}
+                                    </p>
+                                    <div className="space-y-2 pl-4">
+                                        {segmentTransfers.map((transfer, idx) => (
+                                            <div key={idx} className="text-sm">
+                                                <p><strong>Tipo:</strong> {transfer.transfer_type === 'arrival' ? 'Llegada (In)' : 'Salida (Out)'}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : <InfoItem label="Traslados" value="No hay traslados registrados." fullWidth />}
             </InfoSection>
 
             <InfoSection id="tours" title="Servicios y Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>

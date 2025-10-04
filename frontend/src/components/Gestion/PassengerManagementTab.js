@@ -7,9 +7,10 @@ const EMPTY_PASSENGER = {
   reservation_id: null,
   name: '',
   lastname: '',
-  document_type: 'DNI',
+  document_type: 'CC',
   document_number: '',
   birth_date: '',
+  passenger_type: 'ADT',
   notes: '',
 };
 
@@ -27,9 +28,10 @@ const sanitizePassengerFields = (rawPassenger) => {
     reservation_id: passenger.reservation_id ?? passenger.reservationId ?? null,
     name: base.name ?? '',
     lastname: base.lastname ?? base.last_name ?? base.lastName ?? '',
-    document_type: base.document_type ?? base.documentType ?? 'DNI',
+    document_type: base.document_type ?? base.documentType ?? 'CC',
     document_number: base.document_number ?? base.documentNumber ?? '',
     birth_date: base.birth_date ?? base.birthDate ?? '',
+    passenger_type: base.passenger_type ?? base.passengerType ?? 'ADT',
     notes: base.notes ?? base.note ?? '',
   };
 };
@@ -48,9 +50,10 @@ const toComparablePassenger = (passenger) => {
     ...sanitized,
     id: sanitized.id ?? null,
     reservation_id: sanitized.reservation_id ?? null,
-    document_type: sanitized.document_type ?? 'DNI',
+    document_type: sanitized.document_type ?? 'CC',
     document_number: sanitized.document_number ?? '',
     birth_date: sanitized.birth_date ?? '',
+    passenger_type: sanitized.passenger_type ?? 'ADT',
     notes: sanitized.notes ?? '',
   };
 };
@@ -108,7 +111,7 @@ const getReservationId = (reservation) => {
   return reservation.reservation_id ?? null;
 };
 
-const PassengerForm = ({ passenger, onSave, onCancel }) => {
+const PassengerForm = ({ passenger, onSave, onCancel, availableTypes }) => {
   const [formData, setFormData] = useState(() => ({
     ...EMPTY_PASSENGER,
     ...sanitizePassengerFields(passenger),
@@ -125,9 +128,21 @@ const PassengerForm = ({ passenger, onSave, onCancel }) => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    let processedValue = value;
+
+    // Convertir a mayúsculas los campos de texto
+    if (name === 'name' || name === 'lastname' || name === 'notes') {
+      processedValue = value.toUpperCase();
+    }
+
+    // Eliminar puntos del número de documento
+    if (name === 'document_number') {
+      processedValue = value.replace(/\./g, '');
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: processedValue,
     }));
   };
 
@@ -170,9 +185,10 @@ const PassengerForm = ({ passenger, onSave, onCancel }) => {
             onChange={handleChange}
             className="p-2 border rounded"
           >
-            <option value="DNI">DNI</option>
-            <option value="Pasaporte">Pasaporte</option>
-            <option value="Otro">Otro</option>
+            <option value="CC">CC: Cédula</option>
+            <option value="TI">TI: Tarjeta de Identidad</option>
+            <option value="RC">RC: Registro Civil</option>
+            <option value="PP">PP: Pasaporte</option>
           </select>
           <input
             name="document_number"
@@ -191,6 +207,17 @@ const PassengerForm = ({ passenger, onSave, onCancel }) => {
             max={maxBirthDate}
             required
           />
+          <select
+            name="passenger_type"
+            value={formData.passenger_type}
+            onChange={handleChange}
+            className="p-2 border rounded"
+            required
+          >
+            <option value="ADT" disabled={!availableTypes?.ADT}>Adulto (ADT) {availableTypes?.ADT ? `- Disponibles: ${availableTypes.ADT}` : '- No disponible'}</option>
+            <option value="CHD" disabled={!availableTypes?.CHD}>Niño (CHD) {availableTypes?.CHD ? `- Disponibles: ${availableTypes.CHD}` : '- No disponible'}</option>
+            <option value="INF" disabled={!availableTypes?.INF}>Infante (INF) {availableTypes?.INF ? `- Disponibles: ${availableTypes.INF}` : '- No disponible'}</option>
+          </select>
           <textarea
             name="notes"
             value={formData.notes}
@@ -255,6 +282,51 @@ const PassengerManagementTab = ({ reservation, onUpdateReservation, onUpdate }) 
   const currentCount = passengers.length;
   const remainingSlots = totalAllowed ? Math.max(totalAllowed - currentCount, 0) : null;
   const isAtCapacity = totalAllowed ? currentCount >= totalAllowed : false;
+
+  const adtRequired = parsePassengerCount(baseReservation, 'passengers_adt', 'passengersADT');
+  const chdRequired = parsePassengerCount(baseReservation, 'passengers_chd', 'passengersCHD');
+  const infRequired = parsePassengerCount(baseReservation, 'passengers_inf', 'passengersINF');
+
+  const passengerTypeCounts = useMemo(() => {
+    const counts = { ADT: 0, CHD: 0, INF: 0 };
+    passengers.forEach(pax => {
+      const type = pax.passenger_type || 'ADT';
+      if (counts[type] !== undefined) {
+        counts[type]++;
+      }
+    });
+    return counts;
+  }, [passengers]);
+
+  const availableTypes = useMemo(() => {
+    if (editingPassenger) {
+      const currentType = editingPassenger.passenger_type || 'ADT';
+      return {
+        ADT: adtRequired - passengerTypeCounts.ADT + (currentType === 'ADT' ? 1 : 0),
+        CHD: chdRequired - passengerTypeCounts.CHD + (currentType === 'CHD' ? 1 : 0),
+        INF: infRequired - passengerTypeCounts.INF + (currentType === 'INF' ? 1 : 0),
+      };
+    }
+    return {
+      ADT: adtRequired - passengerTypeCounts.ADT,
+      CHD: chdRequired - passengerTypeCounts.CHD,
+      INF: infRequired - passengerTypeCounts.INF,
+    };
+  }, [adtRequired, chdRequired, infRequired, passengerTypeCounts, editingPassenger]);
+
+  const typeValidationMessage = useMemo(() => {
+    const messages = [];
+    if (passengerTypeCounts.ADT !== adtRequired) {
+      messages.push(`ADT: ${passengerTypeCounts.ADT}/${adtRequired}`);
+    }
+    if (passengerTypeCounts.CHD !== chdRequired) {
+      messages.push(`CHD: ${passengerTypeCounts.CHD}/${chdRequired}`);
+    }
+    if (passengerTypeCounts.INF !== infRequired) {
+      messages.push(`INF: ${passengerTypeCounts.INF}/${infRequired}`);
+    }
+    return messages.length > 0 ? messages.join(' | ') : null;
+  }, [passengerTypeCounts, adtRequired, chdRequired, infRequired]);
 
   const hasChanges = useMemo(() => {
     const comparableCurrent = passengers.map(toComparablePassenger);
@@ -356,6 +428,11 @@ const PassengerManagementTab = ({ reservation, onUpdateReservation, onUpdate }) 
             {`Pasajeros agregados: ${capacityLabel}`}
             {totalAllowed ? ` | Cupos restantes: ${remainingSlots}` : ''}
           </p>
+          {typeValidationMessage && (
+            <p className="text-sm text-amber-600 font-medium mt-1">
+              Tipos de pasajeros: {typeValidationMessage}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -385,6 +462,7 @@ const PassengerManagementTab = ({ reservation, onUpdateReservation, onUpdate }) 
             passenger={editingPassenger}
             onSave={handleSavePassenger}
             onCancel={handleCancelForm}
+            availableTypes={availableTypes}
           />
         )}
       </AnimatePresence>
@@ -400,13 +478,20 @@ const PassengerManagementTab = ({ reservation, onUpdateReservation, onUpdate }) 
           const displayName = [pax.name, pax.lastname].filter(Boolean).join(' ') || 'Pasajero sin nombre';
           const documentLabel = [pax.document_type, pax.document_number].filter(Boolean).join(': ');
 
+          const passengerTypeLabel = pax.passenger_type === 'ADT' ? 'Adulto' : pax.passenger_type === 'CHD' ? 'Niño' : 'Infante';
+
           return (
             <div
               key={pax._uiId}
               className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200"
             >
               <div>
-                <p className="font-semibold">{displayName}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold">{displayName}</p>
+                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+                    {passengerTypeLabel}
+                  </span>
+                </div>
                 <p className="text-sm text-gray-500">
                   {documentLabel || 'Documento no informado'}
                 </p>
