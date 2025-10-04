@@ -21,7 +21,9 @@ export const AuthProvider = ({ children }) => {
       // Mapear el usuario del backend al formato del frontend
       const mappedUser = {
         id: data.user.id,
-        name: data.user.name,
+        name: data.user.last_name
+          ? `${data.user.name} ${data.user.last_name}`
+          : data.user.name,
         lastName: data.user.last_name,
         idCard: data.user.id_card,
         username: data.user.username,

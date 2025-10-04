@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Calendar, MapPin, Hash, Edit, Save, X, LifeBuoy, Plane, Hotel, Ticket, HeartPulse, DollarSign } from 'lucide-react';
+import { formatUserName } from '../../utils/nameFormatter';
 
 const DetailItem = ({ icon: Icon, label, children, isEditing, value, onChange, type = 'text' }) => (
   <div className="flex items-start gap-3">
@@ -355,7 +356,7 @@ const GeneralInfoPanel = ({ reservation, onUpdate }) => {
         </div>
         <div className="col-span-1">
           <DetailItem icon={User} label="Asesor Asignado">
-            {reservation._original.advisor?.name || 'N/A'}
+            {formatUserName(reservation._original.advisor?.name) || 'N/A'}
           </DetailItem>
         </div>
       </Section>

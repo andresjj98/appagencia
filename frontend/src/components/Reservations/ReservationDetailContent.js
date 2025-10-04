@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
+import { formatUserName } from '../../utils/nameFormatter';
 
 // Read-only Section
 const InfoSection = ({ id, title, icon, children, gridColsClass = 'lg:grid-cols-3' }) => (
@@ -419,7 +420,7 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             {reservation._original.advisor?.name && (
                 <div className="py-4 px-6 border-b border-gray-200 bg-white">
                     <p className="text-gray-500 font-medium">Asesor</p>
-                    <p className="text-gray-900">{reservation._original.advisor.name}</p>
+                    <p className="text-gray-900">{formatUserName(reservation._original.advisor.name)}</p>
                 </div>
             )}
             <InfoSection id="info-basica" title="Información Básica" icon={<FileText className="w-5 h-5 text-blue-600" />} gridColsClass="lg:grid-cols-2">

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../pages/AuthContext';
 import { USER_ROLES, canAccessModule } from '../../utils/constants';
+import { formatUserName } from '../../utils/nameFormatter';
 
 const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
   const { currentUser } = useAuth();
@@ -108,7 +109,7 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {currentUser.name}
+              {formatUserName(currentUser.name)}
             </p>
             <p className="text-xs text-gray-500">
               {USER_ROLES[currentUser.role].label}

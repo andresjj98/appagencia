@@ -115,7 +115,10 @@ const transformReservationForGestion = (reservation) => {
     totalPassengers,
     destinationSummary,
     paymentStatus,
-    advisorName: reservation.advisorName ?? reservation.advisor?.name ?? 'N/A',
+    advisorName: reservation.advisorName ??
+      (reservation.advisor?.last_name
+        ? `${reservation.advisor.name} ${reservation.advisor.last_name}`
+        : (reservation.advisor?.name || 'N/A')),
   };
 };
 

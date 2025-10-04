@@ -133,7 +133,9 @@ const Reservations = () => {
         totalAmount: res.total_amount,
         status: res.status,
         paymentStatus: paymentStatus,
-        advisorName: res.advisor?.name || 'N/A', // Use advisor name from backend
+        advisorName: res.advisor?.last_name
+          ? `${res.advisor.name} ${res.advisor.last_name}`
+          : (res.advisor?.name || 'N/A'), // Use advisor name from backend
         notes: res.notes,
         _original: res 
       };

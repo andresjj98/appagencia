@@ -18,6 +18,7 @@ import { calculateDays } from '../../utils/helpers';
 import { RESERVATION_STATUS, PAYMENT_STATUS, canEditReservation } from '../../utils/constants';
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
+import { formatUserName } from '../../utils/nameFormatter';
 
 // Helper component to display an icon based on reservation type
 const ReservationTypeIcon = ({ type }) => {
@@ -188,7 +189,7 @@ const ReservationCard = ({ reservation, index = 0, onEdit, onDelete, onView }) =
         <div className="flex items-end justify-between">
             <div>
                 <p className="text-xs text-gray-500">Asesor</p>
-                <p className="text-sm font-medium text-gray-700">{reservation.advisorName}</p>
+                <p className="text-sm font-medium text-gray-700">{formatUserName(reservation.advisorName)}</p>
             </div>
             <div>
                 <p className="text-xs text-gray-500 text-right">Total</p>

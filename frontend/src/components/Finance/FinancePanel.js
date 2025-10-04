@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../pages/AuthContext';
 import { Upload, File as FileIcon, Loader, Info, X, DollarSign, Calendar, MapPin, User, Hash, Phone, Mail, FileText, CreditCard, Search } from 'lucide-react';
 import { filterReservationsByRole, canAccessOffice } from '../../utils/constants';
+import { formatUserName } from '../../utils/nameFormatter';
 
 const statusColors = {
   paid: 'bg-green-100 text-green-800',
@@ -139,7 +140,7 @@ const FinanceDetailModal = ({ reservation, onClose, children }) => {
                         <DetailItem icon={Calendar} label="Salida" value={reservation.departureDate ? new Date(reservation.departureDate).toLocaleDateString() : 'N/A'} />
                         <DetailItem icon={Calendar} label="Regreso" value={reservation.returnDate ? new Date(reservation.returnDate).toLocaleDateString() : 'N/A'} />
                         <DetailItem icon={CreditCard} label="Tipo de Pago" value={paymentOptionLabels[reservation.paymentOption] || reservation.paymentOption} />
-                        <DetailItem icon={User} label="Asesor" value={reservation.advisorName} />
+                        <DetailItem icon={User} label="Asesor" value={formatUserName(reservation.advisorName)} />
                     </div>
 
                     <div className="mt-6 p-4 bg-gray-100 rounded-lg">
@@ -239,7 +240,9 @@ const FinancePanel = () => {
           clientPhone: res.clients?.phone || '',
           clientEmail: res.clients?.email || '',
           clientAddress: res.clients?.address || '',
-          advisorName: res.advisor?.name || 'No asignado',
+          advisorName: res.advisor?.last_name
+            ? `${res.advisor.name} ${res.advisor.last_name}`
+            : (res.advisor?.name || 'No asignado'),
           reservationType: res.reservation_type || 'other',
           departureDate: firstSegment?.departure_date,
           returnDate: firstSegment?.return_date,

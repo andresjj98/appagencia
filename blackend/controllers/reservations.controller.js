@@ -27,7 +27,7 @@ const formatInvoiceNumber = (pattern, sequenceNumber) => {
 const fullReservationSelect = `
   *,
   clients(*),
-  advisor:advisor_id(name),
+  advisor:advisor_id(name, last_name),
   reservation_segments(*),
   reservation_flights(*, reservation_flight_itineraries(*)),
   reservation_hotels(*, reservation_hotel_accommodations(*), reservation_hotel_inclusions(*)),

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertCircle, Send } from 'lucide-react';
+import { formatUserName } from '../../utils/nameFormatter';
 
 const RejectReservationModal = ({ reservation, onReject, onClose }) => {
   const [reason, setReason] = useState('');
@@ -87,7 +88,7 @@ const RejectReservationModal = ({ reservation, onReject, onClose }) => {
                 </div>
                 <div>
                   <span className="text-gray-500">Asesor:</span>
-                  <span className="ml-2 font-medium text-gray-900">{reservation.advisorName || 'N/A'}</span>
+                  <span className="ml-2 font-medium text-gray-900">{formatUserName(reservation.advisorName) || 'N/A'}</span>
                 </div>
               </div>
             </div>
