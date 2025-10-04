@@ -22,7 +22,7 @@
     @media print {
       @page {
         size: 8.5in 13in;
-        margin: 12mm;
+        margin: 0;
       }
       .no-print {
         display: none !important;
@@ -32,6 +32,14 @@
       }
       .page-oficio {
         box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .page-content {
+        padding: 0 0.4in 0.4in 0.4in !important;
+      }
+      .full-width-header {
+        padding: 0.4in !important;
       }
     }
 
@@ -39,10 +47,23 @@
     .page-oficio {
       width: 8.5in;
       min-height: 13in;
-      padding: 0.6in;
+      padding: 0;
       margin: 1rem auto;
       background: white;
       box-shadow: 0 0 40px rgba(0,0,0,0.1);
+    }
+
+    /* Contenido con padding (excepto header) */
+    .page-content {
+      padding: 0 0.4in 0.4in 0.4in;
+    }
+
+    /* Header que ocupa todo el ancho */
+    .full-width-header {
+      background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+      border-bottom: 3px solid #3b82f6;
+      padding: 0.4in;
+      margin-bottom: 0;
     }
 
     /* Gradiente elegante para header */
@@ -60,22 +81,22 @@
     table.invoice-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 1rem;
+      margin-top: 0.5rem;
     }
     table.invoice-table th {
       background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
       color: white;
-      padding: 0.75rem;
-      font-size: 0.8rem;
+      padding: 0.4rem 0.5rem;
+      font-size: 0.7rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
       text-align: left;
       border: none;
     }
     table.invoice-table td {
-      padding: 0.6rem 0.75rem;
-      font-size: 0.85rem;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.75rem;
       border-bottom: 1px solid #e5e7eb;
       color: #374151;
     }
@@ -89,10 +110,10 @@
     /* Sección info con bordes elegantes */
     .info-card {
       background: #f8fafc;
-      border-left: 4px solid #3b82f6;
-      padding: 1rem;
-      margin-bottom: 0.75rem;
-      border-radius: 0 8px 8px 0;
+      border-left: 3px solid #3b82f6;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.4rem;
+      border-radius: 0 6px 6px 0;
     }
 
     /* Info badge */
@@ -141,83 +162,121 @@
 
   <!-- Página oficio -->
   <div id="printArea" class="page-oficio">
-    <!-- Borde decorativo superior -->
-    <div class="decorative-border mb-6"></div>
-
-    <!-- Header -->
-    <header class="flex items-start gap-6 pb-6 mb-6 border-b-2 border-blue-100">
-      <div class="shrink-0 logo-container">
-        <img id="logo" alt="Logo" class="h-20 w-auto object-contain" />
-      </div>
-      <div class="flex-1">
-        <h2 id="agencyName" class="text-2xl font-bold text-gray-900 mb-1">Agencia</h2>
-        <p id="nitTax" class="text-xs text-gray-600 font-medium mb-1">NIT: — · Régimen: — · RNT: —</p>
-        <p id="addresses" class="text-xs text-gray-600"></p>
-        <p id="contacts" class="text-xs text-gray-600 mt-1"></p>
-      </div>
-      <div class="text-right bg-gradient-to-br from-blue-50 to-blue-100 px-6 py-4 rounded-lg border border-blue-200">
-        <p class="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-1">Factura / Contrato</p>
-        <p id="invoiceNumber" class="text-2xl font-bold text-blue-600 mb-2">INV-0000</p>
-        <p class="text-xs text-gray-600">Fecha: <span id="issueDate" class="font-semibold">—</span></p>
-        <p class="text-xs text-gray-600">Moneda: <span id="currency" class="font-semibold">COP</span></p>
+    <!-- Header de ancho completo -->
+    <header class="full-width-header">
+      <div class="flex items-start gap-4">
+        <div class="shrink-0 logo-container">
+          <img id="logo" alt="Logo" class="h-14 w-auto object-contain" />
+        </div>
+        <div class="flex-1">
+          <h2 id="agencyName" class="text-xl font-bold text-gray-900 mb-0.5">Agencia</h2>
+          <p id="nitTax" class="text-xs text-gray-600 font-medium mb-0.5">NIT: — · Régimen: — · RNT: —</p>
+          <p id="addresses" class="text-xs text-gray-600"></p>
+          <p id="contacts" class="text-xs text-gray-600 mt-0.5"></p>
+        </div>
+        <div class="text-right bg-white px-4 py-2.5 rounded-lg border-2 border-blue-500 shadow-md">
+          <p class="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-0.5">Factura / Contrato</p>
+          <p id="invoiceNumber" class="text-xl font-bold text-blue-600 mb-1">INV-0000</p>
+          <p class="text-xs text-gray-600">Fecha: <span id="issueDate" class="font-semibold">—</span></p>
+          <p class="text-xs text-gray-600">Moneda: <span id="currency" class="font-semibold">COP</span></p>
+        </div>
       </div>
     </header>
 
+    <!-- Contenido con padding -->
+    <div class="page-content">
+
     <!-- Cliente + Contacto emergencia -->
-    <section class="grid grid-cols-2 gap-4 mb-6">
+    <section class="mb-3 space-y-2">
       <div class="info-card">
-        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-3 flex items-center gap-2">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-2 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
           Cliente (Titular)
         </h3>
-        <div class="space-y-1.5 text-sm">
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           <div class="flex"><span class="font-medium text-gray-600 w-24">Nombre:</span><span id="clientName" class="text-gray-900 font-semibold">—</span></div>
           <div class="flex"><span class="font-medium text-gray-600 w-24">Documento:</span><span id="clientDoc" class="text-gray-900">—</span></div>
           <div class="flex"><span class="font-medium text-gray-600 w-24">Teléfono:</span><span id="clientPhone" class="text-gray-900">—</span></div>
           <div class="flex"><span class="font-medium text-gray-600 w-24">Correo:</span><span id="clientEmail" class="text-gray-900">—</span></div>
-          <div class="flex"><span class="font-medium text-gray-600 w-24">Dirección:</span><span id="clientAddress" class="text-gray-900">—</span></div>
+          <div class="flex col-span-2"><span class="font-medium text-gray-600 w-24">Dirección:</span><span id="clientAddress" class="text-gray-900">—</span></div>
         </div>
       </div>
       <div class="info-card">
-        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-3 flex items-center gap-2">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-2 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
           Contacto de Emergencia
         </h3>
-        <div class="space-y-1.5 text-sm">
-          <div class="flex"><span class="font-medium text-gray-600 w-24">Nombre:</span><span id="emgName" class="text-gray-900 font-semibold">—</span></div>
-          <div class="flex"><span class="font-medium text-gray-600 w-24">Celular:</span><span id="emgPhone" class="text-gray-900">—</span></div>
+        <div class="text-xs flex gap-6">
+          <div class="flex"><span class="font-medium text-gray-600">Nombre:</span><span id="emgName" class="text-gray-900 font-semibold ml-2">—</span></div>
+          <div class="flex"><span class="font-medium text-gray-600">Celular:</span><span id="emgPhone" class="text-gray-900 ml-2">—</span></div>
         </div>
       </div>
     </section>
 
     <!-- Detalles de la reserva -->
-    <section class="mt-4 text-sm">
-      <h3 class="font-semibold mb-2">Datos de la Reserva</h3>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-1">
-          <div><span class="font-medium">Origen / Destino: </span><span id="od">—</span></div>
-          <div id="travelCycleWrap"><span class="font-medium">Ciclo de viaje: </span><span id="travelCycle">—</span></div>
-          <div><span class="font-medium">Noches / Días: </span><span id="nd">—</span></div>
-          <div><span class="font-medium">Pasajeros: </span><span id="pax">—</span></div>
+    <section class="mb-3">
+      <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-2">Datos de la Reserva</h3>
+
+      <!-- Grid de 2 columnas -->
+      <div class="grid grid-cols-2 gap-3">
+
+        <!-- Columna izquierda -->
+        <div class="space-y-2">
+          <!-- Información general -->
+          <div class="info-card">
+            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Información General</h4>
+            <div class="space-y-0.5 text-xs">
+              <div class="flex"><span class="font-medium text-gray-600 w-24">Origen / Destino:</span><span id="od" class="text-gray-900">—</span></div>
+              <div class="flex"><span class="font-medium text-gray-600 w-24">Pasajeros:</span><span id="pax" class="text-gray-900">—</span></div>
+              <div id="travelCycleWrap" class="flex"><span class="font-medium text-gray-600 w-24">Ciclo de viaje:</span><span id="travelCycle" class="text-gray-900">—</span></div>
+              <div class="flex"><span class="font-medium text-gray-600 w-24">Noches / Días:</span><span id="nd" class="text-gray-900">—</span></div>
+            </div>
+          </div>
+
+          <!-- Información de hospedaje -->
+          <div class="info-card" id="hotelInfo">
+            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Información de Hospedaje</h4>
+            <div class="space-y-0.5 text-xs">
+              <div id="hotelWrap" class="flex"><span class="font-medium text-gray-600 w-24">Hotel:</span><span id="hotel" class="text-gray-900">—</span></div>
+              <div id="accommodationWrap" class="flex"><span class="font-medium text-gray-600 w-24">Acomodación:</span><span id="accommodation" class="text-gray-900">—</span></div>
+              <div id="roomTypeWrap" class="flex"><span class="font-medium text-gray-600 w-24">Tipo habitación:</span><span id="roomType" class="text-gray-900">—</span></div>
+              <div id="boardTypeWrap" class="flex"><span class="font-medium text-gray-600 w-24">Plan aliment.:</span><span id="boardType" class="text-gray-900">—</span></div>
+              <div id="roomsInfoWrap" class="flex"><span class="font-medium text-gray-600 w-24">Habitaciones:</span><span id="roomsInfo" class="text-gray-900">—</span></div>
+            </div>
+          </div>
         </div>
-        <div class="space-y-1">
-          <div id="airlinesWrap"><span class="font-medium">Aerolínea: </span><span id="airlines">—</span></div>
-          <div id="flightClassWrap"><span class="font-medium">Clase de vuelo: </span><span id="flightClass">—</span></div>
-          <div id="baggageWrap"><span class="font-medium">Equipaje: </span><span id="baggage">—</span></div>
-          <div id="hotelWrap"><span class="font-medium">Hotel: </span><span id="hotel">—</span></div>
-          <div id="accommodationWrap"><span class="font-medium">Acomodación: </span><span id="accommodation">—</span></div>
-          <div id="roomTypeWrap"><span class="font-medium">Tipo de habitación: </span><span id="roomType">—</span></div>
-          <div id="boardTypeWrap"><span class="font-medium">Plan de alimentación: </span><span id="boardType">—</span></div>
-          <div id="transfersWrap"><span class="font-medium">Traslados: </span><span id="transfers">—</span></div>
-          <div id="toursWrap"><span class="font-medium">Tours: </span><span id="tours">—</span></div>
-          <div id="assistWrap"><span class="font-medium">Asistencia médica: </span><span id="assist">—</span></div>
+
+        <!-- Columna derecha -->
+        <div class="space-y-2">
+          <!-- Información de vuelo -->
+          <div class="info-card" id="flightInfo">
+            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Información de Vuelo</h4>
+            <div class="space-y-0.5 text-xs">
+              <div id="airlinesWrap" class="flex"><span class="font-medium text-gray-600 w-24">Aerolínea:</span><span id="airlines" class="text-gray-900">—</span></div>
+              <div id="flightClassWrap" class="flex"><span class="font-medium text-gray-600 w-24">Clase:</span><span id="flightClass" class="text-gray-900">—</span></div>
+              <div id="flightCategoryWrap" class="flex"><span class="font-medium text-gray-600 w-24">Categoría:</span><span id="flightCategory" class="text-gray-900">—</span></div>
+              <div id="baggageWrap" class="flex"><span class="font-medium text-gray-600 w-24">Equipaje:</span><span id="baggage" class="text-gray-900">—</span></div>
+              <div id="flightTrayectoWrap" class="flex"><span class="font-medium text-gray-600 w-24">Trayecto:</span><span id="flightTrayecto" class="text-gray-900">—</span></div>
+            </div>
+          </div>
+
+          <!-- Servicios adicionales -->
+          <div class="info-card" id="additionalServices">
+            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Servicios Adicionales</h4>
+            <div class="space-y-0.5 text-xs">
+              <div id="transfersWrap" class="flex"><span class="font-medium text-gray-600 w-24">Traslados:</span><span id="transfers" class="text-gray-900">—</span></div>
+              <div id="toursWrap" class="flex"><span class="font-medium text-gray-600 w-24">Tours:</span><span id="tours" class="text-gray-900">—</span></div>
+              <div id="assistWrap" class="flex"><span class="font-medium text-gray-600 w-24">Asistencia méd.:</span><span id="assist" class="text-gray-900">—</span></div>
+            </div>
+          </div>
         </div>
+
       </div>
     </section>
 
     <!-- Items -->
-    <section class="mt-4">
-      <h3 class="font-semibold mb-2 text-sm">Descripción de cargos</h3>
+    <section class="mt-2">
+      <h3 class="font-semibold mb-1.5 text-xs">Descripción de cargos</h3>
       <table class="invoice-table">
         <thead>
           <tr>
@@ -234,8 +293,8 @@
     </section>
 
     <!-- Plan de Pagos (Cuotas) -->
-    <section id="installmentsSection" class="mt-4" style="display: none;">
-      <h3 class="font-semibold mb-2 text-sm">Plan de Pagos</h3>
+    <section id="installmentsSection" class="mt-2" style="display: none;">
+      <h3 class="font-semibold mb-1.5 text-xs">Plan de Pagos</h3>
       <table class="invoice-table">
         <thead>
           <tr>
@@ -252,55 +311,50 @@
     </section>
 
     <!-- Totales -->
-    <section class="mt-4 grid grid-cols-2 gap-4">
+    <section class="mt-2 grid grid-cols-2 gap-4">
       <div class="text-xs text-gray-700 whitespace-pre-line" id="invoiceMessage"></div>
       <div class="justify-self-end w-full max-w-sm">
-        <div class="flex justify-between text-sm border-b py-1">
+        <div class="flex justify-between text-xs border-b py-0.5">
           <span>SUBTOTAL</span>
           <span id="subtotalVal">$0</span>
         </div>
-        <div class="flex justify-between text-sm border-b py-1">
+        <div class="flex justify-between text-xs border-b py-0.5">
           <span>TOTAL</span>
           <span id="totalVal" class="font-semibold">$0</span>
         </div>
-        <div class="mt-2 text-xs italic">
+        <div class="mt-1 text-xs italic">
           Son: <span id="totalWords" class="font-medium capitalize">—</span>
         </div>
       </div>
     </section>
 
     <!-- Firma y Huella -->
-    <section class="mt-6 grid grid-cols-3 gap-4 text-center">
-      <div class="border h-24 flex items-end justify-center">
+    <section class="mt-3 grid grid-cols-3 gap-3 text-center">
+      <div class="border h-16 flex items-end justify-center">
         <span class="text-xs pb-1">FIRMA EJECUTIVO DE VENTAS</span>
       </div>
-      <div class="border h-24 flex items-end justify-center">
+      <div class="border h-16 flex items-end justify-center">
         <span class="text-xs pb-1">FIRMA CLIENTE</span>
       </div>
-      <div class="border h-24 flex items-end justify-center">
+      <div class="border h-16 flex items-end justify-center">
         <span class="text-xs pb-1">HUELLA CLIENTE</span>
       </div>
     </section>
 
-    <!-- Legales -->
-    <section class="mt-6 text-[11px] leading-snug text-justify">
-      <h4 class="font-semibold mb-1 text-sm">Condiciones / No incluye / Derecho de retracto</h4>
-      <div id="legalText" class="space-y-2">
+    <!-- Legales como pie de página -->
+    <section class="mt-3 pt-2 border-t">
+      <div id="legalText" class="text-[9px] leading-tight text-center text-justify text-gray-600">
         <p>
-          Impuestos corales, tarjetas de entrada al destino (según aplique), seguros hoteleros, propinas, gastos no especificados, IVA hotelero, traslados a puntos de encuentro para tours.
-        </p>
-        <p class="italic">
-          Esta factura de venta se asimila en todos sus efectos a una letra de cambio según Art. 774 del C. de Comercio.
-        </p>
-        <p>
-          Derecho de retracto: según Ley 1480 de 2011, art. 47, el usuario cuenta con cinco (5) días hábiles desde la celebración del contrato para ejercerlo cuando aplique.
+          <strong>Condiciones / No incluye / Derecho de retracto:</strong> Impuestos corales, tarjetas de entrada al destino (según aplique), seguros hoteleros, propinas, gastos no especificados, IVA hotelero, traslados a puntos de encuentro para tours. Esta factura de venta se asimila en todos sus efectos a una letra de cambio según Art. 774 del C. de Comercio. Derecho de retracto: según Ley 1480 de 2011, art. 47, el usuario cuenta con cinco (5) días hábiles desde la celebración del contrato para ejercerlo cuando aplique.
         </p>
       </div>
     </section>
 
-    <!-- Footer -->
-    <footer id="footerText" class="mt-6 pt-3 border-t text-[11px] text-center text-gray-700 whitespace-pre-line"></footer>
-  </div>
+    <!-- Footer adicional -->
+    <footer id="footerText" class="mt-2 pt-2 border-t text-[10px] text-center text-gray-700 whitespace-pre-line"></footer>
+
+    </div><!-- Fin page-content -->
+  </div><!-- Fin page-oficio -->
 
   <script>
     // ===== Utilidades =====
@@ -314,10 +368,8 @@
 
     function formatDateFromISO(isoDate) {
       if (!isoDate) return "—";
-      const date = new Date(isoDate);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
+      // Crear fecha local para evitar problemas de zona horaria
+      const [year, month, day] = isoDate.split('T')[0].split('-');
       return `${day}/${month}/${year}`;
     }
 
@@ -433,7 +485,16 @@
 
     // ===== Render =====
     function renderInvoice(data) {
+      console.log('=== TEMPLATE RECEIVED DATA ===');
+      console.log('Full data:', data);
+      console.log('data.reservation:', data.reservation);
+
       const { settings, invoice, client, emergencyContact, reservation, items, legalText } = data;
+
+      console.log('=== AFTER DESTRUCTURING ===');
+      console.log('reservation object:', reservation);
+      console.log('reservation.hotel:', reservation.hotel);
+      console.log('reservation.aerolineas:', reservation.aerolineas);
 
       // Logo e info agencia
       const logo = document.getElementById("logo");
@@ -535,11 +596,14 @@
       }
       fillOptional("airlinesWrap","airlines", reservation.aerolineas);
       fillOptional("flightClassWrap","flightClass", reservation.claseVuelo);
+      fillOptional("flightCategoryWrap","flightCategory", reservation.categoriaVuelo);
       fillOptional("baggageWrap","baggage", reservation.equipaje);
+      fillOptional("flightTrayectoWrap","flightTrayecto", reservation.trayectoVuelo);
       fillOptional("hotelWrap","hotel", reservation.hotel);
       fillOptional("accommodationWrap","accommodation", reservation.acomodacion);
       fillOptional("roomTypeWrap","roomType", reservation.roomType);
       fillOptional("boardTypeWrap","boardType", reservation.boardType);
+      fillOptional("roomsInfoWrap","roomsInfo", reservation.habitaciones);
       fillOptional("transfersWrap","transfers", reservation.traslados);
       fillOptional("toursWrap","tours", reservation.tours);
       fillOptional("assistWrap","assist", reservation.asistenciaMedica);

@@ -456,7 +456,7 @@ const Gestion = () => {
         <ReservationManagementPanel
           reservation={selectedReservation}
           onBack={handleBackToList}
-          onUpdate={handleUpdateReservation}
+          onUpdate={fetchReservations}
           onApprove={handleApprove}
           onReject={(reservationId) => {
             const reservation = reservations.find(r => r.id === reservationId);

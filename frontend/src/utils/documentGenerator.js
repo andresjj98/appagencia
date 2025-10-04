@@ -93,6 +93,21 @@ const transformReservationToInvoice = (reservation) => {
   // Obtener tours
   const tours = reservation.reservation_tours || [];
 
+  // Debug: verificar datos de hotel y vuelo
+  console.log('=== DEBUG HOTEL ===');
+  console.log('hotel:', hotel);
+  console.log('hotel.name:', hotel.name);
+  console.log('hotel.meal_plan:', hotel.meal_plan);
+  console.log('hotel.room_category:', hotel.room_category);
+  console.log('hotelAccommodations:', hotelAccommodations);
+  console.log('hotelInclusions:', hotelInclusions);
+
+  console.log('=== DEBUG FLIGHT ===');
+  console.log('flight:', flight);
+  console.log('flight.airline:', flight.airline);
+  console.log('flight.flight_class:', flight.flight_class);
+  console.log('flightItineraries:', flightItineraries);
+
   // Calcular noches y días
   const nights = calculateNights(firstSegment.departure_date, firstSegment.return_date);
   const days = nights > 0 ? nights + 1 : 0;
@@ -109,7 +124,7 @@ const transformReservationToInvoice = (reservation) => {
     }
   }
 
-  // Formatear equipaje
+  // Formatear equipaje permitido
   let equipajeText = null;
   if (flight) {
     const baggage = [];
@@ -120,23 +135,46 @@ const transformReservationToInvoice = (reservation) => {
     }
   }
 
+  // Obtener trayecto del vuelo (flight_cycle)
+  const flightTrayecto = flight?.flight_cycle || null;
+
+  // Obtener categoría del vuelo
+  const flightCategory = flight?.category || null;
+
   // Formatear acomodación del hotel
   const accommodationText = hotelAccommodations.length > 0
     ? hotelAccommodations.map(acc => acc.accommodation_type || acc.type).filter(Boolean).join(', ')
     : null;
 
-  // Formatear tipo de habitación
-  const roomTypeText = hotelAccommodations.length > 0
-    ? hotelAccommodations.map(acc => acc.room_type).filter(Boolean).join(', ')
-    : null;
+  // Formatear tipo de habitación - Usar hotel.room_category si no hay accommodations
+  const roomTypeText = hotel.room_category ||
+    (hotelAccommodations.length > 0
+      ? hotelAccommodations.map(acc => acc.room_type).filter(Boolean).join(', ')
+      : null);
 
-  // Formatear plan de alimentación (board type)
-  const boardTypeText = hotelInclusions.length > 0
-    ? hotelInclusions.map(inc => inc.inclusion_type || inc.board_type).filter(Boolean).join(', ')
-    : null;
+  // Formatear plan de alimentación - Usar hotel.meal_plan si no hay inclusions
+  const boardTypeText = hotel.meal_plan ||
+    (hotelInclusions.length > 0
+      ? hotelInclusions.map(inc => inc.inclusion_type || inc.board_type).filter(Boolean).join(', ')
+      : null);
 
-  // Obtener aerolínea
-  const airlineName = flight?.airline_name ||
+  // Calcular habitaciones y personas por habitación
+  let roomsInfo = null;
+  console.log('=== DEBUG ACCOMMODATIONS ===');
+  console.log('hotelAccommodations:', hotelAccommodations);
+
+  if (hotelAccommodations.length > 0) {
+    const totalRooms = hotelAccommodations.length;
+    const peoplePerRoom = hotelAccommodations.map(acc => {
+      console.log('acc object:', acc);
+      return `${acc.adults || 0} ADT${acc.children ? ` + ${acc.children} CHD` : ''}${acc.infants ? ` + ${acc.infants} INF` : ''}`;
+    }).join(' · ');
+    roomsInfo = `${totalRooms} hab. (${peoplePerRoom})`;
+    console.log('roomsInfo result:', roomsInfo);
+  }
+
+  // Obtener aerolínea - Corregido: usar flight.airline
+  const airlineName = flight?.airline ||
     (flightItineraries.length > 0 ? flightItineraries[0].airline : null);
 
   // Obtener clase de vuelo
@@ -156,7 +194,19 @@ const transformReservationToInvoice = (reservation) => {
   console.log('businessSettings:', businessSettings);
   console.log('businessSettings.logo_url:', businessSettings.logo_url);
 
-  return {
+  console.log('=== DEBUG FINAL VALUES ===');
+  console.log('Hotel name for invoice:', hotel.name || null);
+  console.log('Room type:', roomTypeText);
+  console.log('Board type:', boardTypeText);
+  console.log('Accommodation:', accommodationText);
+  console.log('Rooms info:', roomsInfo);
+  console.log('Airline:', airlineName);
+  console.log('Flight class:', flightClass);
+  console.log('Flight category:', flightCategory);
+  console.log('Flight trayecto:', flightTrayecto);
+  console.log('Equipaje:', equipajeText);
+
+  const invoiceData = {
     settings: {
       agency_name: businessSettings.agency_name || "Dream Vacation",
       legal_name: businessSettings.legal_name || "GROUP VC SAS",
@@ -206,9 +256,10 @@ const transformReservationToInvoice = (reservation) => {
         CHD: reservation.passengers_chd || 0,
         INF: reservation.passengers_inf || 0
       },
-      hotel: hotel.hotel_name || null,
+      hotel: hotel.name || null,
       roomType: roomTypeText || null,
       boardType: boardTypeText || null,
+      habitaciones: roomsInfo || null,
       traslados: trasladosText,
       equipaje: equipajeText,
       asistenciaMedica: assistance.assistance_name || assistance.provider_name || null,
@@ -216,12 +267,19 @@ const transformReservationToInvoice = (reservation) => {
       // Campos adicionales
       acomodacion: accommodationText,
       claseVuelo: flightClass,
+      categoriaVuelo: flightCategory,
+      trayectoVuelo: flightTrayecto,
       tours: toursText
     },
     items: generateDefaultItems(reservation, firstSegment),
     installments: reservation.reservation_installments || [],
     legalText: ""
   };
+
+  console.log('=== INVOICE DATA COMPLETE ===');
+  console.log('invoiceData.reservation:', invoiceData.reservation);
+
+  return invoiceData;
 };
 
 /**
@@ -247,14 +305,12 @@ const transformReservationToVoucher = (reservation) => {
 };
 
 /**
- * Formatea una fecha a DD/MM/YYYY
+ * Formatea una fecha a DD/MM/YYYY sin problemas de zona horaria
  */
 const formatDate = (date) => {
   if (!date) return "—";
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
+  const dateStr = typeof date === 'string' ? date : date.toISOString();
+  const [year, month, day] = dateStr.split('T')[0].split('-');
   return `${day}/${month}/${year}`;
 };
 

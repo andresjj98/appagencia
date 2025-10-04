@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Info, CheckSquare, Users, DollarSign, Paperclip, History } from 'lucide-react';
-import GeneralInfoPanel from './GeneralInfoPanel';
-import ReservationFinanceTab from './ReservationFinanceTab';
-import ServiceManagementTab from './ServiceManagementTab';
+import InfoWithEditTab from './InfoWithEditTab';
+import ServiceConfirmationTab from './ServiceConfirmationTab';
+import FinanceViewTab from './FinanceViewTab';
 import PassengerManagementTab from './PassengerManagementTab';
 import DocumentationTab from './DocumentationTab';
 import HistoryTab from './HistoryTab';
@@ -80,12 +80,19 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
   const tabs = [
     { id: 'info', label: 'Informacion General', icon: Info },
-    { id: 'services', label: 'Gestion de Servicios', icon: CheckSquare },
+    { id: 'services', label: 'Gestion de Reserva', icon: CheckSquare },
     { id: 'passengers', label: 'Pasajeros', icon: Users },
     { id: 'finance', label: 'Finanzas y Pagos', icon: DollarSign },
     { id: 'documents', label: 'Documentacion', icon: Paperclip },
     { id: 'history', label: 'Actividad y Cambios', icon: History },
   ];
+
+  const [alertInfo, setAlertInfo] = useState(null);
+
+  const showAlert = (title, message) => {
+    setAlertInfo({ title, message });
+    setTimeout(() => setAlertInfo(null), 3000);
+  };
 
   const renderContent = () => {
     // A simple loading indicator can be added here based on isSaving state
@@ -95,13 +102,13 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
     switch (activeTab) {
       case 'info':
-        return <GeneralInfoPanel reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
+        return <InfoWithEditTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
       case 'services':
-        return <ServiceManagementTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
+        return <ServiceConfirmationTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
       case 'passengers':
         return <PassengerManagementTab reservation={reservation} onUpdateReservation={handleUpdateReservation} readOnly={!canEdit} />;
       case 'finance':
-        return <ReservationFinanceTab reservation={reservation._original} onUpdate={onUpdate} readOnly={!canEdit} />;
+        return <FinanceViewTab reservation={reservation} />;
       case 'documents':
         return <DocumentationTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
       case 'history':
@@ -172,6 +179,12 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
       {/* Content Area */}
       <div className="flex-1 p-8 overflow-y-auto bg-white" style={{ maxHeight: '90vh' }}>
+        {alertInfo && (
+          <div className="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
+            <h4 className="font-semibold text-blue-900">{alertInfo.title}</h4>
+            <p className="text-blue-700">{alertInfo.message}</p>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

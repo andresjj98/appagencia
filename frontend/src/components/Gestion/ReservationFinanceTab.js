@@ -261,7 +261,10 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
                 ) : (
                   <>
                     <p className="text-lg font-semibold text-gray-900">${payment.amount}</p>
-                    <p className="text-sm text-gray-500">Vence: {new Date(payment.due_date).toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-500">Vence: {(() => {
+                      const [year, month, day] = payment.due_date.split('T')[0].split('-');
+                      return new Date(year, month - 1, day).toLocaleDateString('es-CO');
+                    })()}</p>
                   </>
                 )}
               </div>
