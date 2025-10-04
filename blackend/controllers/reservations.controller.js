@@ -93,6 +93,40 @@ const getReservationById = async (req, res) => {
       return res.status(404).json({ message: 'Reservation not found' });
     }
 
+    // Obtener business_settings globales
+    const { data: businessSettings, error: settingsError } = await supabaseAdmin
+      .from('business_settings')
+      .select('*')
+      .single();
+
+    console.log('=== DEBUG BUSINESS SETTINGS ===');
+    console.log('Settings Error:', settingsError);
+    console.log('Business Settings:', businessSettings);
+    console.log('Logo URL original:', businessSettings?.logo_url);
+
+    if (!settingsError && businessSettings) {
+      // Si logo_url es una ruta de Supabase Storage, generar URL pública
+      if (businessSettings.logo_url && !businessSettings.logo_url.startsWith('http')) {
+        console.log('Logo URL es ruta relativa, generando URL pública...');
+        const { data: publicUrlData } = supabaseAdmin
+          .storage
+          .from('logos') // Ajusta el nombre del bucket según tu configuración
+          .getPublicUrl(businessSettings.logo_url);
+
+        if (publicUrlData?.publicUrl) {
+          console.log('URL pública generada:', publicUrlData.publicUrl);
+          businessSettings.logo_url = publicUrlData.publicUrl;
+        }
+      } else {
+        console.log('Logo URL ya es absoluta o está vacía');
+      }
+
+      console.log('Logo URL final:', businessSettings.logo_url);
+      data.business_settings = businessSettings;
+    } else {
+      console.log('No se pudieron obtener business_settings');
+    }
+
     res.json(data);
   } catch (error) {
     console.error(error);

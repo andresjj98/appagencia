@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Upload, File, Trash2, Loader } from 'lucide-react';
+import { Plus, Upload, File, Trash2, Loader, Download, FileText, Eye } from 'lucide-react';
+import { generateInvoice, saveDocumentRecord } from '../../utils/documentGenerator';
+import { useAuth } from '../../pages/AuthContext';
 
 const DocumentationTab = ({ reservation, onUpdate }) => {
+  const { currentUser } = useAuth();
   const [attachments, setAttachments] = useState(reservation._original.reservation_attachments || []);
   const [newAttachments, setNewAttachments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [nextId, setNextId] = useState(0);
+
+  // Verificar permisos: solo admin y superadmin pueden generar documentos
+  const canGenerateDocuments = currentUser?.role === 'administrador' || currentUser?.role === 'superadmin';
 
   const addNewRow = () => {
     setNewAttachments(prev => [...prev, { id: nextId, title: '', observation: '', file: null }]);
@@ -69,12 +76,133 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
     }
   };
 
+  const handleGenerateInvoice = async () => {
+    try {
+      setGenerating(true);
+
+      // Obtener datos completos de la reserva incluyendo business_settings
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservation._original.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al obtener datos de la reserva');
+      }
+
+      const fullReservationData = await response.json();
+      console.log('Datos completos de reserva:', fullReservationData);
+
+      // Generar factura con datos completos
+      generateInvoice(fullReservationData);
+
+      await saveDocumentRecord(
+        reservation._original.id,
+        'invoice',
+        fullReservationData
+      );
+
+      alert('Factura generada correctamente');
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      alert('No se pudo generar la factura');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleGenerateVoucher = async () => {
+    try {
+      setGenerating(true);
+      alert('Funcionalidad de voucher en desarrollo');
+    } catch (error) {
+      console.error('Error generating voucher:', error);
+      alert('No se pudo generar el voucher');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleViewInvoice = () => {
+    generateInvoice(reservation._original);
+  };
+
   const hasChanges = newAttachments.length > 0 || attachments.length !== (reservation._original.reservation_attachments || []).length;
 
   return (
     <div className="space-y-8">
+      {/* Sección de Documentos Oficiales (Factura, Voucher) */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-blue-600" />
+          Documentos Oficiales
+        </h3>
+
+        {/* Información de factura */}
+        {reservation._original.invoice_number && (
+          <div className="mb-4 p-3 bg-white rounded-lg border border-blue-100">
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold">N° Factura:</span> {reservation._original.invoice_number}
+            </p>
+            {reservation._original.approved_at && (
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold">Aprobada:</span> {new Date(reservation._original.approved_at).toLocaleDateString('es-CO')}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Botones según permisos */}
+        {canGenerateDocuments ? (
+          <div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleGenerateInvoice}
+                disabled={generating || !reservation._original.invoice_number}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                title={!reservation._original.invoice_number ? 'La reserva debe estar aprobada' : ''}
+              >
+                <Download className="w-4 h-4" />
+                {generating ? 'Generando...' : 'Generar Factura'}
+              </button>
+              <button
+                onClick={handleGenerateVoucher}
+                disabled={generating || !reservation._original.invoice_number}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                Generar Voucher
+              </button>
+            </div>
+            {!reservation._original.invoice_number && (
+              <p className="text-sm text-amber-600 mt-3 flex items-center gap-1">
+                ⚠️ La reserva debe estar aprobada para generar documentos oficiales
+              </p>
+            )}
+          </div>
+        ) : (
+          <div>
+            {reservation._original.invoice_number ? (
+              <button
+                onClick={handleViewInvoice}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                Ver Factura
+              </button>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Los documentos oficiales estarán disponibles una vez la reserva sea aprobada.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Sección de Adjuntos del Cliente */}
       <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Nuevos Documentos</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-4">Nuevos Documentos Adjuntos</h3>
         <div className="space-y-4">
             <AnimatePresence>
                 {newAttachments.map((att, index) => (
@@ -104,7 +232,7 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Documentos Existentes</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-4">Documentos Adjuntos Existentes</h3>
         <div className="space-y-3">
           {attachments.length > 0 ? attachments.map(att => (
             <div key={att.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">

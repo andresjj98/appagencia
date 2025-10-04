@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Factura/Contrato - Oficio (HTML + CSS)</title>
+
+  <!-- Tailwind CDN (sin build) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- html2pdf.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Ajustes de impresión para formato OFICIO (8.5in x 13in) */
+    @media print {
+      @page {
+        size: 8.5in 13in;
+        margin: 12mm;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
+        box-shadow: none !important;
+      }
+      .page-oficio {
+        box-shadow: none !important;
+      }
+    }
+
+    /* Ancho fijo oficio en pantalla */
+    .page-oficio {
+      width: 8.5in;
+      min-height: 13in;
+      padding: 0.6in;
+      margin: 1rem auto;
+      background: white;
+      box-shadow: 0 0 40px rgba(0,0,0,0.1);
+    }
+
+    /* Gradiente elegante para header */
+    .header-gradient {
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    }
+
+    /* Borde decorativo */
+    .decorative-border {
+      border-top: 4px solid #3b82f6;
+      border-image: linear-gradient(90deg, #1e3a8a, #3b82f6, #60a5fa) 1;
+    }
+
+    /* Tabla elegante */
+    table.invoice-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    table.invoice-table th {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      padding: 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: left;
+      border: none;
+    }
+    table.invoice-table td {
+      padding: 0.6rem 0.75rem;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #e5e7eb;
+      color: #374151;
+    }
+    table.invoice-table tbody tr:hover {
+      background-color: #f9fafb;
+    }
+    table.invoice-table tbody tr:last-child td {
+      border-bottom: 2px solid #3b82f6;
+    }
+
+    /* Sección info con bordes elegantes */
+    .info-card {
+      background: #f8fafc;
+      border-left: 4px solid #3b82f6;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border-radius: 0 8px 8px 0;
+    }
+
+    /* Info badge */
+    .info-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Totales destacados */
+    .total-section {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 2px solid #3b82f6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    /* Logo container */
+    .logo-container {
+      background: white;
+      padding: 0.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+  <!-- Controles -->
+  <div class="no-print max-w-6xl mx-auto py-4 px-4 flex flex-wrap gap-2 items-center justify-between">
+    <div>
+      <h1 class="text-xl font-semibold">Plantilla de Factura / Contrato (Oficio)</h1>
+      <p class="text-sm text-gray-600">HTML + CSS + JS · Exportar a PDF · Imprimir</p>
+    </div>
+    <div class="flex gap-2">
+      <button id="btnExport" class="px-4 py-2 rounded-xl bg-black text-white">Exportar PDF</button>
+      <button id="btnPrint" class="px-4 py-2 rounded-xl border">Imprimir</button>
+    </div>
+  </div>
+
+  <!-- Página oficio -->
+  <div id="printArea" class="page-oficio">
+    <!-- Borde decorativo superior -->
+    <div class="decorative-border mb-6"></div>
+
+    <!-- Header -->
+    <header class="flex items-start gap-6 pb-6 mb-6 border-b-2 border-blue-100">
+      <div class="shrink-0 logo-container">
+        <img id="logo" alt="Logo" class="h-20 w-auto object-contain" />
+      </div>
+      <div class="flex-1">
+        <h2 id="agencyName" class="text-2xl font-bold text-gray-900 mb-1">Agencia</h2>
+        <p id="nitTax" class="text-xs text-gray-600 font-medium mb-1">NIT: — · Régimen: — · RNT: —</p>
+        <p id="addresses" class="text-xs text-gray-600"></p>
+        <p id="contacts" class="text-xs text-gray-600 mt-1"></p>
+      </div>
+      <div class="text-right bg-gradient-to-br from-blue-50 to-blue-100 px-6 py-4 rounded-lg border border-blue-200">
+        <p class="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-1">Factura / Contrato</p>
+        <p id="invoiceNumber" class="text-2xl font-bold text-blue-600 mb-2">INV-0000</p>
+        <p class="text-xs text-gray-600">Fecha: <span id="issueDate" class="font-semibold">—</span></p>
+        <p class="text-xs text-gray-600">Moneda: <span id="currency" class="font-semibold">COP</span></p>
+      </div>
+    </header>
+
+    <!-- Cliente + Contacto emergencia -->
+    <section class="grid grid-cols-2 gap-4 mb-6">
+      <div class="info-card">
+        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+          Cliente (Titular)
+        </h3>
+        <div class="space-y-1.5 text-sm">
+          <div class="flex"><span class="font-medium text-gray-600 w-24">Nombre:</span><span id="clientName" class="text-gray-900 font-semibold">—</span></div>
+          <div class="flex"><span class="font-medium text-gray-600 w-24">Documento:</span><span id="clientDoc" class="text-gray-900">—</span></div>
+          <div class="flex"><span class="font-medium text-gray-600 w-24">Teléfono:</span><span id="clientPhone" class="text-gray-900">—</span></div>
+          <div class="flex"><span class="font-medium text-gray-600 w-24">Correo:</span><span id="clientEmail" class="text-gray-900">—</span></div>
+          <div class="flex"><span class="font-medium text-gray-600 w-24">Dirección:</span><span id="clientAddress" class="text-gray-900">—</span></div>
+        </div>
+      </div>
+      <div class="info-card">
+        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+          Contacto de Emergencia
+        </h3>
+        <div class="space-y-1.5 text-sm">
+          <div class="flex"><span class="font-medium text-gray-600 w-24">Nombre:</span><span id="emgName" class="text-gray-900 font-semibold">—</span></div>
+          <div class="flex"><span class="font-medium text-gray-600 w-24">Celular:</span><span id="emgPhone" class="text-gray-900">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detalles de la reserva -->
+    <section class="mt-4 text-sm">
+      <h3 class="font-semibold mb-2">Datos de la Reserva</h3>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <div><span class="font-medium">Origen / Destino: </span><span id="od">—</span></div>
+          <div id="travelCycleWrap"><span class="font-medium">Ciclo de viaje: </span><span id="travelCycle">—</span></div>
+          <div><span class="font-medium">Noches / Días: </span><span id="nd">—</span></div>
+          <div><span class="font-medium">Pasajeros: </span><span id="pax">—</span></div>
+        </div>
+        <div class="space-y-1">
+          <div id="airlinesWrap"><span class="font-medium">Aerolínea: </span><span id="airlines">—</span></div>
+          <div id="flightClassWrap"><span class="font-medium">Clase de vuelo: </span><span id="flightClass">—</span></div>
+          <div id="baggageWrap"><span class="font-medium">Equipaje: </span><span id="baggage">—</span></div>
+          <div id="hotelWrap"><span class="font-medium">Hotel: </span><span id="hotel">—</span></div>
+          <div id="accommodationWrap"><span class="font-medium">Acomodación: </span><span id="accommodation">—</span></div>
+          <div id="roomTypeWrap"><span class="font-medium">Tipo de habitación: </span><span id="roomType">—</span></div>
+          <div id="boardTypeWrap"><span class="font-medium">Plan de alimentación: </span><span id="boardType">—</span></div>
+          <div id="transfersWrap"><span class="font-medium">Traslados: </span><span id="transfers">—</span></div>
+          <div id="toursWrap"><span class="font-medium">Tours: </span><span id="tours">—</span></div>
+          <div id="assistWrap"><span class="font-medium">Asistencia médica: </span><span id="assist">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Items -->
+    <section class="mt-4">
+      <h3 class="font-semibold mb-2 text-sm">Descripción de cargos</h3>
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th class="w-2/3">Descripción</th>
+            <th class="w-1/12 text-right">Cant.</th>
+            <th class="w-1/6 text-right">Vr. Unit.</th>
+            <th class="w-1/6 text-right">Vr. Total</th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody">
+          <tr><td colspan="4" class="text-center text-gray-500">Sin ítems</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Plan de Pagos (Cuotas) -->
+    <section id="installmentsSection" class="mt-4" style="display: none;">
+      <h3 class="font-semibold mb-2 text-sm">Plan de Pagos</h3>
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th class="w-1/12">#</th>
+            <th class="w-1/3">Fecha de Vencimiento</th>
+            <th class="w-1/4 text-right">Valor</th>
+            <th class="w-1/4">Estado</th>
+          </tr>
+        </thead>
+        <tbody id="installmentsBody">
+          <tr><td colspan="4" class="text-center text-gray-500">Sin cuotas</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Totales -->
+    <section class="mt-4 grid grid-cols-2 gap-4">
+      <div class="text-xs text-gray-700 whitespace-pre-line" id="invoiceMessage"></div>
+      <div class="justify-self-end w-full max-w-sm">
+        <div class="flex justify-between text-sm border-b py-1">
+          <span>SUBTOTAL</span>
+          <span id="subtotalVal">$0</span>
+        </div>
+        <div class="flex justify-between text-sm border-b py-1">
+          <span>TOTAL</span>
+          <span id="totalVal" class="font-semibold">$0</span>
+        </div>
+        <div class="mt-2 text-xs italic">
+          Son: <span id="totalWords" class="font-medium capitalize">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Firma y Huella -->
+    <section class="mt-6 grid grid-cols-3 gap-4 text-center">
+      <div class="border h-24 flex items-end justify-center">
+        <span class="text-xs pb-1">FIRMA EJECUTIVO DE VENTAS</span>
+      </div>
+      <div class="border h-24 flex items-end justify-center">
+        <span class="text-xs pb-1">FIRMA CLIENTE</span>
+      </div>
+      <div class="border h-24 flex items-end justify-center">
+        <span class="text-xs pb-1">HUELLA CLIENTE</span>
+      </div>
+    </section>
+
+    <!-- Legales -->
+    <section class="mt-6 text-[11px] leading-snug text-justify">
+      <h4 class="font-semibold mb-1 text-sm">Condiciones / No incluye / Derecho de retracto</h4>
+      <div id="legalText" class="space-y-2">
+        <p>
+          Impuestos corales, tarjetas de entrada al destino (según aplique), seguros hoteleros, propinas, gastos no especificados, IVA hotelero, traslados a puntos de encuentro para tours.
+        </p>
+        <p class="italic">
+          Esta factura de venta se asimila en todos sus efectos a una letra de cambio según Art. 774 del C. de Comercio.
+        </p>
+        <p>
+          Derecho de retracto: según Ley 1480 de 2011, art. 47, el usuario cuenta con cinco (5) días hábiles desde la celebración del contrato para ejercerlo cuando aplique.
+        </p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footerText" class="mt-6 pt-3 border-t text-[11px] text-center text-gray-700 whitespace-pre-line"></footer>
+  </div>
+
+  <script>
+    // ===== Utilidades =====
+    function formatCOP(n) {
+      try {
+        return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+      } catch (e) {
+        return "$" + Math.round(n).toLocaleString("es-CO");
+      }
+    }
+
+    function formatDateFromISO(isoDate) {
+      if (!isoDate) return "—";
+      const date = new Date(isoDate);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    function numeroALetras(n) {
+      if (!Number.isFinite(n)) return "";
+      const unidades = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"];
+      const decenas = ["", "diez", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+      const especiales = {11:"once",12:"doce",13:"trece",14:"catorce",15:"quince"};
+      const centenas = ["", "cien", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+
+      function seccion(num) {
+        if (num === 0) return "";
+        if (num < 10) return unidades[num];
+        if (num === 10) return "diez";
+        if (num > 10 && num < 16) return especiales[num] || "";
+        if (num < 20) return "dieci" + unidades[num - 10];
+        if (num === 20) return "veinte";
+        if (num > 20 && num < 30) return "veinti" + unidades[num - 20];
+        if (num < 100) {
+          const d = Math.floor(num / 10);
+          const u = num % 10;
+          return decenas[d] + (u ? " y " + unidades[u] : "");
+        }
+        if (num < 1000) {
+          const c = Math.floor(num / 100);
+          const r = num % 100;
+          if (c === 1) return (r ? "ciento " : "cien") + (r ? seccion(r) : "");
+          return centenas[c] + (r ? " " + seccion(r) : "");
+        }
+        if (num < 1_000_000) {
+          const m = Math.floor(num / 1000);
+          const r = num % 1000;
+          const pref = (m === 1) ? "mil" : seccion(m) + " mil";
+          return pref + (r ? " " + seccion(r) : "");
+        }
+        if (num < 1_000_000_000) {
+          const mi = Math.floor(num / 1_000_000);
+          const r = num % 1_000_000;
+          const pref = (mi === 1) ? "un millón" : seccion(mi) + " millones";
+          return pref + (r ? " " + seccion(r) : "");
+        }
+        const bi = Math.floor(num / 1_000_000_000);
+        const r = num % 1_000_000_000;
+        const pref = (bi === 1) ? "un billón" : seccion(bi) + " billones";
+        return pref + (r ? " " + seccion(r) : "");
+      }
+
+      const entero = Math.floor(n);
+      const cent = Math.round((n - entero) * 100);
+      const letras = entero === 0 ? "cero" : seccion(entero);
+      return (letras + " pesos m/cte" + (cent ? " con " + cent + "/100" : "")).replace(/\s+/g, " ");
+    }
+
+    // ===== Demo de datos (reemplaza por tu fetch de BD) =====
+    const sampleData = {
+      settings: {
+        agency_name: "Dream Vacation",
+        legal_name: "GROUP VC SAS",
+        logo_url: "", // pega URL válida si quieres ver el logo
+        tax_id_number: "901704831-4",
+        tax_regime: "Régimen Fiscal",
+        tourism_registry_number: "RNT 96518",
+        contact_info: {
+          email: "contactanos@dreamvacation.com.co",
+          mobile: "(+57) 3116379323",
+          website: "www.dreamvacation.com.co",
+          addresses: [
+            "Calle 19 #30-16 Las Cuadras, Pasto - Nariño",
+            "Ipiales: C.C. Zafiro Of.124"
+          ]
+        },
+        invoice_message: "Medio de pago: Efectivo / Transferencia.\\nObservaciones: —",
+        terms_and_conditions: "",
+        contract_message: "",
+        default_footer: "Agencia Mayorista de Viajes y Turismo"
+      },
+      invoice: {
+        number: "INV-1001",
+        issueDate: "03/10/2025",
+        currency: "COP"
+      },
+      client: {
+        name: "Juan Pérez",
+        idType: "CC",
+        idNumber: "1234567890",
+        phone: "3000000000",
+        email: "juan@example.com",
+        address: "Cra 1 #2-3"
+      },
+      emergencyContact: { name: "María Pérez", phone: "3010000000" },
+      reservation: {
+        origin: "PSO",
+        destination: "ADZ",
+        travelCycle: "Ida 12/11/2025 · Regreso 18/11/2025",
+        nights: 6,
+        days: 7,
+        pax: { ADT: 2, CHD: 1, INF: 0 },
+        hotel: "Portofino",
+        roomType: "Doble",
+        boardType: "All Inclusive",
+        traslados: "Aeropuerto ↔ Hotel",
+        equipaje: "10 kg cabina · 23 kg bodega",
+        asistenciaMedica: "Magenta (preexistencias)",
+        aerolineas: "Wingo"
+      },
+      items: [
+        { description: "Plan San Andrés (ADT)", quantity: 2, unitPrice: 1500000 },
+        { description: "Plan San Andrés (CHD)", quantity: 1, unitPrice: 900000 },
+        { description: "Fee bancario", quantity: 1, unitPrice: 25000 }
+      ],
+      legalText: "" // si quieres reemplazar el bloque legal por tu texto exacto desde BD
+    };
+
+    // ===== Render =====
+    function renderInvoice(data) {
+      const { settings, invoice, client, emergencyContact, reservation, items, legalText } = data;
+
+      // Logo e info agencia
+      const logo = document.getElementById("logo");
+      console.log("=== DEBUG LOGO ===");
+      console.log("Logo URL recibida:", settings.logo_url);
+      console.log("Tipo de dato:", typeof settings.logo_url);
+      console.log("Settings completo:", settings);
+
+      if (settings.logo_url && settings.logo_url.trim() !== '') {
+        let logoUrl = settings.logo_url.trim();
+
+        console.log("Logo URL procesada:", logoUrl);
+        console.log("Comienza con http?", logoUrl.startsWith('http'));
+
+        logo.src = logoUrl;
+        logo.classList.remove("bg-gray-100");
+        logo.style.display = "block";
+
+        // Log cuando la imagen carga exitosamente
+        logo.onload = function() {
+          console.log("✓ Logo cargado exitosamente desde:", logoUrl);
+          console.log("Dimensiones del logo:", logo.naturalWidth, "x", logo.naturalHeight);
+        };
+
+        // Manejar error de carga
+        logo.onerror = function() {
+          console.error("✗ Error al cargar el logo desde:", logoUrl);
+          console.error("Elemento img actual:", logo.outerHTML);
+          logo.style.display = "none";
+        };
+
+        // Verificar después de un momento
+        setTimeout(() => {
+          console.log("Estado del logo después de 1s:");
+          console.log("- src:", logo.src);
+          console.log("- complete:", logo.complete);
+          console.log("- naturalWidth:", logo.naturalWidth);
+        }, 1000);
+      } else {
+        console.warn("⚠ No hay logo_url configurado o está vacío");
+        logo.removeAttribute("src");
+        logo.style.display = "none";
+      }
+
+      document.getElementById("agencyName").textContent = settings.agency_name || settings.legal_name || "Agencia";
+
+      const nitParts = [];
+      nitParts.push("NIT: " + (settings.tax_id_number || "—"));
+      if (settings.tax_regime) nitParts.push("Régimen: " + settings.tax_regime);
+      if (settings.tourism_registry_number) nitParts.push(settings.tourism_registry_number);
+      document.getElementById("nitTax").textContent = nitParts.join(" · ");
+
+      const addresses = (settings?.contact_info?.addresses || []).join(" · ");
+      document.getElementById("addresses").textContent = addresses;
+      const contacts = [
+        settings?.contact_info?.email,
+        settings?.contact_info?.mobile || settings?.contact_info?.phone,
+        settings?.contact_info?.website
+      ].filter(Boolean).join(" · ");
+      document.getElementById("contacts").textContent = contacts;
+
+      // Meta factura
+      document.getElementById("invoiceNumber").textContent = invoice.number || "SIN-NUM";
+      document.getElementById("issueDate").textContent = invoice.issueDate || "—";
+      document.getElementById("currency").textContent = invoice.currency || "COP";
+
+      // Cliente
+      document.getElementById("clientName").textContent   = client.name || "—";
+      document.getElementById("clientDoc").textContent    = (client.idType || "CC") + " " + (client.idNumber || "—");
+      document.getElementById("clientPhone").textContent  = client.phone || "—";
+      document.getElementById("clientEmail").textContent  = client.email || "—";
+      document.getElementById("clientAddress").textContent= client.address || "—";
+
+      // Emergencia
+      document.getElementById("emgName").textContent  = emergencyContact?.name || "—";
+      document.getElementById("emgPhone").textContent = emergencyContact?.phone || "—";
+
+      // Reserva
+      document.getElementById("od").textContent = (reservation.origin || "—") + " → " + (reservation.destination || "—");
+      const travelCycleWrap = document.getElementById("travelCycleWrap");
+      if (reservation.travelCycle) {
+        document.getElementById("travelCycle").textContent = reservation.travelCycle;
+        travelCycleWrap.style.display = "";
+      } else {
+        travelCycleWrap.style.display = "none";
+      }
+      document.getElementById("nd").textContent = (reservation.nights ?? "—") + " / " + (reservation.days ?? "—");
+      document.getElementById("pax").textContent = `ADT ${reservation.pax?.ADT || 0} · CHD ${reservation.pax?.CHD || 0} · INF ${reservation.pax?.INF || 0}`;
+
+      function fillOptional(idWrap, idVal, value) {
+        const w = document.getElementById(idWrap);
+        const v = document.getElementById(idVal);
+        if (value) {
+          v.textContent = value;
+          w.style.display = "";
+        } else {
+          w.style.display = "none";
+        }
+      }
+      fillOptional("airlinesWrap","airlines", reservation.aerolineas);
+      fillOptional("flightClassWrap","flightClass", reservation.claseVuelo);
+      fillOptional("baggageWrap","baggage", reservation.equipaje);
+      fillOptional("hotelWrap","hotel", reservation.hotel);
+      fillOptional("accommodationWrap","accommodation", reservation.acomodacion);
+      fillOptional("roomTypeWrap","roomType", reservation.roomType);
+      fillOptional("boardTypeWrap","boardType", reservation.boardType);
+      fillOptional("transfersWrap","transfers", reservation.traslados);
+      fillOptional("toursWrap","tours", reservation.tours);
+      fillOptional("assistWrap","assist", reservation.asistenciaMedica);
+
+      // Items
+      const tbody = document.getElementById("itemsBody");
+      tbody.innerHTML = "";
+      let subtotal = 0;
+      if (items && items.length) {
+        for (const it of items) {
+          const tr = document.createElement("tr");
+          const totalLinea = Number(it.quantity) * Number(it.unitPrice);
+          subtotal += totalLinea;
+          tr.innerHTML = `
+            <td>${it.description || ""}</td>
+            <td class="text-right">${it.quantity || 0}</td>
+            <td class="text-right">${formatCOP(Number(it.unitPrice || 0))}</td>
+            <td class="text-right">${formatCOP(totalLinea)}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      } else {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="4" class="text-center text-gray-500">Sin ítems</td>`;
+        tbody.appendChild(tr);
+      }
+
+      // Cuotas (installments)
+      const installmentsBody = document.getElementById("installmentsBody");
+      const installmentsSection = document.getElementById("installmentsSection");
+      if (data.installments && data.installments.length > 0) {
+        installmentsBody.innerHTML = "";
+        installmentsSection.style.display = "";
+
+        data.installments.forEach((inst, idx) => {
+          const tr = document.createElement("tr");
+          const statusText = inst.status === 'paid' ? 'Pagada' :
+                            inst.status === 'pending' ? 'Pendiente' :
+                            inst.status === 'overdue' ? 'Vencida' : inst.status || 'Pendiente';
+
+          tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td>${inst.due_date ? formatDateFromISO(inst.due_date) : '—'}</td>
+            <td class="text-right">${formatCOP(Number(inst.amount || 0))}</td>
+            <td>${statusText}</td>
+          `;
+          installmentsBody.appendChild(tr);
+        });
+      } else {
+        installmentsSection.style.display = "none";
+      }
+
+      // Totales (sin impuestos)
+      const total = subtotal;
+      document.getElementById("subtotalVal").textContent = formatCOP(subtotal);
+      document.getElementById("totalVal").textContent    = formatCOP(total);
+      document.getElementById("totalWords").textContent  = numeroALetras(total);
+
+      // Mensaje de factura / legales / footer
+      document.getElementById("invoiceMessage").textContent = settings.invoice_message || "";
+      if (legalText) {
+        const lt = document.getElementById("legalText");
+        lt.innerHTML = "";
+        const p = document.createElement("p");
+        p.className = "whitespace-pre-line";
+        p.textContent = legalText;
+        lt.appendChild(p);
+      }
+      document.getElementById("footerText").textContent =
+        [settings.default_footer, settings.terms_and_conditions, settings.contract_message]
+          .filter(Boolean).join("\\n");
+    }
+
+    // Render inicial de prueba
+    renderInvoice(sampleData);
+
+    // Exportar e Imprimir
+    document.getElementById("btnExport").addEventListener("click", () => {
+      const area = document.getElementById("printArea");
+      const opt = {
+        margin: 10, /* mm aprox */
+        filename: (document.getElementById("invoiceNumber").textContent || "Factura") + ".pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "in", format: [8.5, 13], orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"] },
+      };
+      html2pdf().set(opt).from(area).save();
+    });
+
+    document.getElementById("btnPrint").addEventListener("click", () => window.print());
+  </script>
+</body>
+</html>

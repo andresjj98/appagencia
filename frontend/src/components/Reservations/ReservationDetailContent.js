@@ -11,11 +11,13 @@ import {
   Paperclip,
   Loader2,
   MessageSquare,
-  Bus
+  Bus,
+  Download
 } from 'lucide-react';
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
 import { formatUserName } from '../../utils/nameFormatter';
+import { generateInvoice, saveDocumentRecord } from '../../utils/documentGenerator';
 
 // Read-only Section
 const InfoSection = ({ id, title, icon, children, gridColsClass = 'lg:grid-cols-3' }) => (
@@ -93,6 +95,36 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             showAlert('Error de Descarga', error.message);
         } finally {
             setLoadingDoc(null);
+        }
+    };
+
+    const handleGenerateInvoice = async () => {
+        try {
+            // Generar y abrir la factura
+            generateInvoice(reservation._original);
+
+            // Guardar registro en la BD (opcional, puedes hacerlo después si prefieres)
+            await saveDocumentRecord(
+                reservation._original.id,
+                'invoice',
+                reservation._original
+            );
+
+            showAlert('Éxito', 'Factura generada correctamente');
+        } catch (error) {
+            console.error('Error generating invoice:', error);
+            showAlert('Error', 'No se pudo generar la factura');
+        }
+    };
+
+    const handleGenerateVoucher = async () => {
+        try {
+            // Aquí iría la lógica para generar voucher
+            // Por ahora mostramos un mensaje
+            showAlert('Info', 'Funcionalidad de voucher en desarrollo');
+        } catch (error) {
+            console.error('Error generating voucher:', error);
+            showAlert('Error', 'No se pudo generar el voucher');
         }
     };
 

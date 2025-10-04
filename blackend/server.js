@@ -30,6 +30,7 @@ const officesRoutes = require('./routes/offices');
 const installmentsRoutes = require('./routes/installments');
 const notificationsRoutes = require('./routes/notifications');
 const transfersRoutes = require('./routes/transfers');
+const documentsRoutes = require('./routes/documents');
 
 // Use routes
 app.use('/api', authRoutes);
@@ -42,6 +43,7 @@ app.use('/api/usuarios', usersRoutes);
 app.use('/api/offices', officesRoutes);
 app.use('/api/installments', installmentsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/documents', documentsRoutes);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...
 

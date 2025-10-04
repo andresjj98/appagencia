@@ -11,6 +11,7 @@ import Notifications from './pages/Notifications';
 import Reports from './pages/Reports';
 import Analytics from './pages/Analytics';
 import Finance from './pages/Finance';
+import Documentation from './pages/Documentation';
 import Login from './pages/Login';
 import { useAuth } from './pages/AuthContext';
 import { canAccessModule } from './utils/constants';
@@ -44,12 +45,7 @@ const App = () => {
       case 'gestion':
         return <Gestion />;
       case 'documentation':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Documentación</h2>
-            <p className="text-gray-600">Módulo de documentación en desarrollo...</p>
-          </div>
-        );
+        return <Documentation />;
       case 'finance':
         return <Finance />;
       case 'reports':
