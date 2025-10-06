@@ -19,11 +19,18 @@ const tabButtonInactive = 'text-white/80 hover:bg-white/10';
 const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, onReject }) => {
   const [activeTab, setActiveTab] = useState('info');
   const [isSaving, setIsSaving] = useState(false);
+  const [editingSection, setEditingSection] = useState(null);
   const { currentUser } = useAuth();
 
   // Verificar permisos del usuario
   const canEdit = canEditReservation(currentUser, reservation._original);
   const canApprove = canApproveReservation(currentUser, reservation._original);
+
+  // Manejar edición de sección específica
+  const handleEditSection = (sectionName) => {
+    setEditingSection(sectionName);
+    setActiveTab('info'); // Cambiar a la pestaña de información
+  };
 
   const handleUpdateReservation = async (updatedPayload) => {
     setIsSaving(true);
@@ -102,9 +109,24 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
     switch (activeTab) {
       case 'info':
-        return <InfoWithEditTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
+        return (
+          <InfoWithEditTab
+            reservation={reservation}
+            onUpdate={onUpdate}
+            readOnly={!canEdit}
+            editingSection={editingSection}
+            onClearSection={() => setEditingSection(null)}
+          />
+        );
       case 'services':
-        return <ServiceConfirmationTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
+        return (
+          <ServiceConfirmationTab
+            reservation={reservation}
+            onUpdate={onUpdate}
+            onEditSection={handleEditSection}
+            readOnly={!canEdit}
+          />
+        );
       case 'passengers':
         return <PassengerManagementTab reservation={reservation} onUpdateReservation={handleUpdateReservation} readOnly={!canEdit} />;
       case 'finance':

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Plane, Hotel, Ticket, HeartPulse, Bus, Clock, MapPin, Users, Calendar } from 'lucide-react';
+import { CheckCircle, Plane, Hotel, Ticket, HeartPulse, Bus, Clock, MapPin, Users, Calendar, Edit } from 'lucide-react';
 
 /**
  * Pestaña para confirmar servicios de la reserva
  * Muestra detalles completos de cada servicio con botón de confirmación
  */
-const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => {
+const ServiceConfirmationTab = ({ reservation, onUpdate, onEditSection, readOnly = false }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [alertInfo, setAlertInfo] = useState(null);
 
@@ -102,7 +102,7 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => 
   };
 
   // Componente para card de servicio
-  const ServiceCard = ({ title, icon: Icon, isConfirmed, children, serviceType, serviceId }) => (
+  const ServiceCard = ({ title, icon: Icon, isConfirmed, children, serviceType, serviceId, sectionName }) => (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
       <div className={`px-6 py-4 flex items-center justify-between ${isConfirmed ? 'bg-green-50 border-b border-green-100' : 'bg-blue-50 border-b border-blue-100'}`}>
         <div className="flex items-center gap-3">
@@ -111,7 +111,20 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => 
           </div>
           <h3 className="text-xl font-bold text-gray-900">{title}</h3>
         </div>
-        <ConfirmButton serviceType={serviceType} serviceId={serviceId} isConfirmed={isConfirmed} />
+        <div className="flex items-center gap-3">
+          {!readOnly && onEditSection && (
+            <motion.button
+              onClick={() => onEditSection(sectionName)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Edit className="w-4 h-4" />
+              Editar
+            </motion.button>
+          )}
+          <ConfirmButton serviceType={serviceType} serviceId={serviceId} isConfirmed={isConfirmed} />
+        </div>
       </div>
       <div className="p-6">
         {children}
@@ -154,6 +167,7 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => 
           isConfirmed={reservation._original.flight_status_ok}
           serviceType="flight"
           serviceId={flight.id}
+          sectionName="flights"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -215,6 +229,7 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => 
           isConfirmed={reservation._original.hotel_status_ok}
           serviceType="hotel"
           serviceId={hotel.id}
+          sectionName="hotels"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -272,6 +287,7 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => 
           title={`Tour - ${tour.name || 'Sin nombre'}`}
           icon={Ticket}
           isConfirmed={reservation._original.tours_status_ok}
+          sectionName="tours"
           serviceType="tour"
           serviceId={tour.id}
         >
@@ -303,6 +319,7 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => 
           title="Asistencia Médica"
           icon={HeartPulse}
           isConfirmed={reservation._original.assistance_status_ok}
+          sectionName="medicalAssistance"
           serviceType="medical"
           serviceId={assist.id}
         >
@@ -330,6 +347,7 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, readOnly = false }) => 
           title={`Traslado - ${transfer.transfer_type || 'Sin especificar'}`}
           icon={Bus}
           isConfirmed={reservation._original.transfer_status_ok}
+          sectionName="transfers"
           serviceType="transfer"
           serviceId={transfer.id}
         >

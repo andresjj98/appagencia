@@ -124,18 +124,49 @@ const CollapsibleSection = ({ title, icon: Icon, children, defaultMinimized = fa
 };
 
 
-const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose }) => {
+const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive', onSave, onClose, focusSection = null }) => {
   const { settings } = useSettings();
   const { currentUser: user } = useAuth();
 
   const resolvedCurrency = settings?.currency === 'EUR' ? 'COP' : (settings?.currency || 'COP');
   const formatCurrencyValue = (value) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: resolvedCurrency }).format(value || 0);
 
+  // Referencias para scroll automático a secciones
+  const flightsRef = useRef(null);
+  const hotelsRef = useRef(null);
+  const toursRef = useRef(null);
+  const medicalAssistanceRef = useRef(null);
+  const transfersRef = useRef(null);
 
   const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
   const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
   const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
   const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
+
+  // Scroll automático a la sección específica
+  useEffect(() => {
+    if (focusSection) {
+      const sectionRefs = {
+        flights: flightsRef,
+        hotels: hotelsRef,
+        tours: toursRef,
+        medicalAssistance: medicalAssistanceRef,
+        transfers: transfersRef
+      };
+
+      const targetRef = sectionRefs[focusSection];
+      if (targetRef?.current) {
+        setTimeout(() => {
+          targetRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Resaltar visualmente la sección
+          targetRef.current.classList.add('ring-4', 'ring-blue-400', 'ring-opacity-50');
+          setTimeout(() => {
+            targetRef.current.classList.remove('ring-4', 'ring-blue-400', 'ring-opacity-50');
+          }, 2000);
+        }, 300);
+      }
+    }
+  }, [focusSection]);
 
   // Map API data (snake_case) to form-friendly camelCase structure
   const mapSegments = (segments) =>
@@ -1338,6 +1369,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
           {/* Flights Section */}
           {showFlights && (
+            <div ref={flightsRef}>
             <CollapsibleSection title="Detalles de Vuelos" icon={Plane}>
               <div className="space-y-4">
                 {formData.flights.map((flight, index) => (
@@ -1505,10 +1537,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               </motion.button>
             </div>
           </CollapsibleSection>
+            </div>
           )}
 
           {/* Hotels Section */}
           {showHotels && (
+            <div ref={hotelsRef}>
           <CollapsibleSection title="Detalles de Hoteles" icon={Hotel}>
             <div className="space-y-4">
               {formData.hotels.map((hotel, index) => {
@@ -1616,9 +1650,11 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               </motion.button>
             </div>
           </CollapsibleSection>
+            </div>
            )}
 
           {/* Transfers Section */}
+          <div ref={transfersRef}>
           <CollapsibleSection title="Traslados" icon={Car}>
             <div className="space-y-4">
               <p className="text-sm text-gray-600 mb-4">
@@ -1723,9 +1759,11 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               )}
             </div>
           </CollapsibleSection>
+          </div>
 
           {/* Tours Section */}
           {showTours && (
+            <div ref={toursRef}>
           <CollapsibleSection title="Servicios y Tours" icon={Ticket}>
             <div className="space-y-4">
               {errors.tours && (
@@ -1802,10 +1840,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               </motion.button>
             </div>
           </CollapsibleSection>
+            </div>
           )}
 
           {/* Medical Assistance and Insurance Section */}
           {showMedical && (
+            <div ref={medicalAssistanceRef}>
           <CollapsibleSection title="Asistencias Médicas y Seguros" icon={BriefcaseMedical}>
             <div className="space-y-4">
               {errors.medicalAssistances && (
@@ -1903,6 +1943,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               </motion.button>
             </div>
           </CollapsibleSection>
+            </div>
           )}
 
           {/* Booking Details */}

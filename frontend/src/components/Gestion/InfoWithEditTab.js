@@ -7,11 +7,18 @@ import ReservationDetailContent from '../Reservations/ReservationDetailContent';
 /**
  * Pestaña de Información General con capacidad de edición
  */
-const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false }) => {
+const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false, editingSection = null, onClearSection }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [alertInfo, setAlertInfo] = useState(null);
 
   const canEdit = !readOnly;
+
+  // Si hay una sección específica para editar, activar modo edición automáticamente
+  React.useEffect(() => {
+    if (editingSection && !isEditing) {
+      setIsEditing(true);
+    }
+  }, [editingSection]);
 
   const showAlert = (title, message) => {
     setAlertInfo({ title, message });
@@ -64,6 +71,12 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false }) => {
       }
 
       setIsEditing(false);
+
+      // Limpiar la sección editada
+      if (onClearSection) {
+        onClearSection();
+      }
+
       showAlert('Éxito', 'Reserva actualizada correctamente');
 
       // Refrescar datos si hay callback
@@ -73,6 +86,13 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false }) => {
     } catch (error) {
       console.error('Error updating reservation:', error);
       showAlert('Error', error.message || 'Error al actualizar la reserva');
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    if (onClearSection) {
+      onClearSection();
     }
   };
 
@@ -129,10 +149,14 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false }) => {
             <div className="flex items-center justify-between bg-amber-50 border border-amber-200 p-4 rounded-lg">
               <div>
                 <h3 className="font-semibold text-amber-900">Modo Edición</h3>
-                <p className="text-sm text-amber-700">Realiza los cambios necesarios y guarda</p>
+                <p className="text-sm text-amber-700">
+                  {editingSection
+                    ? `Editando sección: ${editingSection}`
+                    : 'Realiza los cambios necesarios y guarda'}
+                </p>
               </div>
               <motion.button
-                onClick={() => setIsEditing(false)}
+                onClick={handleCancel}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -147,7 +171,8 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false }) => {
               reservation={reservation._original}
               reservationType={reservation._original?.reservation_type || 'all_inclusive'}
               onSave={handleSave}
-              onClose={() => setIsEditing(false)}
+              onClose={handleCancel}
+              focusSection={editingSection}
             />
           </motion.div>
         )}
