@@ -17,7 +17,7 @@ import {
 import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
 import { formatUserName } from '../../utils/nameFormatter';
-import { generateInvoice, saveDocumentRecord } from '../../utils/documentGenerator';
+import { generateInvoice, saveDocumentRecord, buildInvoicePayload } from '../../utils/documentGenerator';
 
 // Read-only Section
 const InfoSection = ({ id, title, icon, children, gridColsClass = 'lg:grid-cols-3' }) => (
@@ -100,17 +100,16 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
 
     const handleGenerateInvoice = async () => {
         try {
-            // Generar y abrir la factura
-            generateInvoice(reservation._original);
+            const invoicePayload = buildInvoicePayload(reservation._original);
+            generateInvoice(invoicePayload);
 
-            // Guardar registro en la BD (opcional, puedes hacerlo después si prefieres)
             await saveDocumentRecord(
                 reservation._original.id,
                 'invoice',
-                reservation._original
+                invoicePayload
             );
 
-            showAlert('Éxito', 'Factura generada correctamente');
+            showAlert('Exito', 'Factura generada correctamente');
         } catch (error) {
             console.error('Error generating invoice:', error);
             showAlert('Error', 'No se pudo generar la factura');

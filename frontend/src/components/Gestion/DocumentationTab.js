@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Upload, File, Trash2, Loader, Download, FileText, Eye } from 'lucide-react';
-import { generateInvoice, saveDocumentRecord } from '../../utils/documentGenerator';
+import { generateInvoice, saveDocumentRecord, buildInvoicePayload } from '../../utils/documentGenerator';
 import { useAuth } from '../../pages/AuthContext';
 
 const DocumentationTab = ({ reservation, onUpdate }) => {
@@ -94,13 +94,13 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
       const fullReservationData = await response.json();
       console.log('Datos completos de reserva:', fullReservationData);
 
-      // Generar factura con datos completos
-      generateInvoice(fullReservationData);
+      const invoicePayload = buildInvoicePayload(fullReservationData);
+      generateInvoice(invoicePayload);
 
       await saveDocumentRecord(
         reservation._original.id,
         'invoice',
-        fullReservationData
+        invoicePayload
       );
 
       alert('Factura generada correctamente');

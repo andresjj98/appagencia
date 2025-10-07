@@ -1,13 +1,12 @@
 /**
- * Utilidad para generar documentos (facturas, vouchers, etc.)
+ * Utilidad para generar documentos (facturas, vouchers, etc.).
  * Abre la plantilla HTML en una nueva ventana y le pasa los datos
+ * en el formato que la plantilla espera.
  */
 
-/**
- * Genera una factura a partir de los datos de una reserva
- * @param {Object} reservationData - Datos completos de la reserva
- */
-export const generateInvoice = (reservationData) => {
+const INVOICE_TEMPLATE_VERSION = '2024.06';
+
+export const generateInvoice = (rawData) => {
   const templateUrl = '/templates/InvoiceTemplate.html';
   const newWindow = window.open(templateUrl, '_blank', 'width=900,height=1100');
 
@@ -16,32 +15,42 @@ export const generateInvoice = (reservationData) => {
     return;
   }
 
-  // Esperar a que la plantilla cargue
   newWindow.addEventListener('load', () => {
     try {
-      // Transformar datos de la reserva al formato esperado por la plantilla
-      const invoiceData = transformReservationToInvoice(reservationData);
+      const invoiceData = ensureInvoicePayload(rawData);
 
-      // Debug: mostrar datos en consola
-      console.log('Reservation Data:', reservationData);
-      console.log('Invoice Data:', invoiceData);
+      if (!invoiceData) {
+        throw new Error('No se pudo preparar la información necesaria de la reserva.');
+      }
 
-      // Llamar a la función renderInvoice de la plantilla
       if (typeof newWindow.renderInvoice === 'function') {
         newWindow.renderInvoice(invoiceData);
       } else {
-        console.error('La plantilla no tiene la función renderInvoice');
+        throw new Error('La plantilla de factura no expone la función renderInvoice.');
       }
     } catch (error) {
       console.error('Error al generar factura:', error);
+      newWindow.document.body.innerHTML = `
+        <div style="font-family: sans-serif; padding: 24px;">
+          <h2>Error al generar la factura</h2>
+          <p>${error.message}</p>
+          <p>Revisa la consola para más detalles.</p>
+        </div>
+      `;
     }
   });
 };
 
-/**
- * Genera un voucher (puedes crear otra plantilla HTML similar)
- * @param {Object} reservationData - Datos completos de la reserva
- */
+export const buildInvoicePayload = (rawData) => {
+  const payload = ensureInvoicePayload(rawData);
+
+  if (!payload) {
+    throw new Error('No se pudo construir la información de la factura.');
+  }
+
+  return payload;
+};
+
 export const generateVoucher = (reservationData) => {
   const templateUrl = '/templates/VoucherTemplate.html';
   const newWindow = window.open(templateUrl, '_blank', 'width=900,height=1100');
@@ -63,329 +72,30 @@ export const generateVoucher = (reservationData) => {
   });
 };
 
-/**
- * Transforma los datos de la reserva al formato esperado por InvoiceTemplate.html
- * @param {Object} reservation - Datos de la reserva desde la BD
- * @returns {Object} - Objeto con formato compatible con la plantilla
- */
-const transformReservationToInvoice = (reservation) => {
-  // Obtener datos de segmentos
-  const firstSegment = reservation.reservation_segments?.[0] || {};
-
-  // Obtener datos del cliente
-  const client = reservation.clients || {};
-
-  // Obtener datos de hotel
-  const hotel = reservation.reservation_hotels?.[0] || {};
-  const hotelAccommodations = hotel?.reservation_hotel_accommodations || [];
-  const hotelInclusions = hotel?.reservation_hotel_inclusions || [];
-
-  // Obtener datos de vuelo
-  const flight = reservation.reservation_flights?.[0] || {};
-  const flightItineraries = flight?.reservation_flight_itineraries || [];
-
-  // Obtener asistencia médica
-  const assistance = reservation.reservation_medical_assistances?.[0] || {};
-
-  // Obtener traslados
-  const transfers = reservation.reservation_transfers?.[0] || {};
-
-  // Obtener tours
-  const tours = reservation.reservation_tours || [];
-
-  // Debug: verificar datos de hotel y vuelo
-  console.log('=== DEBUG HOTEL ===');
-  console.log('hotel:', hotel);
-  console.log('hotel.name:', hotel.name);
-  console.log('hotel.meal_plan:', hotel.meal_plan);
-  console.log('hotel.room_category:', hotel.room_category);
-  console.log('hotelAccommodations:', hotelAccommodations);
-  console.log('hotelInclusions:', hotelInclusions);
-
-  console.log('=== DEBUG FLIGHT ===');
-  console.log('flight:', flight);
-  console.log('flight.airline:', flight.airline);
-  console.log('flight.flight_class:', flight.flight_class);
-  console.log('flightItineraries:', flightItineraries);
-
-  // Calcular noches y días
-  const nights = calculateNights(firstSegment.departure_date, firstSegment.return_date);
-  const days = nights > 0 ? nights + 1 : 0;
-
-  // Formatear traslados
-  let trasladosText = null;
-  if (transfers) {
-    if (transfers.transfer_in && transfers.transfer_out) {
-      trasladosText = "Aeropuerto ↔ Hotel (In/Out)";
-    } else if (transfers.transfer_in) {
-      trasladosText = "Solo entrada (In)";
-    } else if (transfers.transfer_out) {
-      trasladosText = "Solo salida (Out)";
-    }
-  }
-
-  // Formatear equipaje permitido
-  let equipajeText = null;
-  if (flight) {
-    const baggage = [];
-    if (flight.cabin_baggage) baggage.push(`Cabina: ${flight.cabin_baggage}`);
-    if (flight.checked_baggage) baggage.push(`Bodega: ${flight.checked_baggage}`);
-    if (baggage.length > 0) {
-      equipajeText = baggage.join(' · ');
-    }
-  }
-
-  // Obtener trayecto del vuelo (flight_cycle)
-  const flightTrayecto = flight?.flight_cycle || null;
-
-  // Obtener categoría del vuelo
-  const flightCategory = flight?.category || null;
-
-  // Formatear acomodación del hotel
-  const accommodationText = hotelAccommodations.length > 0
-    ? hotelAccommodations.map(acc => acc.accommodation_type || acc.type).filter(Boolean).join(', ')
-    : null;
-
-  // Formatear tipo de habitación - Usar hotel.room_category si no hay accommodations
-  const roomTypeText = hotel.room_category ||
-    (hotelAccommodations.length > 0
-      ? hotelAccommodations.map(acc => acc.room_type).filter(Boolean).join(', ')
-      : null);
-
-  // Formatear plan de alimentación - Usar hotel.meal_plan si no hay inclusions
-  const boardTypeText = hotel.meal_plan ||
-    (hotelInclusions.length > 0
-      ? hotelInclusions.map(inc => inc.inclusion_type || inc.board_type).filter(Boolean).join(', ')
-      : null);
-
-  // Calcular habitaciones y personas por habitación
-  let roomsInfo = null;
-  console.log('=== DEBUG ACCOMMODATIONS ===');
-  console.log('hotelAccommodations:', hotelAccommodations);
-
-  if (hotelAccommodations.length > 0) {
-    const totalRooms = hotelAccommodations.length;
-    const peoplePerRoom = hotelAccommodations.map(acc => {
-      console.log('acc object:', acc);
-      return `${acc.adults || 0} ADT${acc.children ? ` + ${acc.children} CHD` : ''}${acc.infants ? ` + ${acc.infants} INF` : ''}`;
-    }).join(' · ');
-    roomsInfo = `${totalRooms} hab. (${peoplePerRoom})`;
-    console.log('roomsInfo result:', roomsInfo);
-  }
-
-  // Obtener aerolínea - Corregido: usar flight.airline
-  const airlineName = flight?.airline ||
-    (flightItineraries.length > 0 ? flightItineraries[0].airline : null);
-
-  // Obtener clase de vuelo
-  const flightClass = flight?.flight_class || flight?.class || null;
-
-  // Formatear tours
-  const toursText = tours.length > 0
-    ? tours.map(t => t.tour_name || t.name).filter(Boolean).join(', ')
-    : null;
-
-  // Obtener business settings
-  const businessSettings = reservation.business_settings || {};
-  const contactInfo = businessSettings.contact_info || {};
-
-  console.log('=== DEBUG DOCUMENT GENERATOR ===');
-  console.log('reservation.business_settings:', reservation.business_settings);
-  console.log('businessSettings:', businessSettings);
-  console.log('businessSettings.logo_url:', businessSettings.logo_url);
-
-  console.log('=== DEBUG FINAL VALUES ===');
-  console.log('Hotel name for invoice:', hotel.name || null);
-  console.log('Room type:', roomTypeText);
-  console.log('Board type:', boardTypeText);
-  console.log('Accommodation:', accommodationText);
-  console.log('Rooms info:', roomsInfo);
-  console.log('Airline:', airlineName);
-  console.log('Flight class:', flightClass);
-  console.log('Flight category:', flightCategory);
-  console.log('Flight trayecto:', flightTrayecto);
-  console.log('Equipaje:', equipajeText);
-
-  const invoiceData = {
-    settings: {
-      agency_name: businessSettings.agency_name || "Dream Vacation",
-      legal_name: businessSettings.legal_name || "GROUP VC SAS",
-      logo_url: businessSettings.logo_url || "",
-      tax_id_number: businessSettings.tax_id_number || "901704831-4",
-      tax_regime: businessSettings.tax_regime || "Régimen Fiscal",
-      tourism_registry_number: businessSettings.tourism_registry_number || "RNT 96518",
-      contact_info: {
-        email: contactInfo.email || "contactanos@dreamvacation.com.co",
-        mobile: contactInfo.mobile || contactInfo.phone || "(+57) 3116379323",
-        website: contactInfo.website || "www.dreamvacation.com.co",
-        addresses: contactInfo.addresses || [
-          "Calle 19 #30-16 Las Cuadras, Pasto - Nariño",
-          "Ipiales: C.C. Zafiro Of.124"
-        ]
-      },
-      invoice_message: businessSettings.invoice_message || "Medio de pago: Efectivo / Transferencia.",
-      terms_and_conditions: businessSettings.terms_and_conditions || "",
-      contract_message: businessSettings.contract_message || "",
-      default_footer: businessSettings.default_footer || "Agencia Mayorista de Viajes y Turismo"
-    },
-    invoice: {
-      number: reservation.invoice_number || "SIN-NUM",
-      issueDate: formatDate(reservation.confirmed_at || reservation.created_at || new Date()),
-      currency: "COP"
-    },
-    client: {
-      name: client.name ? `${client.name} ${client.last_name || ''}`.trim() : "—",
-      idType: "CC",
-      idNumber: client.id_card || "—",
-      phone: client.phone || "—",
-      email: client.email || "—",
-      address: client.address || "—"
-    },
-    emergencyContact: {
-      name: client.emergency_contact_name || "—",
-      phone: client.emergency_contact_phone || "—"
-    },
-    reservation: {
-      origin: firstSegment.origin || "—",
-      destination: firstSegment.destination || "—",
-      travelCycle: formatTravelCycle(firstSegment.departure_date, firstSegment.return_date),
-      nights: nights,
-      days: days,
-      pax: {
-        ADT: reservation.passengers_adt || 0,
-        CHD: reservation.passengers_chd || 0,
-        INF: reservation.passengers_inf || 0
-      },
-      hotel: hotel.name || null,
-      roomType: roomTypeText || null,
-      boardType: boardTypeText || null,
-      habitaciones: roomsInfo || null,
-      traslados: trasladosText,
-      equipaje: equipajeText,
-      asistenciaMedica: assistance.assistance_name || assistance.provider_name || null,
-      aerolineas: airlineName,
-      // Campos adicionales
-      acomodacion: accommodationText,
-      claseVuelo: flightClass,
-      categoriaVuelo: flightCategory,
-      trayectoVuelo: flightTrayecto,
-      tours: toursText
-    },
-    items: generateDefaultItems(reservation, firstSegment),
-    installments: reservation.reservation_installments || [],
-    legalText: ""
-  };
-
-  console.log('=== INVOICE DATA COMPLETE ===');
-  console.log('invoiceData.reservation:', invoiceData.reservation);
-
-  return invoiceData;
-};
-
-/**
- * Calcula las noches entre dos fechas
- */
-const calculateNights = (departureDate, returnDate) => {
-  if (!departureDate || !returnDate) return 0;
-  const departure = new Date(departureDate);
-  const returnD = new Date(returnDate);
-  const diffTime = Math.abs(returnD - departure);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-};
-
-/**
- * Transforma datos para voucher (ajustar según necesidades)
- */
-const transformReservationToVoucher = (reservation) => {
-  // Similar a transformReservationToInvoice pero con campos específicos del voucher
-  return {
-    // ... estructura para voucher
-  };
-};
-
-/**
- * Formatea una fecha a DD/MM/YYYY sin problemas de zona horaria
- */
-const formatDate = (date) => {
-  if (!date) return "—";
-  const dateStr = typeof date === 'string' ? date : date.toISOString();
-  const [year, month, day] = dateStr.split('T')[0].split('-');
-  return `${day}/${month}/${year}`;
-};
-
-/**
- * Formatea el ciclo de viaje
- */
-const formatTravelCycle = (departureDate, returnDate) => {
-  if (!departureDate || !returnDate) return null;
-  return `Ida ${formatDate(departureDate)} · Regreso ${formatDate(returnDate)}`;
-};
-
-/**
- * Genera items por defecto si no vienen de la BD
- */
-const generateDefaultItems = (reservation, segment) => {
-  const items = [];
-  const destination = segment?.destination || "—";
-
-  // Items de pasajeros
-  if (reservation.passengers_adt && reservation.price_per_adt) {
-    items.push({
-      description: `Plan ${destination} (ADT)`,
-      quantity: reservation.passengers_adt,
-      unitPrice: reservation.price_per_adt
-    });
-  }
-
-  if (reservation.passengers_chd && reservation.price_per_chd) {
-    items.push({
-      description: `Plan ${destination} (CHD)`,
-      quantity: reservation.passengers_chd,
-      unitPrice: reservation.price_per_chd
-    });
-  }
-
-  if (reservation.passengers_inf && reservation.price_per_inf) {
-    items.push({
-      description: `Plan ${destination} (INF)`,
-      quantity: reservation.passengers_inf,
-      unitPrice: reservation.price_per_inf
-    });
-  }
-
-  // Fee bancario u otros cargos adicionales
-  if (reservation.banking_fee && reservation.banking_fee > 0) {
-    items.push({
-      description: "Fee bancario",
-      quantity: 1,
-      unitPrice: reservation.banking_fee
-    });
-  }
-
-  return items;
-};
-
-/**
- * Guarda el documento generado en la BD
- * @param {string} reservationId - ID de la reserva
- * @param {string} documentType - Tipo de documento (invoice, voucher, etc.)
- * @param {Object} documentData - Datos del documento para almacenar
- */
 export const saveDocumentRecord = async (reservationId, documentType, documentData) => {
   try {
+    let snapshot = documentData;
+
+    if (documentType === 'invoice') {
+      snapshot = ensureInvoicePayload(documentData);
+
+      if (!snapshot) {
+        throw new Error('No se pudo preparar los datos de la factura para guardar.');
+      }
+    }
+
     const response = await fetch('http://localhost:4000/api/documents', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
       },
       body: JSON.stringify({
         reservation_id: reservationId,
         type: documentType,
-        data_snapshot: documentData,
-        generated_at: new Date().toISOString()
-      })
+        data_snapshot: snapshot,
+        generated_at: new Date().toISOString(),
+      }),
     });
 
     if (!response.ok) {
@@ -397,4 +107,399 @@ export const saveDocumentRecord = async (reservationId, documentType, documentDa
     console.error('Error saving document record:', error);
     throw error;
   }
+};
+
+const ensureInvoicePayload = (input) => {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+
+  if (isInvoicePayload(input)) {
+    return input;
+  }
+
+  const reservation = extractReservationObject(input);
+
+  if (!reservation || typeof reservation !== 'object') {
+    return null;
+  }
+
+  return buildInvoicePayloadFromReservation(reservation);
+};
+
+const buildInvoicePayloadFromReservation = (reservation) => {
+  const settings = reservation.business_settings || {};
+  const contactInfo = typeof settings.contact_info === 'object' && settings.contact_info !== null
+    ? settings.contact_info
+    : {};
+
+  const client = reservation.clients || {};
+  const advisor = reservation.advisor || reservation.advisor_id || null;
+
+  const segments = normalizeArray(reservation.reservation_segments);
+  const firstSegment = segments[0] || {};
+
+  const hotels = normalizeArray(reservation.reservation_hotels);
+  const mainHotel = hotels[0] || {};
+  const accommodations = normalizeArray(mainHotel.reservation_hotel_accommodations);
+
+  const flights = normalizeArray(reservation.reservation_flights);
+  const mainFlight = flights[0] || {};
+  const itineraries = normalizeArray(mainFlight.reservation_flight_itineraries);
+
+  const transfers = normalizeArray(reservation.reservation_transfers);
+  const tours = normalizeArray(reservation.reservation_tours);
+  const assistanceList = normalizeArray(reservation.reservation_medical_assistances);
+  const passengerList = normalizeArray(reservation.reservation_passengers);
+  const installments = normalizeArray(reservation.reservation_installments);
+
+  const currency = resolveCurrency(settings.currency || reservation.currency);
+  const paymentLines = buildPaymentLines(reservation);
+  const subtotal = sumLineItems(paymentLines);
+  const totalAmount = normalizeNumber(reservation.total_amount) || subtotal;
+  const totalPassengers =
+    normalizeNumber(reservation.passengers_adt) +
+    normalizeNumber(reservation.passengers_chd) +
+    normalizeNumber(reservation.passengers_inf);
+
+  return {
+    meta: {
+      documentType: 'invoice',
+      version: INVOICE_TEMPLATE_VERSION,
+      generatedAt: new Date().toISOString(),
+      sourceReservationId: reservation.id ?? null,
+      invoiceNumber: reservation.invoice_number ?? '',
+    },
+    agency: {
+      name: settings.agency_name || settings.legal_name || '',
+      legalName: settings.legal_name || '',
+      taxId: settings.tax_id_number || '',
+      taxRegistry: settings.tax_registry || '',
+      taxRegime: settings.tax_regime || '',
+      tourismRegistry: settings.tourism_registry_number || '',
+      logoUrl: settings.logo_url || '',
+      contact: {
+        phone: contactInfo.mobile || contactInfo.phone || '',
+        email: contactInfo.email || '',
+        website: contactInfo.website || '',
+        addresses: normalizeArray(contactInfo.addresses),
+      },
+    },
+    invoice: {
+      number: reservation.invoice_number || '',
+      issueDate: pickIssueDate(reservation),
+      status: reservation.status || '',
+      advisorName: buildAdvisorName(advisor),
+      currency,
+      paymentOption: reservation.payment_option || '',
+    },
+    titular: {
+      fullName: buildClientName(client),
+      document: client.id_card || '',
+      documentType: client.document_type || 'CC',
+      email: client.email || '',
+      phone: client.phone || '',
+      address: client.address || '',
+    },
+    emergencyContact: {
+      name: client.emergency_contact_name || '',
+      phone: client.emergency_contact_phone || '',
+    },
+    travel: {
+      origin: firstSegment.origin || reservation.origin || '',
+      destination: firstSegment.destination || reservation.destination || '',
+      departureDate: firstSegment.departure_date || null,
+      returnDate: firstSegment.return_date || null,
+      nights: calculateNights(firstSegment.departure_date, firstSegment.return_date),
+      days: calculateTripDays(firstSegment.departure_date, firstSegment.return_date),
+      notes: reservation.notes || '',
+    },
+    passengers: {
+      totals: {
+        adt: normalizeNumber(reservation.passengers_adt),
+        chd: normalizeNumber(reservation.passengers_chd),
+        inf: normalizeNumber(reservation.passengers_inf),
+      },
+      list: passengerList.map((passenger, index) => ({
+        index: index + 1,
+        name: buildPassengerName(passenger),
+        document: buildPassengerDocument(passenger),
+        birthDate: passenger.birth_date || null,
+        type: passenger.passenger_type || passenger.type || '',
+        notes: passenger.notes || '',
+      })),
+    },
+    hotel: {
+      name: mainHotel.name || '',
+      roomType: mainHotel.room_category || '',
+      mealPlan: mainHotel.meal_plan || '',
+      accommodations: accommodations.map((acc, index) => ({
+        index: index + 1,
+        rooms: normalizeNumber(acc.rooms) || 1,
+        adt: normalizeNumber(acc.adt || acc.adults),
+        chd: normalizeNumber(acc.chd || acc.children),
+        inf: normalizeNumber(acc.inf || acc.infants),
+      })),
+    },
+    flights: {
+      airline: mainFlight.airline || '',
+      category: mainFlight.flight_category || mainFlight.category || '',
+      class: mainFlight.flight_class || mainFlight.class || '',
+      pnr: mainFlight.pnr || '',
+      cycle: mainFlight.flight_cycle || '',
+      baggage: extractBaggageInfo(mainFlight),
+      itineraries: itineraries.map((itinerary, index) => ({
+        index: index + 1,
+        flightNumber: itinerary.flight_number || itinerary.flightNumber || '',
+        departureTime: itinerary.departure_time || itinerary.departureTime || null,
+        arrivalTime: itinerary.arrival_time || itinerary.arrivalTime || null,
+        origin: itinerary.origin || itinerary.departure_airport || '',
+        destination: itinerary.destination || itinerary.arrival_airport || '',
+      })),
+    },
+    transfers: buildTransfersSection(transfers),
+    tours: tours.map((tour, index) => ({
+      index: index + 1,
+      name: tour.name || tour.tour_name || '',
+      date: tour.date || tour.service_date || null,
+      cost: normalizeNumber(tour.cost),
+    })),
+    assistance: assistanceList.map((assist, index) => ({
+      index: index + 1,
+      planType: assist.plan_type || assist.planType || '',
+      provider: assist.provider || assist.provider_name || '',
+      startDate: assist.start_date || assist.startDate || null,
+      endDate: assist.end_date || assist.endDate || null,
+    })),
+    payments: {
+      currency,
+      lineItems: paymentLines,
+      subtotal,
+      total: totalAmount,
+      passengersCount: totalPassengers,
+      installments: mapInstallments(installments),
+    },
+    footer: {
+      invoiceMessage: settings.invoice_message || '',
+      terms: settings.terms_and_conditions || '',
+      footerNote: settings.default_footer || '',
+      contractMessage: settings.contract_message || '',
+    },
+    signatures: {
+      client: buildClientName(client),
+      advisor: buildAdvisorName(advisor),
+    },
+  };
+};
+
+const extractReservationObject = (input) => {
+  if (input._original && typeof input._original === 'object') {
+    return input._original;
+  }
+
+  if (input.reservation && typeof input.reservation === 'object') {
+    return extractReservationObject(input.reservation);
+  }
+
+  return input;
+};
+
+const isInvoicePayload = (data) => Boolean(data?.meta?.documentType === 'invoice');
+
+const normalizeArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
+
+const normalizeNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const resolveCurrency = (value) => {
+  if (!value || typeof value !== 'string') {
+    return 'COP';
+  }
+  return value.trim().toUpperCase();
+};
+
+const buildAdvisorName = (advisor) => {
+  if (!advisor || typeof advisor !== 'object') {
+    return '';
+  }
+
+  const parts = [advisor.name, advisor.last_name || advisor.lastname];
+  return parts.filter(Boolean).join(' ').trim();
+};
+
+const buildClientName = (client) => {
+  if (!client || typeof client !== 'object') {
+    return '';
+  }
+
+  const parts = [client.name, client.last_name || client.lastname];
+  return parts.filter(Boolean).join(' ').trim() || client.name || '';
+};
+
+const pickIssueDate = (reservation) =>
+  reservation.confirmed_at ||
+  reservation.approved_at ||
+  reservation.created_at ||
+  reservation.updated_at ||
+  new Date().toISOString();
+
+const calculateNights = (departureDate, returnDate) => {
+  if (!departureDate || !returnDate) {
+    return 0;
+  }
+
+  const departure = new Date(departureDate);
+  const returnD = new Date(returnDate);
+
+  if (Number.isNaN(departure.getTime()) || Number.isNaN(returnD.getTime())) {
+    return 0;
+  }
+
+  const diffTime = returnD.getTime() - departure.getTime();
+  if (diffTime <= 0) {
+    return 0;
+  }
+
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const calculateTripDays = (departureDate, returnDate) => {
+  const nights = calculateNights(departureDate, returnDate);
+  return nights > 0 ? nights + 1 : nights;
+};
+
+const buildPassengerName = (passenger = {}) => {
+  const parts = [passenger.name, passenger.lastname || passenger.last_name];
+  const value = parts.filter(Boolean).join(' ').trim();
+
+  return value || passenger.nickname || '';
+};
+
+const buildPassengerDocument = (passenger = {}) => {
+  const parts = [
+    passenger.document_type || passenger.documentType,
+    passenger.document_number || passenger.documentNumber,
+  ];
+
+  return parts.filter(Boolean).join(' ').trim();
+};
+
+const extractBaggageInfo = (flight = {}) => ({
+  summary: flight.baggage_allowance || flight.baggage || flight.baggageAllowance || '',
+  cabin: flight.cabin_baggage || flight.cabinBaggage || '',
+  hold: flight.checked_baggage || flight.checkedBaggage || '',
+  additional: flight.other_baggage || flight.otherBaggage || '',
+});
+
+const buildPaymentLines = (reservation) => {
+  const destination = reservation.reservation_segments?.[0]?.destination || reservation.destination || '';
+  const suffix = destination ? ` ${destination}` : '';
+  const lines = [];
+
+  const pushLine = (code, label, quantity, unitPrice) => {
+    const qty = normalizeNumber(quantity);
+    const price = normalizeNumber(unitPrice);
+
+    if (qty <= 0 || price <= 0) {
+      return;
+    }
+
+    lines.push({
+      code,
+      label,
+      quantity: qty,
+      unitPrice: price,
+      amount: qty * price,
+    });
+  };
+
+  pushLine('ADT', `Plan${suffix} Adulto (ADT)`, reservation.passengers_adt, reservation.price_per_adt);
+  pushLine('CHD', `Plan${suffix} Nino (CHD)`, reservation.passengers_chd, reservation.price_per_chd);
+  pushLine('INF', `Plan${suffix} Infante (INF)`, reservation.passengers_inf, reservation.price_per_inf);
+
+  const bankingFee = normalizeNumber(reservation.banking_fee);
+  if (bankingFee > 0) {
+    lines.push({
+      code: 'FEE',
+      label: 'Fee bancario',
+      quantity: 1,
+      unitPrice: bankingFee,
+      amount: bankingFee,
+    });
+  }
+
+  return lines;
+};
+
+const sumLineItems = (lines) =>
+  lines.reduce((acc, item) => acc + (Number.isFinite(item.amount) ? item.amount : 0), 0);
+
+const buildTransfersSection = (transfers) => {
+  if (!transfers || transfers.length === 0) {
+    return {
+      arrival: false,
+      departure: false,
+      detail: [],
+    };
+  }
+
+  const detail = transfers.map((transfer, index) => {
+    const rawType = (transfer.transfer_type || transfer.type || '').toLowerCase();
+
+    return {
+      index: index + 1,
+      type: rawType,
+      label: humanizeTransferType(rawType),
+      date: transfer.transfer_date || transfer.date || null,
+      time: transfer.transfer_time || transfer.time || null,
+      pickup: transfer.pickup_location || transfer.pickup || '',
+      dropoff: transfer.dropoff_location || transfer.dropoff || '',
+      vehicleType: transfer.vehicle_type || '',
+      notes: transfer.notes || '',
+    };
+  });
+
+  return {
+    arrival: detail.some((item) => item.type === 'arrival' || item.type === 'in'),
+    departure: detail.some((item) => item.type === 'departure' || item.type === 'out'),
+    detail,
+  };
+};
+
+const humanizeTransferType = (type) => {
+  switch (type) {
+    case 'arrival':
+    case 'in':
+      return 'Traslado In (Aeropuerto -> Hotel)';
+    case 'departure':
+    case 'out':
+      return 'Traslado Out (Hotel -> Aeropuerto)';
+    case 'inter_hotel':
+      return 'Traslado Inter-hotel';
+    default:
+      return type ? type.charAt(0).toUpperCase() + type.slice(1) : '';
+  }
+};
+
+const mapInstallments = (installments) =>
+  normalizeArray(installments).map((installment, index) => ({
+    index: index + 1,
+    amount: normalizeNumber(installment.amount),
+    dueDate: installment.due_date || installment.dueDate || null,
+    status: installment.status || 'pending',
+    paymentDate: installment.payment_date || installment.paymentDate || null,
+    receiptUrl: installment.receipt_url || installment.receiptUrl || '',
+  }));
+
+const transformReservationToVoucher = (reservation) => {
+  // TODO: Implementar cuando el diseño del voucher esté definido
+  return {
+    meta: {
+      documentType: 'voucher',
+      generatedAt: new Date().toISOString(),
+    },
+    reservation,
+  };
 };

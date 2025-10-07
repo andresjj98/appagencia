@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Download, FileText, Eye } from 'lucide-react';
-import { generateInvoice, generateVoucher, saveDocumentRecord } from '../../utils/documentGenerator';
+import { generateInvoice, generateVoucher, saveDocumentRecord, buildInvoicePayload } from '../../utils/documentGenerator';
 import { useAuth } from '../../pages/AuthContext';
 
 const DocumentsTab = ({ reservation, showAlert }) => {
@@ -15,13 +15,14 @@ const DocumentsTab = ({ reservation, showAlert }) => {
       setGenerating(true);
 
       // Generar y abrir la factura
-      generateInvoice(reservation);
+      const invoicePayload = buildInvoicePayload(reservation);
+      generateInvoice(invoicePayload);
 
       // Guardar registro en la BD
       await saveDocumentRecord(
         reservation.id,
         'invoice',
-        reservation
+        invoicePayload
       );
 
       if (showAlert) {

@@ -1,700 +1,275 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Factura/Contrato - Oficio (HTML + CSS)</title>
-
-  <!-- Tailwind CDN (sin build) -->
+  <title>Factura / Contrato - Dream Vacation (v3 layout)</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- html2pdf.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
-    * {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    /* Ajustes de impresión para formato OFICIO (8.5in x 13in) */
-    @media print {
-      @page {
-        size: 8.5in 13in;
-        margin: 0;
-      }
-      .no-print {
-        display: none !important;
-      }
-      .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
-        box-shadow: none !important;
-      }
-      .page-oficio {
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-      .page-content {
-        padding: 0 0.4in 0.4in 0.4in !important;
-      }
-      .full-width-header {
-        padding: 0.4in !important;
-      }
-    }
-
-    /* Ancho fijo oficio en pantalla */
-    .page-oficio {
-      width: 8.5in;
-      min-height: 13in;
-      padding: 0;
-      margin: 1rem auto;
-      background: white;
-      box-shadow: 0 0 40px rgba(0,0,0,0.1);
-    }
-
-    /* Contenido con padding (excepto header) */
-    .page-content {
-      padding: 0 0.4in 0.4in 0.4in;
-    }
-
-    /* Header que ocupa todo el ancho */
-    .full-width-header {
-      background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
-      border-bottom: 3px solid #3b82f6;
-      padding: 0.4in;
-      margin-bottom: 0;
-    }
-
-    /* Gradiente elegante para header */
-    .header-gradient {
-      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-    }
-
-    /* Borde decorativo */
-    .decorative-border {
-      border-top: 4px solid #3b82f6;
-      border-image: linear-gradient(90deg, #1e3a8a, #3b82f6, #60a5fa) 1;
-    }
-
-    /* Tabla elegante */
-    table.invoice-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.5rem;
-    }
-    table.invoice-table th {
-      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-      color: white;
-      padding: 0.4rem 0.5rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      text-align: left;
-      border: none;
-    }
-    table.invoice-table td {
-      padding: 0.35rem 0.5rem;
-      font-size: 0.75rem;
-      border-bottom: 1px solid #e5e7eb;
-      color: #374151;
-    }
-    table.invoice-table tbody tr:hover {
-      background-color: #f9fafb;
-    }
-    table.invoice-table tbody tr:last-child td {
-      border-bottom: 2px solid #3b82f6;
-    }
-
-    /* Sección info con bordes elegantes */
-    .info-card {
-      background: #f8fafc;
-      border-left: 3px solid #3b82f6;
-      padding: 0.5rem 0.75rem;
-      margin-bottom: 0.4rem;
-      border-radius: 0 6px 6px 0;
-    }
-
-    /* Info badge */
-    .info-badge {
-      display: inline-block;
-      background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-      color: white;
-      padding: 0.25rem 0.75rem;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    /* Totales destacados */
-    .total-section {
-      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-      border: 2px solid #3b82f6;
-      border-radius: 8px;
-      padding: 1rem;
-    }
-
-    /* Logo container */
-    .logo-container {
-      background: white;
-      padding: 0.5rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
+    :root{ --turquesa:#00a6c7; --turquesa-osc:#008bb5; --azul-osc:#123b48; --gris-borde:#d9e6ea; --gris-fondo:#f1f7f9; --gris-txt:#3e525a; }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:#eaf3f6;color:var(--azul-osc);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px}
+    .page{width:900px;margin:10px auto;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(3,23,32,.12);overflow:hidden}
+    .ribbon{background:linear-gradient(135deg,var(--turquesa) 0%, #49c8de 70%, #eaf7fb 70%);padding:10px 14px}
+    .ribbon-inner{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .brand{display:flex;align-items:center;gap:10px;color:#fff}
+    .logo{width:96px;height:64px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
+    .logo img{max-width:92%;max-height:92%;object-fit:contain}
+    .brand h1{margin:0;font-size:26px;line-height:1;font-weight:800;letter-spacing:.3px}
+    .brand small{display:block;margin-top:2px;opacity:.95;font-weight:600;letter-spacing:.06em}
+    .fact-box{background:#fff;color:var(--azul-osc);border:1px solid var(--gris-borde);border-radius:8px;padding:8px 10px;min-width:240px}
+    .fact-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--turquesa-osc);border-bottom:2px solid var(--turquesa);padding-bottom:4px;margin-bottom:6px}
+    .kv{display:grid;grid-template-columns:1fr auto;gap:4px;font-size:11px}
+    .kv .v{font-weight:800}
+    .content{padding:10px 12px 14px}
+    .sect-title{background:var(--turquesa-osc);color:#fff;padding:4px 8px;border-radius:5px;font-size:10px;text-transform:uppercase;letter-spacing:.12em;display:inline-block;margin:4px 0 6px;font-weight:800}
+    .box{border:1px solid var(--gris-borde);background:var(--gris-fondo);border-radius:8px;padding:8px;margin-bottom:8px}
+    .line{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:2px 0}
+    .item{display:flex;align-items:center;gap:6px;min-width:0}
+    .lbl{font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#0b5163}
+    .val{flex:1;min-width:120px;border-bottom:1px dashed var(--gris-borde);padding:2px 4px 1px 4px;color:var(--gris-txt)}
+    .val.short{min-width:80px}
+    .separator{height:1px;background:var(--gris-borde);margin:6px 0}
+    table{width:100%;border-collapse:collapse}
+    thead th{background:var(--turquesa-osc);color:#fff;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:6px;border:1px solid var(--gris-borde)}
+    tbody td{font-size:11.5px;color:var(--azul-osc);padding:6px;border:1px solid var(--gris-borde);background:#fff}
+    tbody tr:nth-child(even) td{background:#f9fdff}
+    .totals{margin-left:auto;max-width:300px;margin-top:6px}
+    .tline{display:flex;justify-content:space-between;border-bottom:1px dashed var(--gris-borde);padding:4px 0;font-weight:700}
+    .grand{font-size:16px;border-top:2px solid var(--turquesa);padding-top:6px;color:var(--turquesa-osc)}
+    .legal{margin-top:6px;font-size:10.5px;color:#3c4d53;border-top:1px solid var(--gris-borde);padding-top:6px;line-height:1.25}
+    .actions{display:flex;gap:8px;justify-content:center;padding:10px}
+    .btn{border:none;border-radius:999px;background:var(--turquesa);color:#fff;font-weight:700;padding:8px 14px;cursor:pointer;font-size:12px}
+    .btn.gray{background:#2e4852}
+    @media print{ .actions{display:none!important} .page{box-shadow:none;border-radius:0;margin:0;width:auto} .ribbon{padding-bottom:8px} }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
+<body>
+  <div class="actions">
+    <button id="btnExport" class="btn">Descargar PDF</button>
+    <button id="btnPrint" class="btn gray">Imprimir</button>
+  </div>
 
-  <!-- Controles -->
-  <div class="no-print max-w-6xl mx-auto py-4 px-4 flex flex-wrap gap-2 items-center justify-between">
-    <div>
-      <h1 class="text-xl font-semibold">Plantilla de Factura / Contrato (Oficio)</h1>
-      <p class="text-sm text-gray-600">HTML + CSS + JS · Exportar a PDF · Imprimir</p>
+  <div id="printArea" class="page">
+    <div class="ribbon">
+      <div class="ribbon-inner">
+        <div class="brand">
+          <div class="logo"><img id="agencyLogo" alt="Logo"/></div>
+          <div>
+            <h1 id="agencyName">Dream Vacation</h1>
+            <small id="agencyLegalName">Agencia Mayorista de Viajes y Turismo</small>
+          </div>
+        </div>
+        <div class="fact-box">
+          <div class="fact-title">N° Factura y Contrato</div>
+          <div class="kv">
+            <div>Factura:</div><div id="invoiceNumber" class="v">N/A</div>
+            <div>Fecha:</div><div id="invoiceDate" class="v">N/A</div>
+            <div>Asesor:</div><div id="invoiceAdvisor" class="v">N/A</div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="flex gap-2">
-      <button id="btnExport" class="px-4 py-2 rounded-xl bg-black text-white">Exportar PDF</button>
-      <button id="btnPrint" class="px-4 py-2 rounded-xl border">Imprimir</button>
+
+    <div class="content">
+      <div class="sect">
+        <span class="sect-title">Datos del titular</span>
+        <div class="box">
+          <div class="line">
+            <div class="item"><span class="lbl">Nombre:</span><span class="val" id="clientFullName">N/A</span></div>
+            <div class="item"><span class="lbl">Documento:</span><span class="val" id="clientDocument">N/A</span></div>
+          </div>
+          <div class="line">
+            <div class="item"><span class="lbl">Correo:</span><span class="val" id="clientEmail">N/A</span></div>
+            <div class="item"><span class="lbl">Teléfono:</span><span class="val short" id="clientPhone">N/A</span></div>
+            <div class="item" style="flex:1"><span class="lbl">Dirección:</span><span class="val" id="clientAddress">N/A</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sect">
+        <span class="sect-title">Contacto de emergencia</span>
+        <div class="box">
+          <div class="line">
+            <div class="item"><span class="lbl">Nombre:</span><span class="val" id="emergencyName">N/A</span></div>
+            <div class="item"><span class="lbl">Celular:</span><span class="val short" id="emergencyPhone">N/A</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sect">
+        <span class="sect-title">Datos de la reserva</span>
+        <div class="box">
+          <div class="line">
+            <div class="item"><span class="lbl">Origen:</span><span class="val short" id="travelOrigin">N/A</span></div>
+            <div class="item"><span class="lbl">Destino:</span><span class="val short" id="travelDestination">N/A</span></div>
+            <div class="item"><span class="lbl">Ida:</span><span class="val short" id="travelDeparture">N/A</span></div>
+            <div class="item"><span class="lbl">Regreso:</span><span class="val short" id="travelReturn">N/A</span></div>
+          </div>
+          <div class="line">
+            <div class="item"><span class="lbl">Noches:</span><span class="val short" id="travelNights">0</span></div>
+            <div class="item"><span class="lbl">Días:</span><span class="val short" id="travelDays">0</span></div>
+            <div class="item"><span class="lbl">Pasajeros:</span><span class="val" id="passengerTotals">ADT(0), CHD(0), INF(0)</span></div>
+          </div>
+          <div class="separator"></div>
+          <div class="line">
+            <div class="item"><span class="lbl">Aerolínea:</span><span class="val" id="flightAirline">N/A</span></div>
+            <div class="item"><span class="lbl">Plan:</span><span class="val short" id="flightCategory">N/A</span></div>
+            <div class="item" style="flex:1"><span class="lbl">Equipaje:</span><span class="val" id="baggageSummary">—</span></div>
+          </div>
+          <div class="line">
+            <div class="item" style="flex:1"><span class="lbl">Ciclo de vuelo:</span><span class="val" id="flightCycle">N/A</span></div>
+          </div>
+          <div class="separator"></div>
+          <div class="line">
+            <div class="item"><span class="lbl">Hotel:</span><span class="val" id="hotelName">N/A</span></div>
+            <div class="item"><span class="lbl">Habitación:</span><span class="val" id="hotelRoomType">N/A</span></div>
+            <div class="item"><span class="lbl">Plan de alimentación:</span><span class="val" id="hotelMealPlan">N/A</span></div>
+          </div>
+          <div class="line">
+            <div class="item" style="flex:1"><span class="lbl">(N° habitaciones / ADT / CHD / INF):</span><span class="val" id="accommodationsSummary">—</span></div>
+          </div>
+          <div class="line">
+            <div class="item" style="flex:1"><span class="lbl">Otras inclusiones:</span><span class="val" id="otherInclusions">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sect">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <span class="sect-title">Traslados</span>
+            <div class="box"><div id="transfersSummary2" class="text-[11.5px] text-[color:var(--gris-txt)]">No hay traslados registrados.</div></div>
+          </div>
+          <div>
+            <span class="sect-title">Tours</span>
+            <div class="box"><div id="toursContent" class="text-[11.5px] text-[color:var(--gris-txt)]">No hay tours o servicios adicionales registrados.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sect">
+        <span class="sect-title">Detalles de cobro</span>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:10%">Cant.</th>
+              <th>Descripción</th>
+              <th style="width:18%">Vr. Unit.</th>
+              <th style="width:18%">Vr. Total</th>
+            </tr>
+          </thead>
+          <tbody id="paymentsBody">
+            <tr><td colspan="4" class="text-center">No hay información de pagos.</td></tr>
+          </tbody>
+        </table>
+        <div class="totals">
+          <div class="tline"><span>Subtotal</span><span id="paymentsSubtotal">—</span></div>
+          <div class="tline"><span>Recargo</span><span id="paymentsSurcharge">—</span></div>
+          <div class="tline grand"><span>Total</span><span id="paymentsTotal">—</span></div>
+          <div style="font-size:11px;color:var(--gris-txt);margin-top:2px">En letras: <strong id="paymentsTotalWords">—</strong></div>
+        </div>
+      </div>
+
+      <div class="sect" style="margin-top:6px">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="box">
+            <div class="h-10 flex items-center justify-center border border-[color:var(--gris-borde)] bg-white rounded mb-1">Firma asesor</div>
+            <div id="signatureAdvisor" class="text-center text-[11px] text-[color:var(--gris-txt)]">N/A</div>
+          </div>
+          <div class="box">
+            <div class="h-10 flex items-center justify-center border border-[color:var(--gris-borde)] bg-white rounded mb-1">Firma titular</div>
+            <div id="signatureClient" class="text-center text-[11px] text-[color:var(--gris-txt)]">N/A</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legal">
+        <div id="invoiceMessage"></div>
+        <div id="footerTerms"></div>
+        <div id="footerNote"></div>
+        <div style="margin-top:4px;opacity:.95">
+          ESTA FACTURA DE VENTA SE ASIMILA EN TODOS SUS EFECTOS A UNA LETRA DE CAMBIO SEGÚN ART.774 DEL C. DE CIO.
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Página oficio -->
-  <div id="printArea" class="page-oficio">
-    <!-- Header de ancho completo -->
-    <header class="full-width-header">
-      <div class="flex items-start gap-4">
-        <div class="shrink-0 logo-container">
-          <img id="logo" alt="Logo" class="h-14 w-auto object-contain" />
-        </div>
-        <div class="flex-1">
-          <h2 id="agencyName" class="text-xl font-bold text-gray-900 mb-0.5">Agencia</h2>
-          <p id="nitTax" class="text-xs text-gray-600 font-medium mb-0.5">NIT: — · Régimen: — · RNT: —</p>
-          <p id="addresses" class="text-xs text-gray-600"></p>
-          <p id="contacts" class="text-xs text-gray-600 mt-0.5"></p>
-        </div>
-        <div class="text-right bg-white px-4 py-2.5 rounded-lg border-2 border-blue-500 shadow-md">
-          <p class="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-0.5">Factura / Contrato</p>
-          <p id="invoiceNumber" class="text-xl font-bold text-blue-600 mb-1">INV-0000</p>
-          <p class="text-xs text-gray-600">Fecha: <span id="issueDate" class="font-semibold">—</span></p>
-          <p class="text-xs text-gray-600">Moneda: <span id="currency" class="font-semibold">COP</span></p>
-        </div>
-      </div>
-    </header>
-
-    <!-- Contenido con padding -->
-    <div class="page-content">
-
-    <!-- Cliente + Contacto emergencia -->
-    <section class="mb-3 space-y-2">
-      <div class="info-card">
-        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-2 flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
-          Cliente (Titular)
-        </h3>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-          <div class="flex"><span class="font-medium text-gray-600 w-24">Nombre:</span><span id="clientName" class="text-gray-900 font-semibold">—</span></div>
-          <div class="flex"><span class="font-medium text-gray-600 w-24">Documento:</span><span id="clientDoc" class="text-gray-900">—</span></div>
-          <div class="flex"><span class="font-medium text-gray-600 w-24">Teléfono:</span><span id="clientPhone" class="text-gray-900">—</span></div>
-          <div class="flex"><span class="font-medium text-gray-600 w-24">Correo:</span><span id="clientEmail" class="text-gray-900">—</span></div>
-          <div class="flex col-span-2"><span class="font-medium text-gray-600 w-24">Dirección:</span><span id="clientAddress" class="text-gray-900">—</span></div>
-        </div>
-      </div>
-      <div class="info-card">
-        <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-2 flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
-          Contacto de Emergencia
-        </h3>
-        <div class="text-xs flex gap-6">
-          <div class="flex"><span class="font-medium text-gray-600">Nombre:</span><span id="emgName" class="text-gray-900 font-semibold ml-2">—</span></div>
-          <div class="flex"><span class="font-medium text-gray-600">Celular:</span><span id="emgPhone" class="text-gray-900 ml-2">—</span></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Detalles de la reserva -->
-    <section class="mb-3">
-      <h3 class="font-bold text-blue-900 uppercase text-xs tracking-wide mb-2">Datos de la Reserva</h3>
-
-      <!-- Grid de 2 columnas -->
-      <div class="grid grid-cols-2 gap-3">
-
-        <!-- Columna izquierda -->
-        <div class="space-y-2">
-          <!-- Información general -->
-          <div class="info-card">
-            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Información General</h4>
-            <div class="space-y-0.5 text-xs">
-              <div class="flex"><span class="font-medium text-gray-600 w-24">Origen / Destino:</span><span id="od" class="text-gray-900">—</span></div>
-              <div class="flex"><span class="font-medium text-gray-600 w-24">Pasajeros:</span><span id="pax" class="text-gray-900">—</span></div>
-              <div id="travelCycleWrap" class="flex"><span class="font-medium text-gray-600 w-24">Ciclo de viaje:</span><span id="travelCycle" class="text-gray-900">—</span></div>
-              <div class="flex"><span class="font-medium text-gray-600 w-24">Noches / Días:</span><span id="nd" class="text-gray-900">—</span></div>
-            </div>
-          </div>
-
-          <!-- Información de hospedaje -->
-          <div class="info-card" id="hotelInfo">
-            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Información de Hospedaje</h4>
-            <div class="space-y-0.5 text-xs">
-              <div id="hotelWrap" class="flex"><span class="font-medium text-gray-600 w-24">Hotel:</span><span id="hotel" class="text-gray-900">—</span></div>
-              <div id="accommodationWrap" class="flex"><span class="font-medium text-gray-600 w-24">Acomodación:</span><span id="accommodation" class="text-gray-900">—</span></div>
-              <div id="roomTypeWrap" class="flex"><span class="font-medium text-gray-600 w-24">Tipo habitación:</span><span id="roomType" class="text-gray-900">—</span></div>
-              <div id="boardTypeWrap" class="flex"><span class="font-medium text-gray-600 w-24">Plan aliment.:</span><span id="boardType" class="text-gray-900">—</span></div>
-              <div id="roomsInfoWrap" class="flex"><span class="font-medium text-gray-600 w-24">Habitaciones:</span><span id="roomsInfo" class="text-gray-900">—</span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Columna derecha -->
-        <div class="space-y-2">
-          <!-- Información de vuelo -->
-          <div class="info-card" id="flightInfo">
-            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Información de Vuelo</h4>
-            <div class="space-y-0.5 text-xs">
-              <div id="airlinesWrap" class="flex"><span class="font-medium text-gray-600 w-24">Aerolínea:</span><span id="airlines" class="text-gray-900">—</span></div>
-              <div id="flightClassWrap" class="flex"><span class="font-medium text-gray-600 w-24">Clase:</span><span id="flightClass" class="text-gray-900">—</span></div>
-              <div id="flightCategoryWrap" class="flex"><span class="font-medium text-gray-600 w-24">Categoría:</span><span id="flightCategory" class="text-gray-900">—</span></div>
-              <div id="baggageWrap" class="flex"><span class="font-medium text-gray-600 w-24">Equipaje:</span><span id="baggage" class="text-gray-900">—</span></div>
-              <div id="flightTrayectoWrap" class="flex"><span class="font-medium text-gray-600 w-24">Trayecto:</span><span id="flightTrayecto" class="text-gray-900">—</span></div>
-            </div>
-          </div>
-
-          <!-- Servicios adicionales -->
-          <div class="info-card" id="additionalServices">
-            <h4 class="font-semibold text-gray-700 text-xs mb-1.5">Servicios Adicionales</h4>
-            <div class="space-y-0.5 text-xs">
-              <div id="transfersWrap" class="flex"><span class="font-medium text-gray-600 w-24">Traslados:</span><span id="transfers" class="text-gray-900">—</span></div>
-              <div id="toursWrap" class="flex"><span class="font-medium text-gray-600 w-24">Tours:</span><span id="tours" class="text-gray-900">—</span></div>
-              <div id="assistWrap" class="flex"><span class="font-medium text-gray-600 w-24">Asistencia méd.:</span><span id="assist" class="text-gray-900">—</span></div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- Items -->
-    <section class="mt-2">
-      <h3 class="font-semibold mb-1.5 text-xs">Descripción de cargos</h3>
-      <table class="invoice-table">
-        <thead>
-          <tr>
-            <th class="w-2/3">Descripción</th>
-            <th class="w-1/12 text-right">Cant.</th>
-            <th class="w-1/6 text-right">Vr. Unit.</th>
-            <th class="w-1/6 text-right">Vr. Total</th>
-          </tr>
-        </thead>
-        <tbody id="itemsBody">
-          <tr><td colspan="4" class="text-center text-gray-500">Sin ítems</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Plan de Pagos (Cuotas) -->
-    <section id="installmentsSection" class="mt-2" style="display: none;">
-      <h3 class="font-semibold mb-1.5 text-xs">Plan de Pagos</h3>
-      <table class="invoice-table">
-        <thead>
-          <tr>
-            <th class="w-1/12">#</th>
-            <th class="w-1/3">Fecha de Vencimiento</th>
-            <th class="w-1/4 text-right">Valor</th>
-            <th class="w-1/4">Estado</th>
-          </tr>
-        </thead>
-        <tbody id="installmentsBody">
-          <tr><td colspan="4" class="text-center text-gray-500">Sin cuotas</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Totales -->
-    <section class="mt-2 grid grid-cols-2 gap-4">
-      <div class="text-xs text-gray-700 whitespace-pre-line" id="invoiceMessage"></div>
-      <div class="justify-self-end w-full max-w-sm">
-        <div class="flex justify-between text-xs border-b py-0.5">
-          <span>SUBTOTAL</span>
-          <span id="subtotalVal">$0</span>
-        </div>
-        <div class="flex justify-between text-xs border-b py-0.5">
-          <span>TOTAL</span>
-          <span id="totalVal" class="font-semibold">$0</span>
-        </div>
-        <div class="mt-1 text-xs italic">
-          Son: <span id="totalWords" class="font-medium capitalize">—</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Firma y Huella -->
-    <section class="mt-3 grid grid-cols-3 gap-3 text-center">
-      <div class="border h-16 flex items-end justify-center">
-        <span class="text-xs pb-1">FIRMA EJECUTIVO DE VENTAS</span>
-      </div>
-      <div class="border h-16 flex items-end justify-center">
-        <span class="text-xs pb-1">FIRMA CLIENTE</span>
-      </div>
-      <div class="border h-16 flex items-end justify-center">
-        <span class="text-xs pb-1">HUELLA CLIENTE</span>
-      </div>
-    </section>
-
-    <!-- Legales como pie de página -->
-    <section class="mt-3 pt-2 border-t">
-      <div id="legalText" class="text-[9px] leading-tight text-center text-justify text-gray-600">
-        <p>
-          <strong>Condiciones / No incluye / Derecho de retracto:</strong> Impuestos corales, tarjetas de entrada al destino (según aplique), seguros hoteleros, propinas, gastos no especificados, IVA hotelero, traslados a puntos de encuentro para tours. Esta factura de venta se asimila en todos sus efectos a una letra de cambio según Art. 774 del C. de Comercio. Derecho de retracto: según Ley 1480 de 2011, art. 47, el usuario cuenta con cinco (5) días hábiles desde la celebración del contrato para ejercerlo cuando aplique.
-        </p>
-      </div>
-    </section>
-
-    <!-- Footer adicional -->
-    <footer id="footerText" class="mt-2 pt-2 border-t text-[10px] text-center text-gray-700 whitespace-pre-line"></footer>
-
-    </div><!-- Fin page-content -->
-  </div><!-- Fin page-oficio -->
-
   <script>
-    // ===== Utilidades =====
-    function formatCOP(n) {
-      try {
-        return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-      } catch (e) {
-        return "$" + Math.round(n).toLocaleString("es-CO");
-      }
-    }
+    const parseDate = (v)=>{ if(!v) return null; if(v instanceof Date) return v; const s=String(v); const d=new Date(s); if(!isNaN(d)) return d; const m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/); return m? new Date(Date.UTC(+m[1],+m[2]-1,+m[3])): null; };
+    const two=(n)=>String(n).padStart(2,'0');
+    const formatDate=(v)=>{ const d=parseDate(v); if(!d) return 'N/A'; return two(d.getUTCDate())+'/'+two(d.getUTCMonth()+1)+'/'+d.getUTCFullYear(); };
+    const formatCurrency=(n,cur='COP')=>{ const x=Number(n); if(!Number.isFinite(x)) return '—'; try{ return new Intl.NumberFormat('es-CO',{style:'currency',currency:cur,maximumFractionDigits:0}).format(x);}catch{return cur+' '+x.toLocaleString('es-CO');} };
+    const numeroALetras=(num)=>{ if(!Number.isFinite(num)) return ''; const u=['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE']; const e={10:'DIEZ',11:'ONCE',12:'DOCE',13:'TRECE',14:'CATORCE',15:'QUINCE',16:'DIECISEIS',17:'DIECISIETE',18:'DIECIOCHO',19:'DIECINUEVE',20:'VEINTE',21:'VEINTIUNO',22:'VEINTIDOS',23:'VEINTITRES',24:'VEINTICUATRO',25:'VEINTICINCO',26:'VEINTISEIS',27:'VEINTISIETE',28:'VEINTIOCHO',29:'VEINTINUEVE'}; const d=['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA']; const c=['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS']; const sec=(n)=>{ if(n===0) return ''; if(n<10) return u[n]; if(n<30) return e[n]; if(n<100){const D=Math.floor(n/10),R=n%10;return d[D]+(R?' Y '+u[R]:'');} if(n===100) return 'CIEN'; if(n<1000){const C=Math.floor(n/100),R=n%100;return c[C]+(R?' '+sec(R):'');} if(n<1e6){const M=Math.floor(n/1e3),R=n%1e3;return (M===1?'MIL':sec(M)+' MIL')+(R?' '+sec(R):'');} if(n<1e9){const MM=Math.floor(n/1e6),R=n%1e6;return (MM===1?'UN MILLON':sec(MM)+' MILLONES')+(R?' '+sec(R):'');} const B=Math.floor(n/1e9),R2=n%1e9;return (B===1?'UN BILLON':sec(B)+' BILLONES')+(R2?' '+sec(R2):''); }; const ent=Math.floor(Math.abs(num)); const cents=Math.round((Math.abs(num)-ent)*100); let out=ent===0?'CERO':sec(ent); out+=' PESOS'; if(cents>0) out+=' CON '+String(cents).padStart(2,'0')+'/100'; return out; };
 
-    function formatDateFromISO(isoDate) {
-      if (!isoDate) return "—";
-      // Crear fecha local para evitar problemas de zona horaria
-      const [year, month, day] = isoDate.split('T')[0].split('-');
-      return `${day}/${month}/${year}`;
-    }
+    const setText=(id,v,empty='N/A')=>{ const el=document.getElementById(id); if(el) el.textContent=v? v: empty; };
+    const fillTable=(tbodyId,rows,emptyCols,emptyText)=>{ const tb=document.getElementById(tbodyId); if(!tb) return; tb.innerHTML=''; if(!rows||!rows.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=emptyCols; td.textContent=emptyText; td.style.textAlign='center'; tr.appendChild(td); tb.appendChild(tr); return;} rows.forEach(r=>{ const tr=document.createElement('tr'); r.forEach(c=>{ const td=document.createElement('td'); td.textContent=c; tr.appendChild(td); }); tb.appendChild(tr); }); };
 
-    function numeroALetras(n) {
-      if (!Number.isFinite(n)) return "";
-      const unidades = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"];
-      const decenas = ["", "diez", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
-      const especiales = {11:"once",12:"doce",13:"trece",14:"catorce",15:"quince"};
-      const centenas = ["", "cien", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
-
-      function seccion(num) {
-        if (num === 0) return "";
-        if (num < 10) return unidades[num];
-        if (num === 10) return "diez";
-        if (num > 10 && num < 16) return especiales[num] || "";
-        if (num < 20) return "dieci" + unidades[num - 10];
-        if (num === 20) return "veinte";
-        if (num > 20 && num < 30) return "veinti" + unidades[num - 20];
-        if (num < 100) {
-          const d = Math.floor(num / 10);
-          const u = num % 10;
-          return decenas[d] + (u ? " y " + unidades[u] : "");
-        }
-        if (num < 1000) {
-          const c = Math.floor(num / 100);
-          const r = num % 100;
-          if (c === 1) return (r ? "ciento " : "cien") + (r ? seccion(r) : "");
-          return centenas[c] + (r ? " " + seccion(r) : "");
-        }
-        if (num < 1_000_000) {
-          const m = Math.floor(num / 1000);
-          const r = num % 1000;
-          const pref = (m === 1) ? "mil" : seccion(m) + " mil";
-          return pref + (r ? " " + seccion(r) : "");
-        }
-        if (num < 1_000_000_000) {
-          const mi = Math.floor(num / 1_000_000);
-          const r = num % 1_000_000;
-          const pref = (mi === 1) ? "un millón" : seccion(mi) + " millones";
-          return pref + (r ? " " + seccion(r) : "");
-        }
-        const bi = Math.floor(num / 1_000_000_000);
-        const r = num % 1_000_000_000;
-        const pref = (bi === 1) ? "un billón" : seccion(bi) + " billones";
-        return pref + (r ? " " + seccion(r) : "");
-      }
-
-      const entero = Math.floor(n);
-      const cent = Math.round((n - entero) * 100);
-      const letras = entero === 0 ? "cero" : seccion(entero);
-      return (letras + " pesos m/cte" + (cent ? " con " + cent + "/100" : "")).replace(/\s+/g, " ");
-    }
-
-    // ===== Demo de datos (reemplaza por tu fetch de BD) =====
-    const sampleData = {
-      settings: {
-        agency_name: "Dream Vacation",
-        legal_name: "GROUP VC SAS",
-        logo_url: "", // pega URL válida si quieres ver el logo
-        tax_id_number: "901704831-4",
-        tax_regime: "Régimen Fiscal",
-        tourism_registry_number: "RNT 96518",
-        contact_info: {
-          email: "contactanos@dreamvacation.com.co",
-          mobile: "(+57) 3116379323",
-          website: "www.dreamvacation.com.co",
-          addresses: [
-            "Calle 19 #30-16 Las Cuadras, Pasto - Nariño",
-            "Ipiales: C.C. Zafiro Of.124"
-          ]
-        },
-        invoice_message: "Medio de pago: Efectivo / Transferencia.\\nObservaciones: —",
-        terms_and_conditions: "",
-        contract_message: "",
-        default_footer: "Agencia Mayorista de Viajes y Turismo"
-      },
-      invoice: {
-        number: "INV-1001",
-        issueDate: "03/10/2025",
-        currency: "COP"
-      },
-      client: {
-        name: "Juan Pérez",
-        idType: "CC",
-        idNumber: "1234567890",
-        phone: "3000000000",
-        email: "juan@example.com",
-        address: "Cra 1 #2-3"
-      },
-      emergencyContact: { name: "María Pérez", phone: "3010000000" },
-      reservation: {
-        origin: "PSO",
-        destination: "ADZ",
-        travelCycle: "Ida 12/11/2025 · Regreso 18/11/2025",
-        nights: 6,
-        days: 7,
-        pax: { ADT: 2, CHD: 1, INF: 0 },
-        hotel: "Portofino",
-        roomType: "Doble",
-        boardType: "All Inclusive",
-        traslados: "Aeropuerto ↔ Hotel",
-        equipaje: "10 kg cabina · 23 kg bodega",
-        asistenciaMedica: "Magenta (preexistencias)",
-        aerolineas: "Wingo"
-      },
-      items: [
-        { description: "Plan San Andrés (ADT)", quantity: 2, unitPrice: 1500000 },
-        { description: "Plan San Andrés (CHD)", quantity: 1, unitPrice: 900000 },
-        { description: "Fee bancario", quantity: 1, unitPrice: 25000 }
-      ],
-      legalText: "" // si quieres reemplazar el bloque legal por tu texto exacto desde BD
+    const renderInvoice=(data={})=>{
+      const { agency={}, invoice={}, titular={}, emergencyContact={}, travel={}, flights={}, hotel={}, passengers={}, transfers={}, tours=[], payments={}, footer={}, signatures={} } = data;
+      if(agency.logoUrl){ const lg=document.getElementById('agencyLogo'); lg.src=agency.logoUrl; }
+      setText('agencyName', agency.name || 'Dream Vacation');
+      setText('agencyLegalName', agency.legalName || 'Agencia Mayorista de Viajes y Turismo');
+      setText('invoiceNumber', invoice.number || 'N/A');
+      setText('invoiceDate', formatDate(invoice.issueDate));
+      setText('invoiceAdvisor', invoice.advisorName || 'N/A');
+      setText('clientFullName', titular.fullName||'N/A');
+      setText('clientDocument', (titular.documentType?titular.documentType+' ':'') + (titular.document||'N/A'));
+      setText('clientEmail', titular.email||'N/A');
+      setText('clientPhone', titular.phone||'N/A');
+      setText('clientAddress', titular.address||'N/A');
+      setText('emergencyName', emergencyContact.name||'N/A');
+      setText('emergencyPhone', emergencyContact.phone||'N/A');
+      setText('travelOrigin', travel.origin||'N/A');
+      setText('travelDestination', travel.destination||'N/A');
+      setText('travelDeparture', formatDate(travel.departureDate));
+      setText('travelReturn', formatDate(travel.returnDate));
+      setText('travelNights', Number.isFinite(travel.nights)?travel.nights:'0');
+      setText('travelDays', Number.isFinite(travel.days)?travel.days:'0');
+      const adt = passengers.totals?.adt ?? 0;
+      const chd = passengers.totals?.chd ?? 0;
+      const inf = passengers.totals?.inf ?? 0;
+      document.getElementById('passengerTotals').textContent = `ADT(${adt}), CHD(${chd}), INF(${inf})`;
+      setText('flightAirline', flights.airline||'N/A');
+      setText('flightCategory', flights.category||'N/A');
+      setText('flightCycle', flights.cycle||'N/A');
+      const bag=[]; if(flights.baggage?.summary) bag.push('Artículo de mano: '+flights.baggage.summary); if(flights.baggage?.cabin) bag.push('Cabina: '+flights.baggage.cabin); if(flights.baggage?.hold) bag.push('Bodega: '+flights.baggage.hold);
+      document.getElementById('baggageSummary').textContent = bag.length? bag.join(' | ') : '—';
+      setText('hotelName', hotel.name||'N/A');
+      setText('hotelRoomType', hotel.roomType||'N/A');
+      setText('hotelMealPlan', hotel.mealPlan||'N/A');
+      let rooms = 0, a=0, c=0, i=0; if(Array.isArray(hotel.accommodations)){ hotel.accommodations.forEach(h=>{ rooms += Number(h.rooms||0); a += Number(h.adt||0); c += Number(h.chd||0); i += Number(h.inf||0); }); }
+      document.getElementById('accommodationsSummary').textContent = rooms? `${rooms} / ADT:${a} CHD:${c} INF:${i}` : '—';
+      const other = []; if(Array.isArray(tours)&&tours.length){ other.push('Tours: '+tours.map(t=>t.name).filter(Boolean).join(', ')); } if(Array.isArray(data.assistance)&&data.assistance.length){ other.push('Asistencias: '+data.assistance.map(a=>a.planType||a.provider).filter(Boolean).join(', ')); }
+      document.getElementById('otherInclusions').textContent = other.length? other.join(' | ') : '—';
+      const trArr = Array.isArray(transfers.detail)? transfers.detail.map((t,i)=>`${i+1}. ${t.label||t.type||'Traslado'} ${t.date?('('+formatDate(t.date)+')'):''}`):[];
+      document.getElementById('transfersSummary2').textContent = trArr.length? trArr.join('  •  ') : 'No hay traslados registrados.';
+      const toursRows = Array.isArray(tours) ? tours.filter(Boolean).map((t,i)=> `${i+1}. ${t.name||'Servicio'} ${t.date?(' - '+formatDate(t.date)):''}`) : [];
+      const toursBox = document.getElementById('toursContent');
+      toursBox.innerHTML = toursRows.length ? '<ul style="margin:2px 0 2px 16px">'+toursRows.map(x=>`<li>${x}</li>`).join('')+'</ul>' : 'No hay tours o servicios adicionales registrados.';
+      const rows = Array.isArray(payments.lineItems) ? payments.lineItems.map(li=>[ li.quantity??0, li.label||li.code||'Concepto', formatCurrency(li.unitPrice, payments.currency||'COP'), formatCurrency(li.amount, payments.currency||'COP') ]) : [];
+      fillTable('paymentsBody', rows, 4, 'No hay información de pagos.');
+      setText('paymentsSubtotal', formatCurrency(payments.subtotal||0, payments.currency||'COP'));
+      setText('paymentsSurcharge', formatCurrency(payments.surcharge||0, payments.currency||'COP'));
+      setText('paymentsTotal', formatCurrency(payments.total||0, payments.currency||'COP'));
+      document.getElementById('paymentsTotalWords').textContent = numeroALetras(Math.round(payments.total||0)) || '—';
+      setText('signatureAdvisor', signatures.advisor||'N/A');
+      setText('signatureClient', signatures.client||'N/A');
+      document.getElementById('invoiceMessage').textContent = footer.invoiceMessage||'';
+      document.getElementById('footerTerms').textContent = footer.terms||'';
+      document.getElementById('footerNote').textContent = footer.footerNote||footer.contractMessage||'';
     };
 
-    // ===== Render =====
-    function renderInvoice(data) {
-      console.log('=== TEMPLATE RECEIVED DATA ===');
-      console.log('Full data:', data);
-      console.log('data.reservation:', data.reservation);
-
-      const { settings, invoice, client, emergencyContact, reservation, items, legalText } = data;
-
-      console.log('=== AFTER DESTRUCTURING ===');
-      console.log('reservation object:', reservation);
-      console.log('reservation.hotel:', reservation.hotel);
-      console.log('reservation.aerolineas:', reservation.aerolineas);
-
-      // Logo e info agencia
-      const logo = document.getElementById("logo");
-      console.log("=== DEBUG LOGO ===");
-      console.log("Logo URL recibida:", settings.logo_url);
-      console.log("Tipo de dato:", typeof settings.logo_url);
-      console.log("Settings completo:", settings);
-
-      if (settings.logo_url && settings.logo_url.trim() !== '') {
-        let logoUrl = settings.logo_url.trim();
-
-        console.log("Logo URL procesada:", logoUrl);
-        console.log("Comienza con http?", logoUrl.startsWith('http'));
-
-        logo.src = logoUrl;
-        logo.classList.remove("bg-gray-100");
-        logo.style.display = "block";
-
-        // Log cuando la imagen carga exitosamente
-        logo.onload = function() {
-          console.log("✓ Logo cargado exitosamente desde:", logoUrl);
-          console.log("Dimensiones del logo:", logo.naturalWidth, "x", logo.naturalHeight);
-        };
-
-        // Manejar error de carga
-        logo.onerror = function() {
-          console.error("✗ Error al cargar el logo desde:", logoUrl);
-          console.error("Elemento img actual:", logo.outerHTML);
-          logo.style.display = "none";
-        };
-
-        // Verificar después de un momento
-        setTimeout(() => {
-          console.log("Estado del logo después de 1s:");
-          console.log("- src:", logo.src);
-          console.log("- complete:", logo.complete);
-          console.log("- naturalWidth:", logo.naturalWidth);
-        }, 1000);
-      } else {
-        console.warn("⚠ No hay logo_url configurado o está vacío");
-        logo.removeAttribute("src");
-        logo.style.display = "none";
-      }
-
-      document.getElementById("agencyName").textContent = settings.agency_name || settings.legal_name || "Agencia";
-
-      const nitParts = [];
-      nitParts.push("NIT: " + (settings.tax_id_number || "—"));
-      if (settings.tax_regime) nitParts.push("Régimen: " + settings.tax_regime);
-      if (settings.tourism_registry_number) nitParts.push(settings.tourism_registry_number);
-      document.getElementById("nitTax").textContent = nitParts.join(" · ");
-
-      const addresses = (settings?.contact_info?.addresses || []).join(" · ");
-      document.getElementById("addresses").textContent = addresses;
-      const contacts = [
-        settings?.contact_info?.email,
-        settings?.contact_info?.mobile || settings?.contact_info?.phone,
-        settings?.contact_info?.website
-      ].filter(Boolean).join(" · ");
-      document.getElementById("contacts").textContent = contacts;
-
-      // Meta factura
-      document.getElementById("invoiceNumber").textContent = invoice.number || "SIN-NUM";
-      document.getElementById("issueDate").textContent = invoice.issueDate || "—";
-      document.getElementById("currency").textContent = invoice.currency || "COP";
-
-      // Cliente
-      document.getElementById("clientName").textContent   = client.name || "—";
-      document.getElementById("clientDoc").textContent    = (client.idType || "CC") + " " + (client.idNumber || "—");
-      document.getElementById("clientPhone").textContent  = client.phone || "—";
-      document.getElementById("clientEmail").textContent  = client.email || "—";
-      document.getElementById("clientAddress").textContent= client.address || "—";
-
-      // Emergencia
-      document.getElementById("emgName").textContent  = emergencyContact?.name || "—";
-      document.getElementById("emgPhone").textContent = emergencyContact?.phone || "—";
-
-      // Reserva
-      document.getElementById("od").textContent = (reservation.origin || "—") + " → " + (reservation.destination || "—");
-      const travelCycleWrap = document.getElementById("travelCycleWrap");
-      if (reservation.travelCycle) {
-        document.getElementById("travelCycle").textContent = reservation.travelCycle;
-        travelCycleWrap.style.display = "";
-      } else {
-        travelCycleWrap.style.display = "none";
-      }
-      document.getElementById("nd").textContent = (reservation.nights ?? "—") + " / " + (reservation.days ?? "—");
-      document.getElementById("pax").textContent = `ADT ${reservation.pax?.ADT || 0} · CHD ${reservation.pax?.CHD || 0} · INF ${reservation.pax?.INF || 0}`;
-
-      function fillOptional(idWrap, idVal, value) {
-        const w = document.getElementById(idWrap);
-        const v = document.getElementById(idVal);
-        if (value) {
-          v.textContent = value;
-          w.style.display = "";
-        } else {
-          w.style.display = "none";
-        }
-      }
-      fillOptional("airlinesWrap","airlines", reservation.aerolineas);
-      fillOptional("flightClassWrap","flightClass", reservation.claseVuelo);
-      fillOptional("flightCategoryWrap","flightCategory", reservation.categoriaVuelo);
-      fillOptional("baggageWrap","baggage", reservation.equipaje);
-      fillOptional("flightTrayectoWrap","flightTrayecto", reservation.trayectoVuelo);
-      fillOptional("hotelWrap","hotel", reservation.hotel);
-      fillOptional("accommodationWrap","accommodation", reservation.acomodacion);
-      fillOptional("roomTypeWrap","roomType", reservation.roomType);
-      fillOptional("boardTypeWrap","boardType", reservation.boardType);
-      fillOptional("roomsInfoWrap","roomsInfo", reservation.habitaciones);
-      fillOptional("transfersWrap","transfers", reservation.traslados);
-      fillOptional("toursWrap","tours", reservation.tours);
-      fillOptional("assistWrap","assist", reservation.asistenciaMedica);
-
-      // Items
-      const tbody = document.getElementById("itemsBody");
-      tbody.innerHTML = "";
-      let subtotal = 0;
-      if (items && items.length) {
-        for (const it of items) {
-          const tr = document.createElement("tr");
-          const totalLinea = Number(it.quantity) * Number(it.unitPrice);
-          subtotal += totalLinea;
-          tr.innerHTML = `
-            <td>${it.description || ""}</td>
-            <td class="text-right">${it.quantity || 0}</td>
-            <td class="text-right">${formatCOP(Number(it.unitPrice || 0))}</td>
-            <td class="text-right">${formatCOP(totalLinea)}</td>
-          `;
-          tbody.appendChild(tr);
-        }
-      } else {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="4" class="text-center text-gray-500">Sin ítems</td>`;
-        tbody.appendChild(tr);
-      }
-
-      // Cuotas (installments)
-      const installmentsBody = document.getElementById("installmentsBody");
-      const installmentsSection = document.getElementById("installmentsSection");
-      if (data.installments && data.installments.length > 0) {
-        installmentsBody.innerHTML = "";
-        installmentsSection.style.display = "";
-
-        data.installments.forEach((inst, idx) => {
-          const tr = document.createElement("tr");
-          const statusText = inst.status === 'paid' ? 'Pagada' :
-                            inst.status === 'pending' ? 'Pendiente' :
-                            inst.status === 'overdue' ? 'Vencida' : inst.status || 'Pendiente';
-
-          tr.innerHTML = `
-            <td>${idx + 1}</td>
-            <td>${inst.due_date ? formatDateFromISO(inst.due_date) : '—'}</td>
-            <td class="text-right">${formatCOP(Number(inst.amount || 0))}</td>
-            <td>${statusText}</td>
-          `;
-          installmentsBody.appendChild(tr);
-        });
-      } else {
-        installmentsSection.style.display = "none";
-      }
-
-      // Totales (sin impuestos)
-      const total = subtotal;
-      document.getElementById("subtotalVal").textContent = formatCOP(subtotal);
-      document.getElementById("totalVal").textContent    = formatCOP(total);
-      document.getElementById("totalWords").textContent  = numeroALetras(total);
-
-      // Mensaje de factura / legales / footer
-      document.getElementById("invoiceMessage").textContent = settings.invoice_message || "";
-      if (legalText) {
-        const lt = document.getElementById("legalText");
-        lt.innerHTML = "";
-        const p = document.createElement("p");
-        p.className = "whitespace-pre-line";
-        p.textContent = legalText;
-        lt.appendChild(p);
-      }
-      document.getElementById("footerText").textContent =
-        [settings.default_footer, settings.terms_and_conditions, settings.contract_message]
-          .filter(Boolean).join("\\n");
-    }
-
-    // Render inicial de prueba
-    renderInvoice(sampleData);
-
-    // Exportar e Imprimir
-    document.getElementById("btnExport").addEventListener("click", () => {
-      const area = document.getElementById("printArea");
-      const opt = {
-        margin: 10, /* mm aprox */
-        filename: (document.getElementById("invoiceNumber").textContent || "Factura") + ".pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "in", format: [8.5, 13], orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] },
-      };
+    window.renderInvoice = renderInvoice;
+    window.numeroALetras = numeroALetras;
+    document.getElementById('btnExport').addEventListener('click', () => {
+      const area = document.getElementById('printArea');
+      const filename = document.getElementById('invoiceNumber').textContent || 'Factura';
+      const opt = { margin: [8,8,8,8], filename: filename + '.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: [8.5, 13], orientation: 'portrait' } };
       html2pdf().set(opt).from(area).save();
     });
-
-    document.getElementById("btnPrint").addEventListener("click", () => window.print());
+    document.getElementById('btnPrint').addEventListener('click', () => window.print());
   </script>
 </body>
 </html>
