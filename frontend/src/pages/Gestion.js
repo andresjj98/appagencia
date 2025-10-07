@@ -143,7 +143,17 @@ const Gestion = () => {
         const normalizedData = Array.isArray(data) ? data : (data ? [data] : []);
         // Filtrar reservas según el rol del usuario
         const filteredData = filterReservationsByRole(normalizedData, currentUser);
-        setReservations(filteredData.map(transformReservationForGestion));
+        const transformed = filteredData.map(transformReservationForGestion);
+        setReservations(transformed);
+
+        setSelectedReservation(prev => {
+          if (!prev) return prev;
+          const prevId = prev._original?.id ?? prev.id;
+          if (!prevId) return prev;
+          const updated = transformed.find(item => item.id === prevId);
+          if (!updated) return prev;
+          return { ...updated, _original: updated };
+        });
       } else {
         console.error('Error fetching reservations:', data.message);
       }
