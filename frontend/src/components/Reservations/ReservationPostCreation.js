@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, CheckCircle, Users, FileText } from 'lucide-react';
+import { X, CheckCircle, Users, FileText, FileEdit } from 'lucide-react';
 import PassengerManagementTab from '../Gestion/PassengerManagementTab';
 import DocumentationTab from '../Gestion/DocumentationTab';
+import MyChangeRequestsPanel from './MyChangeRequestsPanel';
 
 const ReservationPostCreation = ({ reservation, onClose, onUpdateReservation }) => {
   const [activeTab, setActiveTab] = useState('passengers');
@@ -68,6 +69,11 @@ const ReservationPostCreation = ({ reservation, onClose, onUpdateReservation }) 
             <TabButton tabName="documentation" currentTab={activeTab} setTab={setActiveTab} icon={FileText}>
               Gestionar Documentación
             </TabButton>
+            {reservation.status === 'confirmed' && (
+              <TabButton tabName="changeRequests" currentTab={activeTab} setTab={setActiveTab} icon={FileEdit}>
+                Mis Solicitudes
+              </TabButton>
+            )}
           </div>
 
           {/* Tab Content */}
@@ -77,6 +83,9 @@ const ReservationPostCreation = ({ reservation, onClose, onUpdateReservation }) 
             )}
             {activeTab === 'documentation' && (
               <DocumentationTab reservation={reservation} onUpdate={onUpdateReservation} />
+            )}
+            {activeTab === 'changeRequests' && (
+              <MyChangeRequestsPanel reservationId={reservation.id} />
             )}
           </div>
         </div>

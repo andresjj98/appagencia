@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
 import { useSettings } from '../../utils/SettingsContext';
+import MyChangeRequestsPanel from './MyChangeRequestsPanel';
 
 const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
   // Defensive check
@@ -262,37 +263,7 @@ const ReservationDetail = ({ reservation, onBack, onUpdateReservation }) => {
 
       {/* Change Requests */}
       <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <Info className="w-7 h-7 text-blue-600" />
-          Solicitudes de Cambio
-        </h3>
-        {(editedReservation.changeRequests || []).length > 0 ? (
-          (editedReservation.changeRequests || []).map(req => (
-            <div key={req.id} className="flex items-center justify-between mb-4">
-              <p className="text-gray-700">{req.description}</p>
-              <div className="flex gap-2">
-                <motion.button
-                  onClick={() => handleApproveRequest(req)}
-                  className="px-3 py-1 bg-green-500 text-white rounded-lg text-xs"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Aprobar
-                </motion.button>
-                <motion.button
-                  onClick={() => handleRejectRequest(req.id)}
-                  className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Rechazar
-                </motion.button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-gray-500">No hay solicitudes de cambio.</p>
-        )}
+        <MyChangeRequestsPanel reservationId={reservation.id} />
       </div>
 
       {/* Document Management */}

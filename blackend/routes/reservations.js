@@ -8,6 +8,7 @@ const {
   approveReservation,
   rejectReservation,
   deleteReservation,
+  getReservationActivities
 } = require('../controllers/reservations.controller.js');
 
 // GET all reservations
@@ -15,6 +16,9 @@ router.get('/', getAllReservations);
 
 // GET a single reservation by ID
 router.get('/:id', getReservationById);
+
+// GET activities for a reservation
+router.get('/:id/activities', getReservationActivities);
 
 // POST a new reservation
 router.post('/', createReservation);

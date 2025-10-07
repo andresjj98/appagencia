@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const { comparePassword } = require('../passwordUtils');
 const { supabaseAdmin } = require('../supabase');
 
@@ -24,8 +25,21 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
+    // Generar JWT token
+    const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        officeId: user.office_id
+      },
+      secret,
+      { expiresIn: '24h' } // Token válido por 24 horas
+    );
+
     delete user.password;
-    res.json({ user });
+    res.json({ user, token });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error del servidor' });

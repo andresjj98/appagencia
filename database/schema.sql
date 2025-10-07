@@ -57,6 +57,19 @@ CREATE TABLE public.catalog_airports (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT catalog_airports_pkey PRIMARY KEY (iata_code)
 );
+CREATE TABLE public.change_request_documents (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  change_request_id bigint NOT NULL,
+  document_type text NOT NULL,
+  file_name text NOT NULL,
+  file_url text NOT NULL,
+  file_size integer,
+  uploaded_at timestamp with time zone DEFAULT now(),
+  uploaded_by_id uuid,
+  CONSTRAINT change_request_documents_pkey PRIMARY KEY (id),
+  CONSTRAINT change_request_documents_change_request_id_fkey FOREIGN KEY (change_request_id) REFERENCES public.change_requests(id),
+  CONSTRAINT change_request_documents_uploaded_by_id_fkey FOREIGN KEY (uploaded_by_id) REFERENCES public.usuarios(id)
+);
 CREATE TABLE public.change_requests (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   reservation_id bigint NOT NULL,
@@ -64,11 +77,16 @@ CREATE TABLE public.change_requests (
   section_to_change text NOT NULL,
   requested_changes jsonb,
   request_reason text,
-  status text NOT NULL DEFAULT 'pending'::text,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'applied'::text])),
   created_at timestamp with time zone DEFAULT now(),
+  approved_by_id uuid,
+  reviewed_at timestamp with time zone,
+  rejection_reason text,
+  applied_at timestamp with time zone,
   CONSTRAINT change_requests_pkey PRIMARY KEY (id),
   CONSTRAINT change_requests_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.reservations(id),
-  CONSTRAINT change_requests_requested_by_id_fkey FOREIGN KEY (requested_by_id) REFERENCES public.usuarios(id)
+  CONSTRAINT change_requests_requested_by_id_fkey FOREIGN KEY (requested_by_id) REFERENCES public.usuarios(id),
+  CONSTRAINT change_requests_approved_by_id_fkey FOREIGN KEY (approved_by_id) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.clients (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -81,6 +99,17 @@ CREATE TABLE public.clients (
   emergency_contact_phone text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT clients_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.documents (
+  id bigint NOT NULL DEFAULT nextval('documents_id_seq'::regclass),
+  reservation_id bigint NOT NULL,
+  type character varying NOT NULL,
+  document_number character varying,
+  data_snapshot jsonb,
+  generated_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT documents_pkey PRIMARY KEY (id),
+  CONSTRAINT documents_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.reservations(id)
 );
 CREATE TABLE public.notifications (
   id bigint NOT NULL DEFAULT nextval('notifications_id_seq'::regclass),
@@ -108,6 +137,19 @@ CREATE TABLE public.offices (
   manager text,
   active boolean NOT NULL DEFAULT true,
   CONSTRAINT offices_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.reservation_activity_log (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  reservation_id bigint NOT NULL,
+  activity_type text NOT NULL,
+  performed_by_id uuid NOT NULL,
+  description text NOT NULL,
+  changes jsonb,
+  metadata jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reservation_activity_log_pkey PRIMARY KEY (id),
+  CONSTRAINT reservation_activity_log_reservation_id_fkey FOREIGN KEY (reservation_id) REFERENCES public.reservations(id),
+  CONSTRAINT reservation_activity_log_performed_by_id_fkey FOREIGN KEY (performed_by_id) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.reservation_attachments (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,

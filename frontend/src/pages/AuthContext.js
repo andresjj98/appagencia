@@ -18,6 +18,11 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Error en el inicio de sesión');
       }
 
+      // Guardar el token JWT en localStorage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+
       // Mapear el usuario del backend al formato del frontend
       const mappedUser = {
         id: data.user.id,
@@ -51,6 +56,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setCurrentUser(null);
     setMockUser(null); // Sincronizamos el mock
+    localStorage.removeItem('token'); // Limpiar el token JWT
   };
 
   const value = { currentUser, setCurrentUser, signIn, login, logout };

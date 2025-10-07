@@ -4,6 +4,7 @@ import { User, Users, Globe, Plane, Hotel, Ticket, BriefcaseMedical, Euro, Arrow
 import { useAuth } from '../../pages/AuthContext';
 import { useSettings } from '../../utils/SettingsContext';
 import AirlineInput from '../common/AirlineInput';
+import supabase from '../../utils/supabaseClient';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -599,16 +600,34 @@ const CancellationForm = ({ data, onChange }) => {
     setUploadingFile(true);
 
     try {
-      // Aquí iría la lógica de subida a Supabase Storage o servidor
-      // Por ahora, simulamos con un timeout
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Obtener el ID del usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
 
-      // Crear objeto URL temporal para previsualización
-      const fileUrl = URL.createObjectURL(file);
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
 
+      // Construir la ruta del archivo siguiendo la estructura:
+      // user-{uuid}/reservation-{id}_letter_{timestamp}.pdf
+      const timestamp = Date.now();
+      const filePath = `user-${user.id}/reservation-${reservation.id}_letter_${timestamp}.pdf`;
+
+      // Subir el archivo a Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('cancellation-documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Guardar la información del archivo en el estado
       handleChange('cancellation_letter', {
         file_name: file.name,
-        file_url: fileUrl,
+        file_url: filePath, // Guardamos el path, no la URL pública
         file_size: file.size,
         uploaded_at: new Date().toISOString()
       });
@@ -616,13 +635,28 @@ const CancellationForm = ({ data, onChange }) => {
       alert('Carta cargada exitosamente');
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Error al cargar el archivo');
+      alert(`Error al cargar el archivo: ${error.message}`);
     } finally {
       setUploadingFile(false);
     }
   };
 
-  const removeFile = () => {
+  const removeFile = async () => {
+    // Si hay un archivo subido, eliminarlo de Storage
+    if (data?.cancellation_letter?.file_url) {
+      try {
+        const { error } = await supabase.storage
+          .from('cancellation-documents')
+          .remove([data.cancellation_letter.file_url]);
+
+        if (error) {
+          console.error('Error deleting file:', error);
+        }
+      } catch (error) {
+        console.error('Error deleting file:', error);
+      }
+    }
+
     handleChange('cancellation_letter', null);
   };
 
@@ -867,21 +901,36 @@ const ChangeRequestModal = ({ reservation, onClose }) => {
 
     setIsSubmitting(true);
     try {
-      await fetch(`http://localhost:4000/api/reservations/${reservation.id}/change-requests`, {
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/change-requests`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section: editingSection, changes: formData, reason, userId: user?.id })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          section: editingSection,
+          changes: formData,
+          reason: reason || `Solicitud de cambio en ${editingSection}`
+        })
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al enviar la solicitud');
+      }
 
       const message = editingSection === 'cancellation'
         ? 'Solicitud de cancelación enviada con éxito. Recibirás una notificación cuando sea revisada.'
-        : 'Solicitud de cambio enviada con éxito.';
+        : 'Solicitud de cambio enviada con éxito. Recibirás una notificación cuando sea revisada.';
 
       alert(message);
       onClose();
     } catch (error) {
       console.error('Error sending change request:', error);
-      alert('Error al enviar la solicitud de cambio.');
+      alert(`Error al enviar la solicitud: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

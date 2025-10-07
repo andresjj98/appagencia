@@ -16,7 +16,8 @@ import {
   ListChecks,
   PlusCircle,
   MessageSquare,
-  Bus
+  Bus,
+  FileEdit
 } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useSettings } from '../../utils/SettingsContext';
@@ -25,6 +26,7 @@ import { RESERVATION_STATUS } from '../../utils/constants';
 import LoadingOverlay from '../common/LoadingOverlay';
 import ConfirmationModal from '../common/ConfirmationModal';
 import PassengerManagementTab from '../Gestion/PassengerManagementTab'; // IMPORT THE CORRECT COMPONENT
+import MyChangeRequestsPanel from './MyChangeRequestsPanel';
 
 const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
     <div className="p-6">
@@ -305,6 +307,9 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
                 <button onClick={() => setViewMode('attachments')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
                     <Paperclip className="w-4 h-4" /> Adjuntar Archivos
                 </button>
+                <button onClick={() => setViewMode('changeRequests')} className="w-full flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                    <FileEdit className="w-4 h-4" /> Ver Mis Solicitudes
+                </button>
             </div>
         </div>
     </div>
@@ -314,27 +319,37 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
     switch (viewMode) {
       case 'view':
         return <ReservationDetailContent reservation={reservation} showAlert={showAlert} />;
-      case 'passengers': 
+      case 'passengers':
         return (
           <DetailManagement
             title="Gestionar Pasajeros"
             icon={<Users className="w-5 h-5" />}
             onBack={() => setViewMode('view')}
           >
-            <PassengerManagementTab 
-              reservation={reservation} 
-              onUpdateReservation={handlePassengerSave} 
+            <PassengerManagementTab
+              reservation={reservation}
+              onUpdateReservation={handlePassengerSave}
             />
           </DetailManagement>
         );
-      case 'attachments': 
-        return <AttachmentForm 
+      case 'attachments':
+        return <AttachmentForm
                     attachmentData={attachmentData}
                     setViewMode={setViewMode}
                     onSaveSuccess={handleAttachmentSave}
                     showAlert={showAlert}
                 />;
-      default: 
+      case 'changeRequests':
+        return (
+          <DetailManagement
+            title="Mis Solicitudes de Cambio"
+            icon={<FileEdit className="w-5 h-5" />}
+            onBack={() => setViewMode('view')}
+          >
+            <MyChangeRequestsPanel reservationId={reservation.id} />
+          </DetailManagement>
+        );
+      default:
         return <ReservationDetailContent reservation={reservation} showAlert={showAlert} />;
     }
   };

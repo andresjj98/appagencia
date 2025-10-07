@@ -382,6 +382,34 @@ const deleteReservation = async (req, res) => {
   }
 };
 
+// =====================================================
+// GET RESERVATION ACTIVITIES
+// =====================================================
+const getReservationActivities = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('v_reservation_activities')
+      .select('*')
+      .eq('reservation_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching reservation activities:', error);
+      return res.status(500).json({ message: 'Error al obtener el historial de actividades', details: error.message });
+    }
+
+    res.status(200).json({
+      success: true,
+      activities: data || []
+    });
+
+  } catch (error) {
+    console.error('Server error in getReservationActivities:', error);
+    res.status(500).json({ message: 'Error interno del servidor', details: error.message });
+  }
+};
+
 module.exports = {
   getAllReservations,
   getReservationById,
@@ -390,4 +418,5 @@ module.exports = {
   approveReservation,
   rejectReservation,
   deleteReservation,
+  getReservationActivities
 };

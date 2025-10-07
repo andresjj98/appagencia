@@ -326,6 +326,12 @@ const Gestion = () => {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
+                          {/* Badge de Solicitudes de Cambio Pendientes */}
+                          {reservation._original?.change_requests?.filter(req => req.status === 'pending').length > 0 && (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-300 animate-pulse">
+                              📝 {reservation._original.change_requests.filter(req => req.status === 'pending').length} Solicitud{reservation._original.change_requests.filter(req => req.status === 'pending').length !== 1 ? 'es' : ''}
+                            </span>
+                          )}
                           {urgency && (
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${urgency.badgeClasses}`}>
                               {urgency.label}
