@@ -137,15 +137,25 @@ const buildInvoicePayloadFromReservation = (reservation) => {
   const advisor = reservation.advisor || reservation.advisor_id || null;
 
   const segments = normalizeArray(reservation.reservation_segments);
-  const firstSegment = segments[0] || {};
+  const travelSegments = buildTravelSegments(segments);
+  const primaryTravelSegment = travelSegments[0] || segments[0] || {};
 
   const hotels = normalizeArray(reservation.reservation_hotels);
+  const hotelSegments = buildHotelSegments(hotels);
   const mainHotel = hotels[0] || {};
-  const accommodations = normalizeArray(mainHotel.reservation_hotel_accommodations);
+  const accommodations = mapHotelAccommodationList(mainHotel.reservation_hotel_accommodations);
+  const aggregatedHotelAccommodations = hotelSegments.flatMap((seg) => normalizeArray(seg.accommodations));
+  const hotelAccommodationsSource = accommodations.length ? accommodations : aggregatedHotelAccommodations;
+  const hotelAccommodations = hotelAccommodationsSource.map((item, index) => ({
+    ...item,
+    index: index + 1,
+  }));
 
   const flights = normalizeArray(reservation.reservation_flights);
+  const flightSegments = buildFlightSegments(flights);
   const mainFlight = flights[0] || {};
   const itineraries = normalizeArray(mainFlight.reservation_flight_itineraries);
+  const flattenedFlightLegs = flightSegments.flatMap((segment) => normalizeArray(segment.itineraries));
 
   const transfers = normalizeArray(reservation.reservation_transfers);
   const tours = normalizeArray(reservation.reservation_tours);
@@ -206,14 +216,25 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       phone: client.emergency_contact_phone || '',
     },
     travel: {
-      origin: firstSegment.origin || reservation.origin || '',
-      destination: firstSegment.destination || reservation.destination || '',
-      departureDate: firstSegment.departure_date || null,
-      returnDate: firstSegment.return_date || null,
-      nights: calculateNights(firstSegment.departure_date, firstSegment.return_date),
-      days: calculateTripDays(firstSegment.departure_date, firstSegment.return_date),
+      origin: primaryTravelSegment.origin || reservation.origin || '',
+      destination: primaryTravelSegment.destination || reservation.destination || '',
+      departureDate: primaryTravelSegment.departureDate || primaryTravelSegment.departure_date || null,
+      returnDate: primaryTravelSegment.returnDate || primaryTravelSegment.return_date || null,
+      nights: sumTripNights(travelSegments),
+      days: sumTripDays(travelSegments),
       notes: reservation.notes || '',
+      segments: travelSegments,
+      segmentList: travelSegments,
+      segmentsList: travelSegments,
+      itinerary: travelSegments,
     },
+    travelSegments: travelSegments,
+    travelSegmentsList: travelSegments,
+    travelItinerary: travelSegments,
+    travelRoutes: travelSegments,
+    travelTramos: travelSegments,
+    travelDestinos: travelSegments,
+    travelDetails: travelSegments,
     passengers: {
       totals: {
         adt: normalizeNumber(reservation.passengers_adt),
@@ -230,25 +251,33 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       })),
     },
     hotel: {
-      name: mainHotel.name || '',
-      roomType: mainHotel.room_category || '',
-      mealPlan: mainHotel.meal_plan || '',
-      accommodations: accommodations.map((acc, index) => ({
-        index: index + 1,
-        rooms: normalizeNumber(acc.rooms) || 1,
-        adt: normalizeNumber(acc.adt || acc.adults),
-        chd: normalizeNumber(acc.chd || acc.children),
-        inf: normalizeNumber(acc.inf || acc.infants),
-      })),
+      name: (hotelSegments[0] && hotelSegments[0].name) || mainHotel.name || '',
+      roomType: (hotelSegments[0] && hotelSegments[0].roomType) || mainHotel.room_category || '',
+      mealPlan: (hotelSegments[0] && hotelSegments[0].mealPlan) || mainHotel.meal_plan || '',
+      checkIn: (hotelSegments[0] && hotelSegments[0].checkIn) || mainHotel.check_in || mainHotel.start_date || null,
+      checkOut: (hotelSegments[0] && hotelSegments[0].checkOut) || mainHotel.check_out || mainHotel.end_date || null,
+      accommodations: hotelAccommodations,
+      segmentList: hotelSegments,
+      segments: hotelSegments,
+      list: hotelSegments,
+      hotels: hotelSegments,
+      details: hotelSegments,
+      stays: hotelSegments,
     },
+    hotels: hotelSegments,
+    hotelList: hotelSegments,
+    hotelSegments: hotelSegments,
+    hotelsList: hotelSegments,
+    hotelDetails: hotelSegments,
+    hotelStays: hotelSegments,
     flights: {
-      airline: mainFlight.airline || '',
-      category: mainFlight.flight_category || mainFlight.category || '',
-      class: mainFlight.flight_class || mainFlight.class || '',
-      pnr: mainFlight.pnr || '',
-      cycle: mainFlight.flight_cycle || '',
-      baggage: extractBaggageInfo(mainFlight),
-      itineraries: itineraries.map((itinerary, index) => ({
+      airline: (flightSegments[0] && flightSegments[0].airline) || mainFlight.airline || '',
+      category: (flightSegments[0] && flightSegments[0].category) || mainFlight.flight_category || mainFlight.category || '',
+      class: (flightSegments[0] && flightSegments[0].class) || mainFlight.flight_class || mainFlight.class || '',
+      pnr: (flightSegments[0] && flightSegments[0].pnr) || mainFlight.pnr || '',
+      cycle: (flightSegments[0] && flightSegments[0].cycle) || mainFlight.flight_cycle || mainFlight.cycle || '',
+      baggage: (flightSegments[0] && flightSegments[0].baggage) || extractBaggageInfo(mainFlight),
+      itineraries: flattenedFlightLegs.length ? flattenedFlightLegs : itineraries.map((itinerary, index) => ({
         index: index + 1,
         flightNumber: itinerary.flight_number || itinerary.flightNumber || '',
         departureTime: itinerary.departure_time || itinerary.departureTime || null,
@@ -256,7 +285,20 @@ const buildInvoicePayloadFromReservation = (reservation) => {
         origin: itinerary.origin || itinerary.departure_airport || '',
         destination: itinerary.destination || itinerary.arrival_airport || '',
       })),
+      itinerary: flightSegments,
+      segments: flightSegments,
+      segmentList: flightSegments,
+      segmentsList: flightSegments,
+      details: flightSegments,
+      flights: flightSegments,
+      list: flightSegments,
     },
+    flightSegments: flightSegments,
+    flightsSegments: flightSegments,
+    flightList: flightSegments,
+    flightRoutes: flightSegments,
+    flightDetails: flightSegments,
+    flightItinerary: flightSegments,
     transfers: buildTransfersSection(transfers),
     tours: tours.map((tour, index) => ({
       index: index + 1,
@@ -432,6 +474,219 @@ const buildPaymentLines = (reservation) => {
 
   return lines;
 };
+
+function mapHotelAccommodationList(list) {
+  return normalizeArray(list).map((acc, index) => ({
+    index: index + 1,
+    rooms: normalizeNumber(acc?.rooms ?? acc?.room_quantity ?? acc?.roomQuantity ?? 1) || 1,
+    adt: normalizeNumber(acc?.adt ?? acc?.adults ?? acc?.adultCount),
+    chd: normalizeNumber(acc?.chd ?? acc?.children ?? acc?.childCount),
+    inf: normalizeNumber(acc?.inf ?? acc?.infants ?? acc?.infantCount),
+  }));
+}
+
+function buildTravelSegments(segments) {
+  return normalizeArray(segments).map((segment, index) => ({
+    index: index + 1,
+    origin:
+      segment?.origin ||
+      segment?.origen ||
+      segment?.origin_city ||
+      segment?.originCity ||
+      segment?.departure_city ||
+      segment?.departureCity ||
+      segment?.city_origin ||
+      segment?.cityOrigin ||
+      segment?.from ||
+      '',
+    destination:
+      segment?.destination ||
+      segment?.destino ||
+      segment?.destination_city ||
+      segment?.destinationCity ||
+      segment?.arrival_city ||
+      segment?.arrivalCity ||
+      segment?.city_destination ||
+      segment?.cityDestination ||
+      segment?.to ||
+      '',
+    departureDate:
+      segment?.departure_date ||
+      segment?.departureDate ||
+      segment?.start_date ||
+      segment?.startDate ||
+      segment?.fecha_salida ||
+      segment?.fechaSalida ||
+      null,
+    returnDate:
+      segment?.return_date ||
+      segment?.returnDate ||
+      segment?.end_date ||
+      segment?.endDate ||
+      segment?.fecha_regreso ||
+      segment?.fechaRegreso ||
+      null,
+    notes: segment?.notes || segment?.description || segment?.descripcion || '',
+  }));
+}
+
+function buildHotelSegments(hotels) {
+  return normalizeArray(hotels).map((hotel, index) => ({
+    index: index + 1,
+    name: hotel?.name || hotel?.hotel_name || hotel?.hotel || '',
+    roomType: hotel?.room_category || hotel?.room_type || hotel?.room || '',
+    mealPlan: hotel?.meal_plan || hotel?.mealPlan || hotel?.plan || '',
+    checkIn: hotel?.check_in || hotel?.checkIn || hotel?.start_date || hotel?.startDate || null,
+    checkOut: hotel?.check_out || hotel?.checkOut || hotel?.end_date || hotel?.endDate || null,
+    accommodations: mapHotelAccommodationList(hotel?.reservation_hotel_accommodations || hotel?.accommodations),
+  }));
+}
+
+function buildFlightSegments(flights) {
+  return normalizeArray(flights).map((flight, index) => {
+    const legs = buildFlightLegsFromFlight(flight);
+    return {
+      index: index + 1,
+      airline: flight?.airline || flight?.carrier || legs[0]?.carrier || '',
+      category: flight?.flight_category || flight?.category || '',
+      class: flight?.flight_class || flight?.class || '',
+      pnr: flight?.pnr || '',
+      cycle: buildFlightCycle(legs) || flight?.flight_cycle || flight?.cycle || '',
+      baggage: extractBaggageInfo(flight),
+      itineraries: legs,
+    };
+  });
+}
+
+function buildFlightLegsFromFlight(flight) {
+  const rawLegs = normalizeArray(
+    flight?.reservation_flight_itineraries ||
+      flight?.itineraries ||
+      flight?.legs ||
+      flight?.routes ||
+      flight?.flight_legs
+  );
+
+  return rawLegs.map((leg, index) => ({
+    index: index + 1,
+    flightNumber: leg?.flight_number || leg?.flightNumber || '',
+    origin:
+      leg?.origin ||
+      leg?.departure_airport ||
+      leg?.departureCity ||
+      leg?.departure_city ||
+      leg?.from ||
+      '',
+    destination:
+      leg?.destination ||
+      leg?.arrival_airport ||
+      leg?.arrivalCity ||
+      leg?.arrival_city ||
+      leg?.to ||
+      '',
+    departureTime:
+      leg?.departure_time ||
+      leg?.departureTime ||
+      leg?.departure ||
+      leg?.start_time ||
+      leg?.startTime ||
+      null,
+    arrivalTime:
+      leg?.arrival_time ||
+      leg?.arrivalTime ||
+      leg?.arrival ||
+      leg?.end_time ||
+      leg?.endTime ||
+      null,
+    carrier: leg?.airline || leg?.carrier || flight?.airline || '',
+  }));
+}
+
+function buildFlightCycle(legs) {
+  const list = normalizeArray(legs);
+  if (list.length === 0) {
+    return '';
+  }
+
+  const sequence = [];
+  list.forEach((leg, index) => {
+    const origin = normalizeLocationForCycle(leg?.origin);
+    const destination = normalizeLocationForCycle(leg?.destination);
+    if (index === 0 && origin) {
+      sequence.push(origin);
+    }
+    if (destination) {
+      sequence.push(destination);
+    }
+  });
+
+  const filtered = sequence.filter(Boolean);
+  if (!filtered.length) {
+    return '';
+  }
+
+  return filtered.join(' -> ');
+}
+
+function normalizeLocationForCycle(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (typeof value === 'object') {
+    return (
+      value.code ||
+      value.iata ||
+      value.airport_code ||
+      value.airportCode ||
+      value.city ||
+      value.cityCode ||
+      value.name ||
+      value.label ||
+      value.title ||
+      ''
+    );
+  }
+
+  return '';
+}
+
+function sumTripNights(travelSegments) {
+  const list = normalizeArray(travelSegments);
+  if (!list.length) {
+    return 0;
+  }
+
+  return list.reduce((total, segment) => {
+    const departure =
+      segment?.departureDate ||
+      segment?.departure_date ||
+      segment?.start_date ||
+      segment?.startDate ||
+      null;
+    const returnDate =
+      segment?.returnDate ||
+      segment?.return_date ||
+      segment?.end_date ||
+      segment?.endDate ||
+      null;
+
+    return total + calculateNights(departure, returnDate);
+  }, 0);
+}
+
+function sumTripDays(travelSegments) {
+  const nights = sumTripNights(travelSegments);
+  if (nights <= 0) {
+    return nights;
+  }
+
+  return nights + 1;
+}
 
 const sumLineItems = (lines) =>
   lines.reduce((acc, item) => acc + (Number.isFinite(item.amount) ? item.amount : 0), 0);

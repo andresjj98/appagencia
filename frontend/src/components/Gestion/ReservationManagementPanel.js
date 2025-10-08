@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Info, CheckSquare, Users, DollarSign, Paperclip, History } from 'lucide-react';
+import { ArrowLeft, Info, CheckSquare, Users, DollarSign, Paperclip, History, FileText } from 'lucide-react';
 import InfoWithEditTab from './InfoWithEditTab';
 import ServiceConfirmationTab from './ServiceConfirmationTab';
 import FinanceViewTab from './FinanceViewTab';
 import PassengerManagementTab from './PassengerManagementTab';
 import DocumentationTab from './DocumentationTab';
 import HistoryTab from './HistoryTab';
+import InvoiceViewTab from './InvoiceViewTab';
 import { useAuth } from '../../pages/AuthContext';
 import { canEditReservation, canApproveReservation } from '../../utils/constants';
 
@@ -91,6 +92,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
     { id: 'passengers', label: 'Pasajeros', icon: Users },
     { id: 'finance', label: 'Finanzas y Pagos', icon: DollarSign },
     { id: 'documents', label: 'Documentacion', icon: Paperclip },
+    { id: 'invoice', label: 'Factura', icon: FileText },
     { id: 'history', label: 'Actividad y Cambios', icon: History },
   ];
 
@@ -133,6 +135,8 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
         return <FinanceViewTab reservation={reservation} />;
       case 'documents':
         return <DocumentationTab reservation={reservation} onUpdate={onUpdate} readOnly={!canEdit} />;
+      case 'invoice':
+        return <InvoiceViewTab reservation={reservation} />;
       case 'history':
         return <HistoryTab reservation={reservation} onUpdate={onUpdate} />;
       default:

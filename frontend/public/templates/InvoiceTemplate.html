@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -62,7 +62,7 @@
           </div>
         </div>
         <div class="fact-box">
-          <div class="fact-title">N° Factura y Contrato</div>
+          <div class="fact-title">N Factura y Contrato</div>
           <div class="kv">
             <div>Factura:</div><div id="invoiceNumber" class="v">N/A</div>
             <div>Fecha:</div><div id="invoiceDate" class="v">N/A</div>
@@ -82,8 +82,8 @@
           </div>
           <div class="line">
             <div class="item"><span class="lbl">Correo:</span><span class="val" id="clientEmail">N/A</span></div>
-            <div class="item"><span class="lbl">Teléfono:</span><span class="val short" id="clientPhone">N/A</span></div>
-            <div class="item" style="flex:1"><span class="lbl">Dirección:</span><span class="val" id="clientAddress">N/A</span></div>
+            <div class="item"><span class="lbl">Telfono:</span><span class="val short" id="clientPhone">N/A</span></div>
+            <div class="item" style="flex:1"><span class="lbl">Direccin:</span><span class="val" id="clientAddress">N/A</span></div>
           </div>
         </div>
       </div>
@@ -101,37 +101,50 @@
       <div class="sect">
         <span class="sect-title">Datos de la reserva</span>
         <div class="box">
-          <div class="line">
-            <div class="item"><span class="lbl">Origen:</span><span class="val short" id="travelOrigin">N/A</span></div>
-            <div class="item"><span class="lbl">Destino:</span><span class="val short" id="travelDestination">N/A</span></div>
-            <div class="item"><span class="lbl">Ida:</span><span class="val short" id="travelDeparture">N/A</span></div>
-            <div class="item"><span class="lbl">Regreso:</span><span class="val short" id="travelReturn">N/A</span></div>
-          </div>
+          <div id="travelSegmentsList"></div>
+          <template id="travelSegmentTemplate">
+            <div class="line travel-segment">
+              <div class="item"><span class="lbl">Origen:</span><span class="val short" data-field="origin">N/A</span></div>
+              <div class="item"><span class="lbl">Destino:</span><span class="val short" data-field="destination">N/A</span></div>
+              <div class="item"><span class="lbl">Ida:</span><span class="val short" data-field="departure">N/A</span></div>
+              <div class="item"><span class="lbl">Regreso:</span><span class="val short" data-field="return">N/A</span></div>
+            </div>
+          </template>
           <div class="line">
             <div class="item"><span class="lbl">Noches:</span><span class="val short" id="travelNights">0</span></div>
-            <div class="item"><span class="lbl">Días:</span><span class="val short" id="travelDays">0</span></div>
+            <div class="item"><span class="lbl">Das:</span><span class="val short" id="travelDays">0</span></div>
             <div class="item"><span class="lbl">Pasajeros:</span><span class="val" id="passengerTotals">ADT(0), CHD(0), INF(0)</span></div>
           </div>
           <div class="separator"></div>
-          <div class="line">
-            <div class="item"><span class="lbl">Aerolínea:</span><span class="val" id="flightAirline">N/A</span></div>
-            <div class="item"><span class="lbl">Plan:</span><span class="val short" id="flightCategory">N/A</span></div>
-            <div class="item" style="flex:1"><span class="lbl">Equipaje:</span><span class="val" id="baggageSummary">—</span></div>
-          </div>
-          <div class="line">
-            <div class="item" style="flex:1"><span class="lbl">Ciclo de vuelo:</span><span class="val" id="flightCycle">N/A</span></div>
-          </div>
+          <div id="flightSegmentsList"></div>
+          <template id="flightSegmentTemplate">
+            <div class="flight-segment">
+              <div class="line">
+                <div class="item"><span class="lbl">Aerolnea:</span><span class="val" data-field="airline">N/A</span></div>
+                <div class="item"><span class="lbl">Plan:</span><span class="val short" data-field="category">N/A</span></div>
+                <div class="item" style="flex:1"><span class="lbl">Equipaje:</span><span class="val" data-field="baggage">-</span></div>
+              </div>
+              <div class="line">
+                <div class="item" style="flex:1"><span class="lbl">Ciclo de vuelo:</span><span class="val" data-field="cycle">N/A</span></div>
+              </div>
+            </div>
+          </template>
           <div class="separator"></div>
+          <div id="hotelSegmentsList"></div>
+          <template id="hotelSegmentTemplate">
+            <div class="hotel-segment">
+              <div class="line">
+                <div class="item"><span class="lbl">Hotel:</span><span class="val" data-field="name">N/A</span></div>
+                <div class="item"><span class="lbl">Habitacin:</span><span class="val" data-field="room">N/A</span></div>
+                <div class="item"><span class="lbl">Plan de alimentacin:</span><span class="val" data-field="mealPlan">N/A</span></div>
+              </div>
+              <div class="line">
+                <div class="item" style="flex:1"><span class="lbl">(N habitaciones / ADT / CHD / INF):</span><span class="val" data-field="accommodations">-</span></div>
+              </div>
+            </div>
+          </template>
           <div class="line">
-            <div class="item"><span class="lbl">Hotel:</span><span class="val" id="hotelName">N/A</span></div>
-            <div class="item"><span class="lbl">Habitación:</span><span class="val" id="hotelRoomType">N/A</span></div>
-            <div class="item"><span class="lbl">Plan de alimentación:</span><span class="val" id="hotelMealPlan">N/A</span></div>
-          </div>
-          <div class="line">
-            <div class="item" style="flex:1"><span class="lbl">(N° habitaciones / ADT / CHD / INF):</span><span class="val" id="accommodationsSummary">—</span></div>
-          </div>
-          <div class="line">
-            <div class="item" style="flex:1"><span class="lbl">Otras inclusiones:</span><span class="val" id="otherInclusions">—</span></div>
+            <div class="item" style="flex:1"><span class="lbl">Otras inclusiones:</span><span class="val" id="otherInclusions">-</span></div>
           </div>
         </div>
       </div>
@@ -155,20 +168,20 @@
           <thead>
             <tr>
               <th style="width:10%">Cant.</th>
-              <th>Descripción</th>
+              <th>Descripcin</th>
               <th style="width:18%">Vr. Unit.</th>
               <th style="width:18%">Vr. Total</th>
             </tr>
           </thead>
           <tbody id="paymentsBody">
-            <tr><td colspan="4" class="text-center">No hay información de pagos.</td></tr>
+            <tr><td colspan="4" class="text-center">No hay informacin de pagos.</td></tr>
           </tbody>
         </table>
         <div class="totals">
-          <div class="tline"><span>Subtotal</span><span id="paymentsSubtotal">—</span></div>
-          <div class="tline"><span>Recargo</span><span id="paymentsSurcharge">—</span></div>
-          <div class="tline grand"><span>Total</span><span id="paymentsTotal">—</span></div>
-          <div style="font-size:11px;color:var(--gris-txt);margin-top:2px">En letras: <strong id="paymentsTotalWords">—</strong></div>
+          <div class="tline"><span>Subtotal</span><span id="paymentsSubtotal"></span></div>
+          <div class="tline"><span>Recargo</span><span id="paymentsSurcharge"></span></div>
+          <div class="tline grand"><span>Total</span><span id="paymentsTotal"></span></div>
+          <div style="font-size:11px;color:var(--gris-txt);margin-top:2px">En letras: <strong id="paymentsTotalWords"></strong></div>
         </div>
       </div>
 
@@ -190,21 +203,439 @@
         <div id="footerTerms"></div>
         <div id="footerNote"></div>
         <div style="margin-top:4px;opacity:.95">
-          ESTA FACTURA DE VENTA SE ASIMILA EN TODOS SUS EFECTOS A UNA LETRA DE CAMBIO SEGÚN ART.774 DEL C. DE CIO.
+          ESTA FACTURA DE VENTA SE ASIMILA EN TODOS SUS EFECTOS A UNA LETRA DE CAMBIO SEGN ART.774 DEL C. DE CIO.
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const parseDate = (v)=>{ if(!v) return null; if(v instanceof Date) return v; const s=String(v); const d=new Date(s); if(!isNaN(d)) return d; const m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/); return m? new Date(Date.UTC(+m[1],+m[2]-1,+m[3])): null; };
+    const parseDate = (v)=>{ if(!v) return null; if(v instanceof Date) return v; const s=String(v); const d=new Date(s); if(!isNaN(d)) return d; const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m? new Date(Date.UTC(+m[1],+m[2]-1,+m[3])): null; };
     const two=(n)=>String(n).padStart(2,'0');
     const formatDate=(v)=>{ const d=parseDate(v); if(!d) return 'N/A'; return two(d.getUTCDate())+'/'+two(d.getUTCMonth()+1)+'/'+d.getUTCFullYear(); };
-    const formatCurrency=(n,cur='COP')=>{ const x=Number(n); if(!Number.isFinite(x)) return '—'; try{ return new Intl.NumberFormat('es-CO',{style:'currency',currency:cur,maximumFractionDigits:0}).format(x);}catch{return cur+' '+x.toLocaleString('es-CO');} };
+    const formatCurrency=(n,cur='COP')=>{ const x=Number(n); if(!Number.isFinite(x)) return ''; try{ return new Intl.NumberFormat('es-CO',{style:'currency',currency:cur,maximumFractionDigits:0}).format(x);}catch{return cur+' '+x.toLocaleString('es-CO');} };
     const numeroALetras=(num)=>{ if(!Number.isFinite(num)) return ''; const u=['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE']; const e={10:'DIEZ',11:'ONCE',12:'DOCE',13:'TRECE',14:'CATORCE',15:'QUINCE',16:'DIECISEIS',17:'DIECISIETE',18:'DIECIOCHO',19:'DIECINUEVE',20:'VEINTE',21:'VEINTIUNO',22:'VEINTIDOS',23:'VEINTITRES',24:'VEINTICUATRO',25:'VEINTICINCO',26:'VEINTISEIS',27:'VEINTISIETE',28:'VEINTIOCHO',29:'VEINTINUEVE'}; const d=['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA']; const c=['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS']; const sec=(n)=>{ if(n===0) return ''; if(n<10) return u[n]; if(n<30) return e[n]; if(n<100){const D=Math.floor(n/10),R=n%10;return d[D]+(R?' Y '+u[R]:'');} if(n===100) return 'CIEN'; if(n<1000){const C=Math.floor(n/100),R=n%100;return c[C]+(R?' '+sec(R):'');} if(n<1e6){const M=Math.floor(n/1e3),R=n%1e3;return (M===1?'MIL':sec(M)+' MIL')+(R?' '+sec(R):'');} if(n<1e9){const MM=Math.floor(n/1e6),R=n%1e6;return (MM===1?'UN MILLON':sec(MM)+' MILLONES')+(R?' '+sec(R):'');} const B=Math.floor(n/1e9),R2=n%1e9;return (B===1?'UN BILLON':sec(B)+' BILLONES')+(R2?' '+sec(R2):''); }; const ent=Math.floor(Math.abs(num)); const cents=Math.round((Math.abs(num)-ent)*100); let out=ent===0?'CERO':sec(ent); out+=' PESOS'; if(cents>0) out+=' CON '+String(cents).padStart(2,'0')+'/100'; return out; };
 
     const setText=(id,v,empty='N/A')=>{ const el=document.getElementById(id); if(el) el.textContent=v? v: empty; };
     const fillTable=(tbodyId,rows,emptyCols,emptyText)=>{ const tb=document.getElementById(tbodyId); if(!tb) return; tb.innerHTML=''; if(!rows||!rows.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=emptyCols; td.textContent=emptyText; td.style.textAlign='center'; tr.appendChild(td); tb.appendChild(tr); return;} rows.forEach(r=>{ const tr=document.createElement('tr'); r.forEach(c=>{ const td=document.createElement('td'); td.textContent=c; tr.appendChild(td); }); tb.appendChild(tr); }); };
+
+    const collectItems=(...sources)=>{
+      const out=[];
+      const seenObjects=new WeakSet();
+      const seenPrimitives=new Set();
+      const hintKeys=['origin','origen','destination','destino','from','to','departure','arrival','ida','vuelta','return','regreso','arrivaldate','departuredate','fecha','airline','aerolinea','carrier','hotel','habitacion','room','city','ciudad','segment','tramo','stay','vuelo','flight','segmento','destin','night','dia','ruta'];
+      const nestedKeys=['segments','segment','segmentList','segmentos','legs','leg','tramos','routes','route','destinations','destinos','items','item','detail','details','detalle','detalles','values','value','list','lists','collection','collections','stays','stayList','hotels','hoteles','rooms','habitaciones','paths','path','itinerary','itineraries','flights','viajes','entries','elementos','records','accommodations','accommodationList','hotelsList','roomsList','hotelList'];
+      const push=(value)=>{
+        if(!value) return;
+        if(Array.isArray(value)){
+          value.forEach(push);
+          return;
+        }
+        if(value instanceof Map){
+          value.forEach(v=>push(v));
+          return;
+        }
+        if(value instanceof Set){
+          value.forEach(v=>push(v));
+          return;
+        }
+        if(typeof value==='object'){
+          if(seenObjects.has(value)) return;
+          if(typeof value.length==='number' && value.length>=0){
+            Array.from(value).forEach(push);
+            return;
+          }
+          seenObjects.add(value);
+          const entries=Object.entries(value);
+          if(entries.length){
+            const numericKeys=entries.every(([k])=>!Number.isNaN(Number(k)));
+            if(numericKeys){
+              entries.sort((a,b)=>Number(a[0])-Number(b[0])).forEach(([,v])=>push(v));
+              return;
+            }
+            const lowerKeys=entries.map(([k])=>k.toLowerCase());
+            const isSegment=lowerKeys.some(k=>hintKeys.some(h=>k.includes(h)));
+            if(isSegment){
+              out.push(value);
+            }else{
+              let usedNested=false;
+              nestedKeys.forEach(nk=>{
+                if(nk in value){
+                  usedNested=true;
+                  push(value[nk]);
+                }
+              });
+              if(!usedNested) out.push(value);
+            }
+          }else{
+            out.push(value);
+          }
+          return;
+        }
+        const primitiveKey=`${typeof value}:${value}`;
+        if(seenPrimitives.has(primitiveKey)) return;
+        seenPrimitives.add(primitiveKey);
+        out.push(value);
+      };
+      sources.forEach(push);
+      return out.filter(Boolean);
+    };
+
+    const resolveValue=(source,paths=[],opts={})=>{
+      const allowObjects=opts.allowObjects===true;
+      if(!source) return undefined;
+      for(const rawPath of paths){
+        if(!rawPath) continue;
+        const parts=Array.isArray(rawPath)?rawPath:(String(rawPath).split('.'));
+        let value=source;
+        let failed=false;
+        for(const part of parts){
+          if(value==null){ failed=true; break; }
+          if(typeof value!=='object' && typeof value!=='function'){ failed=true; break; }
+          if(Object.prototype.hasOwnProperty.call(value,part)){ value=value[part]; continue; }
+          if(part in value){ value=value[part]; continue; }
+          failed=true; break;
+        }
+        if(failed) continue;
+        if(value===undefined || value===null || value==='') continue;
+        if(typeof value==='object' && !(value instanceof Date) && !allowObjects) continue;
+        return value;
+      }
+      return undefined;
+    };
+
+    const displayText=(value)=>{
+      if(value===undefined || value===null) return '';
+      if(typeof value==='string') return value;
+      if(typeof value==='number') return String(value);
+      if(value instanceof Date) return formatDate(value);
+      if(typeof value==='object'){
+        const keys=['city','name','label','description','title','code','text','airport'];
+        for(const k of keys){ if(value[k]) return String(value[k]); }
+        if(value.toString && value.toString!==Object.prototype.toString) return value.toString();
+      }
+      return '';
+    };
+
+    const buildBaggageSummary=(baggage)=>{
+      if(!baggage) return '';
+      if(Array.isArray(baggage)){
+        return baggage.map(b=>buildBaggageSummary(b)).filter(Boolean).join(' | ');
+      }
+      if(typeof baggage==='string') return baggage;
+      if(typeof baggage!=='object') return '';
+      const parts=[];
+      const hand=baggage.summary||baggage.hand||baggage.carryOn||baggage.cabina||baggage.cabin;
+      const hold=baggage.hold||baggage.bodega||baggage.checked||baggage.checkedBag||baggage.checkedBaggage;
+      const additional=baggage.additional||baggage.extra||baggage.description;
+      if(hand) parts.push(`Articulo de mano: ${hand}`);
+      if(baggage.cabin && baggage.cabin!==hand) parts.push(`Cabina: ${baggage.cabin}`);
+      if(hand && !parts.some(p=>p.includes('Cabina')) && (baggage.carryOn||baggage.hand)){ parts.push(`Cabina: ${hand}`); }
+      if(hold) parts.push(`Bodega: ${hold}`);
+      if(baggage.allowance) parts.push(String(baggage.allowance));
+      if(additional) parts.push(String(additional));
+      if(!parts.length && baggage.label) parts.push(String(baggage.label));
+      if(!parts.length && baggage.name) parts.push(String(baggage.name));
+      return parts.join(' | ');
+    };
+
+    const normalizeAccommodationEntries=(list)=>{
+      if(!Array.isArray(list)) return [];
+      return list
+        .filter(Boolean)
+        .map((acc,index)=>({
+          index: index + 1,
+          rooms: Number(acc?.rooms ?? acc?.room_quantity ?? acc?.roomQuantity ?? acc?.roomsCount ?? 0) || 0,
+          adt: Number(acc?.adt ?? acc?.adults ?? acc?.adultCount ?? 0) || 0,
+          chd: Number(acc?.chd ?? acc?.children ?? acc?.childCount ?? 0) || 0,
+          inf: Number(acc?.inf ?? acc?.infants ?? acc?.infantCount ?? 0) || 0,
+        }))
+        .filter(entry => (entry.rooms || entry.adt || entry.chd || entry.inf));
+    };
+
+    const formatAccommodationEntry=(entry={})=>{
+      const rooms=Number(entry.rooms)||0;
+      const adt=Number(entry.adt)||0;
+      const chd=Number(entry.chd)||0;
+      const inf=Number(entry.inf)||0;
+      return `${rooms} / ADT:${adt} CHD:${chd} INF:${inf}`;
+    };
+
+    const formatAccommodationCollection=(entries=[])=>{
+      if(!entries.length) return '';
+      return entries.map(e=>formatAccommodationEntry(e)).join('<br/>');
+    };
+
+    const renderTravelSection = (travel = {}, extraSegments = []) => {
+      const container = document.getElementById('travelSegmentsList');
+      const template = document.getElementById('travelSegmentTemplate');
+      if (!container || !template) return;
+      container.innerHTML = '';
+
+      const segments = collectItems(
+        extraSegments,
+        travel.segments,
+        travel.segment,
+        travel.segmentList,
+        travel.segmentsList,
+        travel.itinerary,
+        travel.routes,
+        travel.tramos,
+        travel.trayectos,
+        travel.sections,
+        travel.destinations,
+        travel.destinos,
+        travel.detail,
+        travel.details,
+        travel.list,
+        travel.legs,
+        travel.paths,
+        travel.segmentos
+      );
+
+      if (segments.length === 0 && (travel.origin || travel.destination || travel.departureDate || travel.returnDate)) {
+        segments.push(travel);
+      }
+
+      if (segments.length > 0) {
+        container.style.display = '';
+        segments.forEach((seg, index) => {
+          if (index > 0) {
+            const separator = document.createElement('div');
+            separator.className = 'separator';
+            container.appendChild(separator);
+          }
+          const clone = template.content.firstElementChild.cloneNode(true);
+          const origin = displayText(resolveValue(seg, ['origin', 'origen', 'from', 'departure.city', 'departureCity', 'departure.name', 'departure.label', 'departure.airport', 'inicio.city', 'start.city', 'start', 'source', 'salida.origen', 'ciudadSalida', 'originCity', 'ciudadOrigen'], { allowObjects: true }) ?? seg.departureCity);
+          const destination = displayText(resolveValue(seg, ['destination', 'destino', 'to', 'arrival.city', 'arrivalCity', 'arrival.name', 'arrival.label', 'arrival.airport', 'fin.city', 'end.city', 'target', 'destiny', 'ciudadLlegada', 'destinationCity', 'ciudadDestino'], { allowObjects: true }) ?? seg.arrivalCity);
+          const departureVal = resolveValue(seg, ['departureDate', 'fechaIda', 'departure.date', 'departureDateTime', 'departure', 'startDate', 'fromDate', 'ida', 'fechaSalida', 'salida', 'fechaInicio']);
+          const returnVal = resolveValue(seg, ['returnDate', 'fechaRegreso', 'arrival.date', 'arrivalDate', 'arrivalDateTime', 'return', 'endDate', 'toDate', 'vuelta', 'regreso', 'llegada', 'fechaFin']);
+          const setField = (selector, value, isDate = false) => {
+            const el = clone.querySelector(selector);
+            if (!el) return;
+            if (isDate) el.textContent = formatDate(value);
+            else el.textContent = value ? value : 'N/A';
+          };
+          setField('[data-field="origin"]', origin || 'N/A');
+          setField('[data-field="destination"]', destination || 'N/A');
+          setField('[data-field="departure"]', departureVal, true);
+          setField('[data-field="return"]', returnVal, true);
+          container.appendChild(clone);
+        });
+      } else {
+        container.style.display = 'none';
+      }
+    };
+
+    const renderFlightSection = (flights = {}, extraSegments = []) => {
+      const container = document.getElementById('flightSegmentsList');
+      const template = document.getElementById('flightSegmentTemplate');
+      if (!container || !template) return;
+      container.innerHTML = '';
+
+      const segments = collectItems(
+        extraSegments,
+        flights.segment,
+        flights.segmentList,
+        flights.segments,
+        flights.segmentsList,
+        flights.itinerary,
+        flights.routes,
+        flights.tramos,
+        flights.paths,
+        flights.segmentos,
+        flights.detail,
+        flights.details,
+        flights.flights,
+        flights.list
+      );
+
+      const flightSegmentsFiltered = segments.filter((seg) => {
+        if (!seg || typeof seg !== 'object') {
+          return true;
+        }
+
+        const hasCompositeInfo =
+          Array.isArray(seg.itineraries) ||
+          Array.isArray(seg.segments) ||
+          Array.isArray(seg.segmentList) ||
+          'itineraries' in seg ||
+          'cycle' in seg ||
+          'flight_cycle' in seg ||
+          'category' in seg ||
+          'class' in seg ||
+          'pnr' in seg ||
+          'plan' in seg;
+
+        const hasFlightNumber = Boolean(seg.flightNumber || seg.flight_number);
+
+        if (hasFlightNumber && !hasCompositeInfo) {
+          return false;
+        }
+
+        return true;
+      });
+
+      if (flightSegmentsFiltered.length === 0 && (flights.airline || flights.category || flights.cycle)) {
+        flightSegmentsFiltered.push(flights);
+      }
+
+      if (flightSegmentsFiltered.length > 0) {
+        container.style.display = '';
+        flightSegmentsFiltered.forEach((seg, index) => {
+          if (index > 0) {
+            const sep = document.createElement('div');
+            sep.className = 'separator';
+            container.appendChild(sep);
+          }
+          const clone = template.content.firstElementChild.cloneNode(true);
+          const airline = displayText(resolveValue(seg, ['airline', 'aerolinea', 'carrier', 'airline.name', 'carrier.name', 'marketingCarrier', 'operatingCarrier', 'carrierDescription', 'line'], { allowObjects: true }) ?? seg.airlineCode);
+          const category = displayText(resolveValue(seg, ['category', 'class', 'fareClass', 'serviceClass', 'cabin', 'plan', 'categoria']));
+          const cycle = displayText(resolveValue(seg, ['cycle', 'route', 'itinerary', 'summary', 'description', 'ciclo', 'trayecto', 'info', 'cicloVuelo', 'itinerario']));
+          const baggageText = buildBaggageSummary(seg.baggage || seg.baggageAllowance || seg.baggageInfo || seg.baggageIncluded || seg.baggageSummary || seg.equipaje);
+          const setField = (selector, value, empty = 'N/A') => {
+            const el = clone.querySelector(selector);
+            if (el) el.textContent = value ? value : empty;
+          };
+          setField('[data-field="airline"]', airline);
+          setField('[data-field="category"]', category);
+          setField('[data-field="baggage"]', baggageText, '-');
+          setField('[data-field="cycle"]', cycle);
+          container.appendChild(clone);
+        });
+      } else {
+        container.style.display = 'none';
+      }
+    };
+
+    const renderHotelSection = (hotel = {}, hotelList = []) => {
+      const container = document.getElementById('hotelSegmentsList');
+      const template = document.getElementById('hotelSegmentTemplate');
+      if (!container || !template) return;
+      container.innerHTML = '';
+
+      const segments = collectItems(
+        hotelList,
+        hotel.segment,
+        hotel.segments,
+        hotel.list,
+        hotel.stays,
+        hotel.hotels,
+        hotel.details,
+        hotel.rooms,
+        hotel.roomsList,
+        hotel.segmentos,
+        hotel.hotelSegments,
+        hotel.detalle,
+        hotel.detalles
+      );
+
+      if (segments.length === 0 && (hotel.name || hotel.roomType || hotel.mealPlan)) {
+        segments.push(hotel);
+      }
+
+      const seenSegmentKeys = new Set();
+      const filteredSegments = [];
+      const buildSegmentKey = (seg = {}) => {
+        const id = seg.id || seg.hotel_id || seg.segment_id || seg.segmentId || seg.reservation_hotel_id || '';
+        const index = seg.index != null ? `#${seg.index}` : '';
+        const name = (seg.name || seg.hotelName || seg.label || '').toString().toLowerCase();
+        const roomType = (seg.roomType || seg.room || '').toString().toLowerCase();
+        const checkIn = (seg.checkIn || seg.check_in || seg.start_date || seg.startDate || '').toString().slice(0, 10);
+        const checkOut = (seg.checkOut || seg.check_out || seg.end_date || seg.endDate || '').toString().slice(0, 10);
+        const mealPlan = (seg.mealPlan || seg.plan || '').toString().toLowerCase();
+        const baseKey = [id, index, name, roomType, mealPlan, checkIn, checkOut].filter(Boolean).join('|');
+        if (baseKey) return baseKey;
+        try {
+          return JSON.stringify({
+            name,
+            roomType,
+            mealPlan,
+            checkIn,
+            checkOut,
+            accommodations: normalizeAccommodationEntries(seg.accommodations || []),
+          });
+        } catch {
+          return `${name}|${roomType}|${mealPlan}|${checkIn}|${checkOut}`;
+        }
+      };
+
+      segments.forEach(seg => {
+        if (!seg || typeof seg !== 'object') {
+          return;
+        }
+        const key = buildSegmentKey(seg);
+        if (seenSegmentKeys.has(key)) {
+          return;
+        }
+        seenSegmentKeys.add(key);
+        filteredSegments.push(seg);
+      });
+
+      const allAccommodationEntries = [];
+
+      if (filteredSegments.length > 0) {
+        container.style.display = '';
+        filteredSegments.forEach((seg, index) => {
+          if (index > 0) {
+            const sep = document.createElement('div');
+            sep.className = 'separator';
+            container.appendChild(sep);
+          }
+          const clone = template.content.firstElementChild.cloneNode(true);
+          const name = displayText(resolveValue(seg, ['name', 'hotelName', 'label', 'title', 'hotel', 'nombreHotel'], { allowObjects: true }) ?? seg.name);
+          const room = displayText(resolveValue(seg, ['roomType', 'room', 'room.name', 'roomDescription', 'category', 'habitacion', 'tipoHabitacion', 'habitacionDescripcion']));
+          const mealPlan = displayText(resolveValue(seg, ['mealPlan', 'plan', 'board', 'boardPlan', 'regime', 'pension', 'alimentacion', 'meal', 'planAlimentacion']));
+          const setField = (selector, value) => {
+            const el = clone.querySelector(selector);
+            if (el) el.textContent = value ? value : 'N/A';
+          };
+          setField('[data-field="name"]', name);
+          setField('[data-field="room"]', room);
+          setField('[data-field="mealPlan"]', mealPlan);
+          const segmentEntries = normalizeAccommodationEntries(seg.accommodations);
+          const segmentHtml = formatAccommodationCollection(segmentEntries);
+          const accommodationsField = clone.querySelector('[data-field="accommodations"]');
+          if (accommodationsField) {
+            if (segmentHtml) {
+              accommodationsField.innerHTML = segmentHtml;
+            } else {
+              accommodationsField.textContent = '-';
+            }
+          }
+          segmentEntries.forEach(entry => allAccommodationEntries.push(entry));
+          container.appendChild(clone);
+        });
+      } else {
+        container.style.display = 'none';
+      }
+
+      if (!filteredSegments.length && Array.isArray(hotel.accommodations)) {
+        normalizeAccommodationEntries(hotel.accommodations).forEach(entry => allAccommodationEntries.push(entry));
+      }
+
+      const accEl = document.getElementById('accommodationsSummary');
+      if (accEl) {
+        if (allAccommodationEntries.length) {
+          const totalTotals = allAccommodationEntries.reduce(
+            (acc, entry) => ({
+              rooms: acc.rooms + (Number(entry.rooms) || 0),
+              adt: acc.adt + (Number(entry.adt) || 0),
+              chd: acc.chd + (Number(entry.chd) || 0),
+              inf: acc.inf + (Number(entry.inf) || 0),
+            }),
+            { rooms: 0, adt: 0, chd: 0, inf: 0 }
+          );
+          if (totalTotals.rooms || totalTotals.adt || totalTotals.chd || totalTotals.inf) {
+            accEl.textContent = formatAccommodationEntry(totalTotals);
+          } else {
+            accEl.textContent = '-';
+          }
+        } else {
+          accEl.textContent = '-';
+        }
+      }
+    };
 
     const renderInvoice=(data={})=>{
       const { agency={}, invoice={}, titular={}, emergencyContact={}, travel={}, flights={}, hotel={}, passengers={}, transfers={}, tours=[], payments={}, footer={}, signatures={} } = data;
@@ -221,39 +652,57 @@
       setText('clientAddress', titular.address||'N/A');
       setText('emergencyName', emergencyContact.name||'N/A');
       setText('emergencyPhone', emergencyContact.phone||'N/A');
-      setText('travelOrigin', travel.origin||'N/A');
-      setText('travelDestination', travel.destination||'N/A');
-      setText('travelDeparture', formatDate(travel.departureDate));
-      setText('travelReturn', formatDate(travel.returnDate));
+      const travelExtraSegments=collectItems(
+        data.travelSegments,
+        data.travelSegmentsList,
+        data.travelItinerary,
+        data.travelRoutes,
+        data.travelTramos,
+        data.travelDestinos,
+        data.travelDetails
+      );
+      renderTravelSection(travel, travelExtraSegments);
       setText('travelNights', Number.isFinite(travel.nights)?travel.nights:'0');
       setText('travelDays', Number.isFinite(travel.days)?travel.days:'0');
       const adt = passengers.totals?.adt ?? 0;
       const chd = passengers.totals?.chd ?? 0;
       const inf = passengers.totals?.inf ?? 0;
       document.getElementById('passengerTotals').textContent = `ADT(${adt}), CHD(${chd}), INF(${inf})`;
-      setText('flightAirline', flights.airline||'N/A');
-      setText('flightCategory', flights.category||'N/A');
-      setText('flightCycle', flights.cycle||'N/A');
-      const bag=[]; if(flights.baggage?.summary) bag.push('Artículo de mano: '+flights.baggage.summary); if(flights.baggage?.cabin) bag.push('Cabina: '+flights.baggage.cabin); if(flights.baggage?.hold) bag.push('Bodega: '+flights.baggage.hold);
-      document.getElementById('baggageSummary').textContent = bag.length? bag.join(' | ') : '—';
-      setText('hotelName', hotel.name||'N/A');
-      setText('hotelRoomType', hotel.roomType||'N/A');
-      setText('hotelMealPlan', hotel.mealPlan||'N/A');
-      let rooms = 0, a=0, c=0, i=0; if(Array.isArray(hotel.accommodations)){ hotel.accommodations.forEach(h=>{ rooms += Number(h.rooms||0); a += Number(h.adt||0); c += Number(h.chd||0); i += Number(h.inf||0); }); }
-      document.getElementById('accommodationsSummary').textContent = rooms? `${rooms} / ADT:${a} CHD:${c} INF:${i}` : '—';
-      const other = []; if(Array.isArray(tours)&&tours.length){ other.push('Tours: '+tours.map(t=>t.name).filter(Boolean).join(', ')); } if(Array.isArray(data.assistance)&&data.assistance.length){ other.push('Asistencias: '+data.assistance.map(a=>a.planType||a.provider).filter(Boolean).join(', ')); }
-      document.getElementById('otherInclusions').textContent = other.length? other.join(' | ') : '—';
+      const flightExtraSegments=collectItems(
+        data.flightSegments,
+        data.flightsSegments,
+        data.flightList,
+        data.flightRoutes,
+        data.flightDetails,
+        data.flightItinerary,
+        data.flightLegs
+      );
+      renderFlightSection(flights, flightExtraSegments);
+      const hotelExtraList=collectItems(
+        data.hotels,
+        data.hotelList,
+        data.hotelSegments,
+        data.hotelsList,
+        data.hotelDetails,
+        data.hotelStays
+      );
+      renderHotelSection(hotel, hotelExtraList);
+      const other = [];
+      if(Array.isArray(data.assistance)&&data.assistance.length){
+        other.push('Asistencias: '+data.assistance.map(a=>a.planType||a.provider).filter(Boolean).join(', '));
+      }
+      document.getElementById('otherInclusions').textContent = other.length? other.join(' | ') : '';
       const trArr = Array.isArray(transfers.detail)? transfers.detail.map((t,i)=>`${i+1}. ${t.label||t.type||'Traslado'} ${t.date?('('+formatDate(t.date)+')'):''}`):[];
-      document.getElementById('transfersSummary2').textContent = trArr.length? trArr.join('  •  ') : 'No hay traslados registrados.';
+      document.getElementById('transfersSummary2').textContent = trArr.length? trArr.join('    ') : 'No hay traslados registrados.';
       const toursRows = Array.isArray(tours) ? tours.filter(Boolean).map((t,i)=> `${i+1}. ${t.name||'Servicio'} ${t.date?(' - '+formatDate(t.date)):''}`) : [];
       const toursBox = document.getElementById('toursContent');
       toursBox.innerHTML = toursRows.length ? '<ul style="margin:2px 0 2px 16px">'+toursRows.map(x=>`<li>${x}</li>`).join('')+'</ul>' : 'No hay tours o servicios adicionales registrados.';
       const rows = Array.isArray(payments.lineItems) ? payments.lineItems.map(li=>[ li.quantity??0, li.label||li.code||'Concepto', formatCurrency(li.unitPrice, payments.currency||'COP'), formatCurrency(li.amount, payments.currency||'COP') ]) : [];
-      fillTable('paymentsBody', rows, 4, 'No hay información de pagos.');
+      fillTable('paymentsBody', rows, 4, 'No hay informacin de pagos.');
       setText('paymentsSubtotal', formatCurrency(payments.subtotal||0, payments.currency||'COP'));
       setText('paymentsSurcharge', formatCurrency(payments.surcharge||0, payments.currency||'COP'));
       setText('paymentsTotal', formatCurrency(payments.total||0, payments.currency||'COP'));
-      document.getElementById('paymentsTotalWords').textContent = numeroALetras(Math.round(payments.total||0)) || '—';
+      document.getElementById('paymentsTotalWords').textContent = numeroALetras(Math.round(payments.total||0)) || '';
       setText('signatureAdvisor', signatures.advisor||'N/A');
       setText('signatureClient', signatures.client||'N/A');
       document.getElementById('invoiceMessage').textContent = footer.invoiceMessage||'';
