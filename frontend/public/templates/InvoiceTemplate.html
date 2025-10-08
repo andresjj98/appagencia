@@ -14,8 +14,11 @@
     .ribbon{background:linear-gradient(135deg,var(--turquesa) 0%, #49c8de 70%, #eaf7fb 70%);padding:10px 14px}
     .ribbon-inner{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .brand{display:flex;align-items:center;gap:10px;color:#fff}
-    .logo{width:96px;height:64px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
-    .logo img{max-width:92%;max-height:92%;object-fit:contain}
+    .logo{position:relative;width:96px;height:64px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(0,0,0,.06);font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff}
+    .logo img{width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .25s ease}
+    .logo-loaded img{opacity:1}
+    .logo-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,var(--turquesa) 0%,var(--turquesa-osc) 100%);font-size:18px}
+    .logo-loaded .logo-fallback{display:none}
     .brand h1{margin:0;font-size:26px;line-height:1;font-weight:800;letter-spacing:.3px}
     .brand small{display:block;margin-top:2px;opacity:.95;font-weight:600;letter-spacing:.06em}
     .fact-box{background:#fff;color:var(--azul-osc);border:1px solid var(--gris-borde);border-radius:8px;padding:8px 10px;min-width:240px}
@@ -40,9 +43,11 @@
     .grand{font-size:16px;border-top:2px solid var(--turquesa);padding-top:6px;color:var(--turquesa-osc)}
     .legal{margin-top:6px;font-size:10.5px;color:#3c4d53;border-top:1px solid var(--gris-borde);padding-top:6px;line-height:1.25}
     .actions{display:flex;gap:8px;justify-content:center;padding:10px}
-    .btn{border:none;border-radius:999px;background:var(--turquesa);color:#fff;font-weight:700;padding:8px 14px;cursor:pointer;font-size:12px}
+    .btn{border:none;border-radius:999px;background:var(--turquesa);color:#fff;font-weight:700;padding:8px 14px;cursor:pointer;font-size:12px;transition:background .2s ease}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
     .btn.gray{background:#2e4852}
-    @media print{ .actions{display:none!important} .page{box-shadow:none;border-radius:0;margin:0;width:auto} .ribbon{padding-bottom:8px} }
+    @page{size:A4 portrait;margin:12mm}
+    @media print{ *{-webkit-print-color-adjust:exact;print-color-adjust:exact} body{background:#fff} .actions{display:none!important} .page{box-shadow:none;border-radius:0;margin:0 auto;width:100%;max-width:none} .ribbon{padding-bottom:8px} }
   </style>
 </head>
 <body>
@@ -55,7 +60,10 @@
     <div class="ribbon">
       <div class="ribbon-inner">
         <div class="brand">
-          <div class="logo"><img id="agencyLogo" alt="Logo"/></div>
+          <div id="agencyLogoWrapper" class="logo">
+            <span id="agencyLogoFallback" class="logo-fallback" aria-hidden="false">DV</span>
+            <img id="agencyLogo" alt="Logo de la agencia" loading="eager" />
+          </div>
           <div>
             <h1 id="agencyName">Dream Vacation</h1>
             <small id="agencyLegalName">Agencia Mayorista de Viajes y Turismo</small>
@@ -336,6 +344,124 @@
         if(value.toString && value.toString!==Object.prototype.toString) return value.toString();
       }
       return '';
+    };
+
+    const delay=(ms=0)=>new Promise((resolve)=>setTimeout(resolve,ms));
+
+    const firstString=(...values)=>{
+      for(const value of values){
+        if(!value) continue;
+        if(typeof value==='string' && value.trim()) return value.trim();
+        if(typeof value==='object'){
+          const nested=firstString(value.url,value.href,value.src,value.path);
+          if(nested) return nested;
+        }
+      }
+      return '';
+    };
+
+    const buildInitials=(text='')=>{
+      const words=String(text).trim().split(/\s+/).filter(Boolean);
+      if(!words.length) return 'AG';
+      const [first=''] = words;
+      const second = words.length>1 ? words[words.length-1] : '';
+      const initials = (first[0]||'').toUpperCase() + (second[0]||'').toUpperCase();
+      return initials || first.substring(0,2).toUpperCase() || 'AG';
+    };
+
+    const resolveLogoSource=(agency={})=>{
+      if(!agency || typeof agency!=='object') return '';
+      return firstString(
+        agency.logoUrl,
+        agency.logo_url,
+        agency.logoURL,
+        agency.logoDataUrl,
+        agency.logo_data_url,
+        agency.logoBase64,
+        agency.logo_base64,
+        agency.logo,
+        agency.primaryLogo,
+        agency.brandLogo,
+        agency.logo?.primary,
+        agency.logo?.url,
+        agency.logo?.href,
+        agency.logo?.src,
+        agency.logo?.dataUrl,
+        agency.logo?.base64
+      );
+    };
+
+    const applyAgencyLogo=(agency={})=>{
+      const wrapper=document.getElementById('agencyLogoWrapper');
+      const img=document.getElementById('agencyLogo');
+      const fallback=document.getElementById('agencyLogoFallback');
+      if(!wrapper || !img || !fallback) return;
+
+      const initials=buildInitials(agency.name || agency.legalName || agency.legal_name || 'Agencia');
+      fallback.textContent=initials;
+      wrapper.classList.remove('logo-loaded');
+      fallback.setAttribute('aria-hidden','false');
+      img.onload=null;
+      img.onerror=null;
+      
+      const source=resolveLogoSource(agency);
+      if(!source){
+        img.removeAttribute('src');
+        return;
+      }
+
+      img.alt=agency.name ? `Logo ${agency.name}` : 'Logo de la agencia';
+      if('decoding' in img){ img.decoding='async'; }
+
+      if(/^https?:\/\//i.test(source)){
+        img.crossOrigin='anonymous';
+        img.referrerPolicy='no-referrer';
+      }else{
+        img.removeAttribute('crossorigin');
+        img.removeAttribute('referrerpolicy');
+      }
+
+      img.onload=()=>{
+        wrapper.classList.add('logo-loaded');
+        fallback.setAttribute('aria-hidden','true');
+      };
+      img.onerror=()=>{
+        wrapper.classList.remove('logo-loaded');
+        fallback.setAttribute('aria-hidden','false');
+      };
+
+      if (img.src !== source) {
+        img.src=source;
+      }
+    };
+
+    const ensureAreaReady=async (area)=>{
+      if(!area) return;
+      await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      await delay(250);
+      const images=Array.from(area.querySelectorAll('img'));
+      const imagePromises=images.map((img)=>new Promise((resolve)=>{
+        const rawSrc=img.getAttribute('src') || img.getAttribute('data-src') || '';
+        if(!rawSrc || !rawSrc.trim()){
+          resolve();
+          return;
+        }
+        if(img.complete && img.naturalWidth>0){
+          resolve();
+          return;
+        }
+        const done=()=>{
+          img.removeEventListener('load',done);
+          img.removeEventListener('error',done);
+          resolve();
+        };
+        img.addEventListener('load',done,{once:true});
+        img.addEventListener('error',done,{once:true});
+      }));
+      const fontPromise=(document.fonts && document.fonts.ready)
+        ? document.fonts.ready.catch(()=>{})
+        : Promise.resolve();
+      await Promise.all([fontPromise, ...imagePromises]);
     };
 
     const buildBaggageSummary=(baggage)=>{
@@ -757,7 +883,7 @@
 
     const renderInvoice=(data={})=>{
       const { agency={}, invoice={}, titular={}, emergencyContact={}, travel={}, flights={}, hotel={}, passengers={}, transfers={}, tours=[], payments={}, footer={}, signatures={} } = data;
-      if(agency.logoUrl){ const lg=document.getElementById('agencyLogo'); lg.src=agency.logoUrl; }
+      applyAgencyLogo(agency);
       setText('agencyName', agency.name || 'Dream Vacation');
       setText('agencyLegalName', agency.legalName || 'Agencia Mayorista de Viajes y Turismo');
       setText('invoiceNumber', invoice.number || 'N/A');
@@ -890,13 +1016,76 @@
 
     window.renderInvoice = renderInvoice;
     window.numeroALetras = numeroALetras;
-    document.getElementById('btnExport').addEventListener('click', () => {
-      const area = document.getElementById('printArea');
-      const filename = document.getElementById('invoiceNumber').textContent || 'Factura';
-      const opt = { margin: [8,8,8,8], filename: filename + '.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: [8.5, 13], orientation: 'portrait' } };
-      html2pdf().set(opt).from(area).save();
+
+    const btnExport=document.getElementById('btnExport');
+    if(btnExport){
+      btnExport.addEventListener('click', async()=>{
+        const area=document.getElementById('printArea');
+        if(!area) return;
+        const previousScroll=window.scrollY || 0;
+        if(typeof window.scrollTo==='function'){
+          window.scrollTo(0,0);
+        }
+        const originalText=btnExport.textContent;
+        btnExport.disabled=true;
+        btnExport.textContent='Generando...';
+        btnExport.setAttribute('aria-busy','true');
+        try{
+          await ensureAreaReady(area);
+          const rawFilename=(document.getElementById('invoiceNumber')?.textContent||'Factura').trim()||'Factura';
+          const safeFilename=rawFilename.replace(/[\\\/:*?"<>|]+/g,'_');
+          const opt={ margin:[8,8,8,8], filename:`${safeFilename}.pdf`, image:{ type:'png', quality:0.98 }, html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', scrollY:0 }, jsPDF:{ unit:'in', format:'a4', orientation:'portrait' }, pagebreak:{ mode:['css'] } };
+          await html2pdf().set(opt).from(area).save();
+        }catch(error){
+          console.error('Error generando PDF:', error);
+          alert('No se pudo generar el PDF. Intenta nuevamente.');
+        }finally{
+          if(typeof window.scrollTo==='function'){
+            window.scrollTo(0,previousScroll);
+          }
+          btnExport.disabled=false;
+          btnExport.textContent=originalText;
+          btnExport.removeAttribute('aria-busy');
+        }
+      });
+    }
+
+    const btnPrint=document.getElementById('btnPrint');
+    if(btnPrint){
+      btnPrint.addEventListener('click', async()=>{
+        const area=document.getElementById('printArea');
+        if(area){
+          try{
+            await ensureAreaReady(area);
+          }catch(error){
+            console.warn('No se pudieron preparar todos los recursos antes de imprimir.', error);
+          }
+        }
+        window.print();
+      });
+    }
+
+    // Bloque de prueba para visualización
+    document.addEventListener('DOMContentLoaded', () => {
+      const mockData = {
+        agency: {
+          name: 'Mi Agencia',
+          legalName: 'Agencia de Viajes Local',
+          logoUrl: '/images/logo.png' // Ruta a tu logo local
+        },
+        invoice: {
+          number: 'FAC-001',
+          issueDate: new Date(),
+          advisorName: 'Asesor de Prueba'
+        },
+        titular: {
+          fullName: 'Nombre del Cliente',
+          document: '123456789'
+        }
+        // ... puedes añadir más datos de prueba si es necesario
+      };
+      window.renderInvoice(mockData);
     });
-    document.getElementById('btnPrint').addEventListener('click', () => window.print());
   </script>
 </body>
 </html>

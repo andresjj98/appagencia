@@ -187,7 +187,7 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       taxRegistry: settings.tax_registry || '',
       taxRegime: settings.tax_regime || '',
       tourismRegistry: settings.tourism_registry_number || '',
-      logoUrl: settings.logo_url || '',
+      logoUrl: settings.logo_url || '/images/logo.png',
       contact: {
         phone: contactInfo.mobile || contactInfo.phone || '',
         email: contactInfo.email || '',
