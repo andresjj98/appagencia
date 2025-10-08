@@ -185,6 +185,27 @@
         </div>
       </div>
 
+      <div class="sect">
+        <span class="sect-title">Plan de pagos (Cuotas)</span>
+        <div class="box">
+          <div id="installmentsSummary" class="text-[11.5px] text-[color:var(--gris-txt)] mb-2">Modalidad: N/A</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:10%">#</th>
+                <th style="width:25%">Vencimiento</th>
+                <th style="width:20%">Valor</th>
+                <th style="width:20%">Estado</th>
+                <th style="width:25%">Pago</th>
+              </tr>
+            </thead>
+            <tbody id="installmentsBody">
+              <tr><td colspan="5" class="text-center">No hay cuotas registradas.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="sect" style="margin-top:6px">
         <div class="grid grid-cols-2 gap-2">
           <div class="box">
@@ -364,6 +385,40 @@
     const formatAccommodationCollection=(entries=[])=>{
       if(!entries.length) return '';
       return entries.map(e=>formatAccommodationEntry(e)).join('<br/>');
+    };
+
+    const formatInstallmentStatus=(status)=>{
+      if(!status) return 'Pendiente';
+      switch(String(status).toLowerCase()){
+        case 'paid':
+        case 'pagado':
+          return 'Pagada';
+        case 'pending':
+        case 'pendiente':
+          return 'Pendiente';
+        case 'overdue':
+        case 'vencido':
+          return 'Vencida';
+        case 'cancelled':
+        case 'canceled':
+          return 'Cancelada';
+        default:
+          return status;
+      }
+    };
+
+    const formatPaymentOption=(option)=>{
+      if(!option) return 'Sin informacion';
+      switch(String(option).toLowerCase()){
+        case 'full_payment':
+        case 'pago_completo':
+          return 'Pago completo';
+        case 'installments':
+        case 'cuotas':
+          return 'Pago a cuotas';
+        default:
+          return option;
+      }
     };
 
     const formatTransferTypeLabel=(transfer={})=>{
@@ -783,6 +838,49 @@
       setText('paymentsSurcharge', formatCurrency(payments.surcharge||0, payments.currency||'COP'));
       setText('paymentsTotal', formatCurrency(payments.total||0, payments.currency||'COP'));
       document.getElementById('paymentsTotalWords').textContent = numeroALetras(Math.round(payments.total||0)) || '';
+      const installmentsSummaryEl = document.getElementById('installmentsSummary');
+      const installmentsBodyEl = document.getElementById('installmentsBody');
+      const paymentOptionLabel = formatPaymentOption(invoice.paymentOption);
+      if(installmentsSummaryEl){
+        installmentsSummaryEl.textContent = `Modalidad: ${paymentOptionLabel}`;
+      }
+      if(installmentsBodyEl){
+        const installments = Array.isArray(payments.installments) ? payments.installments.filter(Boolean) : [];
+        installmentsBodyEl.innerHTML = '';
+        if(installments.length){
+          const currency = payments.currency || invoice.currency || 'COP';
+          installments.forEach((inst, idx)=>{
+            const tr = document.createElement('tr');
+            const dueText = inst.dueDate ? formatDate(inst.dueDate) : 'Sin fecha';
+            const amountText = formatCurrency(inst.amount, currency);
+            const statusText = formatInstallmentStatus(inst.status);
+            const paymentText = inst.paymentDate ? formatDate(inst.paymentDate) : 'Sin pago';
+            const cols = [
+              idx + 1,
+              dueText,
+              amountText,
+              statusText,
+              paymentText,
+            ];
+            cols.forEach((value)=>{
+              const td = document.createElement('td');
+              td.textContent = value;
+              tr.appendChild(td);
+            });
+            installmentsBodyEl.appendChild(tr);
+          });
+        }else{
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 5;
+          td.textContent = invoice.paymentOption && invoice.paymentOption.toLowerCase() === 'full_payment'
+            ? 'Pago completo realizado. No hay cuotas registradas.'
+            : 'No hay cuotas registradas.';
+          td.style.textAlign = 'center';
+          tr.appendChild(td);
+          installmentsBodyEl.appendChild(tr);
+        }
+      }
       setText('signatureAdvisor', signatures.advisor||'N/A');
       setText('signatureClient', signatures.client||'N/A');
       document.getElementById('invoiceMessage').textContent = footer.invoiceMessage||'';
