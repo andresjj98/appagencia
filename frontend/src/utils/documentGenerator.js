@@ -299,7 +299,7 @@ const buildInvoicePayloadFromReservation = (reservation) => {
     flightRoutes: flightSegments,
     flightDetails: flightSegments,
     flightItinerary: flightSegments,
-    transfers: buildTransfersSection(transfers),
+    transfers: buildTransfersSection(transfers, travelSegments),
     tours: tours.map((tour, index) => ({
       index: index + 1,
       name: tour.name || tour.tour_name || '',
@@ -486,48 +486,59 @@ function mapHotelAccommodationList(list) {
 }
 
 function buildTravelSegments(segments) {
-  return normalizeArray(segments).map((segment, index) => ({
-    index: index + 1,
-    origin:
-      segment?.origin ||
-      segment?.origen ||
-      segment?.origin_city ||
-      segment?.originCity ||
-      segment?.departure_city ||
-      segment?.departureCity ||
-      segment?.city_origin ||
-      segment?.cityOrigin ||
-      segment?.from ||
-      '',
-    destination:
-      segment?.destination ||
-      segment?.destino ||
-      segment?.destination_city ||
-      segment?.destinationCity ||
-      segment?.arrival_city ||
-      segment?.arrivalCity ||
-      segment?.city_destination ||
-      segment?.cityDestination ||
-      segment?.to ||
-      '',
-    departureDate:
-      segment?.departure_date ||
-      segment?.departureDate ||
-      segment?.start_date ||
-      segment?.startDate ||
-      segment?.fecha_salida ||
-      segment?.fechaSalida ||
-      null,
-    returnDate:
-      segment?.return_date ||
-      segment?.returnDate ||
-      segment?.end_date ||
-      segment?.endDate ||
-      segment?.fecha_regreso ||
-      segment?.fechaRegreso ||
-      null,
-    notes: segment?.notes || segment?.description || segment?.descripcion || '',
-  }));
+  return normalizeArray(segments).map((segment, index) => {
+    const rawId =
+      segment?.id ??
+      segment?.segment_id ??
+      segment?.segmentId ??
+      segment?.reservation_segment_id ??
+      segment?.reservationSegmentId ??
+      null;
+
+    return {
+      index: index + 1,
+      id: rawId,
+      origin:
+        segment?.origin ||
+        segment?.origen ||
+        segment?.origin_city ||
+        segment?.originCity ||
+        segment?.departure_city ||
+        segment?.departureCity ||
+        segment?.city_origin ||
+        segment?.cityOrigin ||
+        segment?.from ||
+        '',
+      destination:
+        segment?.destination ||
+        segment?.destino ||
+        segment?.destination_city ||
+        segment?.destinationCity ||
+        segment?.arrival_city ||
+        segment?.arrivalCity ||
+        segment?.city_destination ||
+        segment?.cityDestination ||
+        segment?.to ||
+        '',
+      departureDate:
+        segment?.departure_date ||
+        segment?.departureDate ||
+        segment?.start_date ||
+        segment?.startDate ||
+        segment?.fecha_salida ||
+        segment?.fechaSalida ||
+        null,
+      returnDate:
+        segment?.return_date ||
+        segment?.returnDate ||
+        segment?.end_date ||
+        segment?.endDate ||
+        segment?.fecha_regreso ||
+        segment?.fechaRegreso ||
+        null,
+      notes: segment?.notes || segment?.description || segment?.descripcion || '',
+    };
+  });
 }
 
 function buildHotelSegments(hotels) {
@@ -691,7 +702,7 @@ function sumTripDays(travelSegments) {
 const sumLineItems = (lines) =>
   lines.reduce((acc, item) => acc + (Number.isFinite(item.amount) ? item.amount : 0), 0);
 
-const buildTransfersSection = (transfers) => {
+const buildTransfersSection = (transfers, travelSegments = []) => {
   if (!transfers || transfers.length === 0) {
     return {
       arrival: false,
@@ -700,8 +711,102 @@ const buildTransfersSection = (transfers) => {
     };
   }
 
+  const normalizedSegments = normalizeArray(travelSegments).map((segment, index) => ({
+    ...segment,
+    index: segment?.index ?? index + 1,
+    id:
+      segment?.id ??
+      segment?.segment_id ??
+      segment?.segmentId ??
+      segment?.reservation_segment_id ??
+      segment?.reservationSegmentId ??
+      null,
+  }));
+
+  const segmentById = new Map();
+  normalizedSegments.forEach((segment) => {
+    if (segment.id !== null && segment.id !== undefined) {
+      segmentById.set(String(segment.id), segment);
+    }
+  });
+
+  const matchSegmentForTransfer = (transfer) => {
+    if (!transfer || typeof transfer !== 'object') {
+      return null;
+    }
+
+    const idCandidates = [
+      transfer.segment_id,
+      transfer.segmentId,
+      transfer.reservation_segment_id,
+      transfer.reservationSegmentId,
+      transfer.segment?.id,
+      transfer.segment?.segment_id,
+      transfer.segment?.segmentId,
+    ];
+
+    for (const candidate of idCandidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        const key = String(candidate);
+        if (segmentById.has(key)) {
+          return segmentById.get(key);
+        }
+      }
+    }
+
+    // Fallback: attempt to match by origin/destination if provided
+    const transferOrigin =
+      transfer.origin ||
+      transfer.pickup_location ||
+      transfer.pickup ||
+      transfer.departure ||
+      transfer.from ||
+      '';
+    const transferDestination =
+      transfer.destination ||
+      transfer.dropoff_location ||
+      transfer.dropoff ||
+      transfer.arrival ||
+      transfer.to ||
+      '';
+
+    if (transferOrigin || transferDestination) {
+      const normalizedOrigin = String(transferOrigin).toLowerCase();
+      const normalizedDestination = String(transferDestination).toLowerCase();
+
+      const matched = normalizedSegments.find((segment) => {
+        const segmentOrigin = String(segment.origin || '').toLowerCase();
+        const segmentDestination = String(segment.destination || '').toLowerCase();
+        return (
+          (!!normalizedOrigin && normalizedOrigin === segmentOrigin) ||
+          (!!normalizedDestination && normalizedDestination === segmentDestination)
+        );
+      });
+
+      if (matched) {
+        return matched;
+      }
+    }
+
+    return null;
+  };
+
   const detail = transfers.map((transfer, index) => {
     const rawType = (transfer.transfer_type || transfer.type || '').toLowerCase();
+    const matchedSegment = matchSegmentForTransfer(transfer);
+    const segmentIndex = matchedSegment?.index ?? null;
+    const segmentOrigin = matchedSegment?.origin || '';
+    const segmentDestination = matchedSegment?.destination || '';
+
+    let segmentLabel = '';
+    if (segmentIndex) {
+      const hasOrigin = Boolean(segmentOrigin);
+      const hasDestination = Boolean(segmentDestination);
+      const routePart = hasOrigin || hasDestination
+        ? `${segmentOrigin || ''}${hasOrigin && hasDestination ? ' - ' : ''}${segmentDestination || ''}`
+        : '';
+      segmentLabel = `Tramo ${segmentIndex}${routePart ? `: ${routePart}` : ''}`;
+    }
 
     return {
       index: index + 1,
@@ -713,6 +818,16 @@ const buildTransfersSection = (transfers) => {
       dropoff: transfer.dropoff_location || transfer.dropoff || '',
       vehicleType: transfer.vehicle_type || '',
       notes: transfer.notes || '',
+      segmentId:
+        transfer.segment_id ||
+        transfer.segmentId ||
+        transfer.reservation_segment_id ||
+        transfer.reservationSegmentId ||
+        null,
+      segmentIndex,
+      segmentOrigin,
+      segmentDestination,
+      segmentLabel,
     };
   });
 
@@ -720,6 +835,7 @@ const buildTransfersSection = (transfers) => {
     arrival: detail.some((item) => item.type === 'arrival' || item.type === 'in'),
     departure: detail.some((item) => item.type === 'departure' || item.type === 'out'),
     detail,
+    segments: normalizedSegments,
   };
 };
 

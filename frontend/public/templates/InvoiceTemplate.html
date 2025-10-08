@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -82,8 +82,8 @@
           </div>
           <div class="line">
             <div class="item"><span class="lbl">Correo:</span><span class="val" id="clientEmail">N/A</span></div>
-            <div class="item"><span class="lbl">Telfono:</span><span class="val short" id="clientPhone">N/A</span></div>
-            <div class="item" style="flex:1"><span class="lbl">Direccin:</span><span class="val" id="clientAddress">N/A</span></div>
+            <div class="item"><span class="lbl">Telefono:</span><span class="val short" id="clientPhone">N/A</span></div>
+            <div class="item" style="flex:1"><span class="lbl">Dirección:</span><span class="val" id="clientAddress">N/A</span></div>
           </div>
         </div>
       </div>
@@ -120,7 +120,7 @@
           <template id="flightSegmentTemplate">
             <div class="flight-segment">
               <div class="line">
-                <div class="item"><span class="lbl">Aerolnea:</span><span class="val" data-field="airline">N/A</span></div>
+                <div class="item"><span class="lbl">Aerolínea:</span><span class="val" data-field="airline">N/A</span></div>
                 <div class="item"><span class="lbl">Plan:</span><span class="val short" data-field="category">N/A</span></div>
                 <div class="item" style="flex:1"><span class="lbl">Equipaje:</span><span class="val" data-field="baggage">-</span></div>
               </div>
@@ -135,8 +135,8 @@
             <div class="hotel-segment">
               <div class="line">
                 <div class="item"><span class="lbl">Hotel:</span><span class="val" data-field="name">N/A</span></div>
-                <div class="item"><span class="lbl">Habitacin:</span><span class="val" data-field="room">N/A</span></div>
-                <div class="item"><span class="lbl">Plan de alimentacin:</span><span class="val" data-field="mealPlan">N/A</span></div>
+                <div class="item"><span class="lbl">Habitación:</span><span class="val" data-field="room">N/A</span></div>
+                <div class="item"><span class="lbl">Plan de alimentación:</span><span class="val" data-field="mealPlan">N/A</span></div>
               </div>
               <div class="line">
                 <div class="item" style="flex:1"><span class="lbl">(N habitaciones / ADT / CHD / INF):</span><span class="val" data-field="accommodations">-</span></div>
@@ -168,7 +168,7 @@
           <thead>
             <tr>
               <th style="width:10%">Cant.</th>
-              <th>Descripcin</th>
+              <th>Descripción</th>
               <th style="width:18%">Vr. Unit.</th>
               <th style="width:18%">Vr. Total</th>
             </tr>
@@ -364,6 +364,98 @@
     const formatAccommodationCollection=(entries=[])=>{
       if(!entries.length) return '';
       return entries.map(e=>formatAccommodationEntry(e)).join('<br/>');
+    };
+
+    const formatTransferTypeLabel=(transfer={})=>{
+      const raw=String(transfer.type || '').toLowerCase();
+      if(raw==='arrival' || raw==='in'){
+        return 'Llegada (In)';
+      }
+      if(raw==='departure' || raw==='out'){
+        return 'Salida (Out)';
+      }
+      if(typeof transfer.label==='string' && transfer.label.trim()){
+        return transfer.label.trim();
+      }
+      if(transfer.type){
+        return transfer.type;
+      }
+      return 'Traslado';
+    };
+
+    const buildTransferSummaryLine=(transfer={}, formatter=formatDate)=>{
+      const segmentLabel = transfer.segmentLabel || (transfer.segmentIndex ? `Tramo ${transfer.segmentIndex}` : '');
+      const typeLabel = formatTransferTypeLabel(transfer);
+      const dateText = transfer.date ? `Fecha: ${formatter(transfer.date)}` : '';
+      const timeText = transfer.time ? `Hora: ${transfer.time}` : '';
+      const pickupText = transfer.pickup ? `Recogida: ${transfer.pickup}` : '';
+      const dropoffText = transfer.dropoff ? `Destino: ${transfer.dropoff}` : '';
+
+      const parts = [];
+      if (segmentLabel) parts.push(segmentLabel);
+      if (typeLabel) parts.push(`Tipo: ${typeLabel}`);
+      if (dateText) parts.push(dateText);
+      if (timeText) parts.push(timeText);
+      if (pickupText) parts.push(pickupText);
+      if (dropoffText) parts.push(dropoffText);
+
+      return parts.join(' · ') || typeLabel || 'Traslado';
+    };
+
+    const groupTransfersBySegment=(details=[])=>{
+      const groups=new Map();
+      details.forEach((transfer)=>{
+        if(!transfer || typeof transfer!=='object') return;
+        const label = transfer.segmentLabel || (transfer.segmentIndex ? `Tramo ${transfer.segmentIndex}` : 'Traslado');
+        const indexKey = transfer.segmentIndex ?? 'none';
+        const key = `${label}__${indexKey}`;
+        if(!groups.has(key)){
+          groups.set(key, { segmentLabel: label, entries: [] });
+        }
+        groups.get(key).entries.push(transfer);
+      });
+      return Array.from(groups.values());
+    };
+
+    const buildTransferGroupLine=(group={}, formatter=formatDate)=>{
+      const label = group.segmentLabel || 'Traslado';
+      const typeLabels = [];
+      (group.entries || []).forEach((entry)=>{
+        const typeLabel = formatTransferTypeLabel(entry);
+        if(typeLabel && !typeLabels.includes(typeLabel)){
+          typeLabels.push(typeLabel);
+        }
+      });
+
+      const additionalDetails = [];
+      const hasSingleEntry = (group.entries || []).length === 1;
+      if(hasSingleEntry){
+        const entry = group.entries[0];
+        const summary = buildTransferSummaryLine(entry, formatter);
+        if(summary && summary !== label){
+          return summary;
+        }
+      }
+
+      const typePart = typeLabels.length ? typeLabels.map((t)=>`Tipo: ${t}`).join(' / ') : '';
+      const extraDates = [];
+      (group.entries || []).forEach((entry)=>{
+        if(entry.date){
+          const dateText = formatter(entry.date);
+          if(dateText && !extraDates.includes(dateText)){
+            extraDates.push(dateText);
+          }
+        }
+      });
+      if(extraDates.length){
+        additionalDetails.push(`Fechas: ${extraDates.join(' / ')}`);
+      }
+
+      const parts=[label];
+      if(typePart) parts.push(typePart);
+      additionalDetails.forEach(detail=>parts.push(detail));
+
+      return parts.join(' · ');
     };
 
     const renderTravelSection = (travel = {}, extraSegments = []) => {
@@ -572,8 +664,6 @@
         filteredSegments.push(seg);
       });
 
-      const allAccommodationEntries = [];
-
       if (filteredSegments.length > 0) {
         container.style.display = '';
         filteredSegments.forEach((seg, index) => {
@@ -603,37 +693,10 @@
               accommodationsField.textContent = '-';
             }
           }
-          segmentEntries.forEach(entry => allAccommodationEntries.push(entry));
           container.appendChild(clone);
         });
       } else {
         container.style.display = 'none';
-      }
-
-      if (!filteredSegments.length && Array.isArray(hotel.accommodations)) {
-        normalizeAccommodationEntries(hotel.accommodations).forEach(entry => allAccommodationEntries.push(entry));
-      }
-
-      const accEl = document.getElementById('accommodationsSummary');
-      if (accEl) {
-        if (allAccommodationEntries.length) {
-          const totalTotals = allAccommodationEntries.reduce(
-            (acc, entry) => ({
-              rooms: acc.rooms + (Number(entry.rooms) || 0),
-              adt: acc.adt + (Number(entry.adt) || 0),
-              chd: acc.chd + (Number(entry.chd) || 0),
-              inf: acc.inf + (Number(entry.inf) || 0),
-            }),
-            { rooms: 0, adt: 0, chd: 0, inf: 0 }
-          );
-          if (totalTotals.rooms || totalTotals.adt || totalTotals.chd || totalTotals.inf) {
-            accEl.textContent = formatAccommodationEntry(totalTotals);
-          } else {
-            accEl.textContent = '-';
-          }
-        } else {
-          accEl.textContent = '-';
-        }
       }
     };
 
@@ -692,8 +755,25 @@
         other.push('Asistencias: '+data.assistance.map(a=>a.planType||a.provider).filter(Boolean).join(', '));
       }
       document.getElementById('otherInclusions').textContent = other.length? other.join(' | ') : '';
-      const trArr = Array.isArray(transfers.detail)? transfers.detail.map((t,i)=>`${i+1}. ${t.label||t.type||'Traslado'} ${t.date?('('+formatDate(t.date)+')'):''}`):[];
-      document.getElementById('transfersSummary2').textContent = trArr.length? trArr.join('    ') : 'No hay traslados registrados.';
+      const transfersSummaryEl = document.getElementById('transfersSummary2');
+      if (transfersSummaryEl) {
+        const groupedTransfers = Array.isArray(transfers.detail)
+          ? groupTransfersBySegment(transfers.detail)
+          : [];
+        const transferLines = groupedTransfers
+          .map((group) => buildTransferGroupLine(group, formatDate))
+          .filter(Boolean);
+        if (transferLines.length) {
+          transfersSummaryEl.innerHTML = '';
+          transferLines.forEach((line) => {
+            const div = document.createElement('div');
+            div.textContent = line;
+            transfersSummaryEl.appendChild(div);
+          });
+        } else {
+          transfersSummaryEl.textContent = 'No hay traslados registrados.';
+        }
+      }
       const toursRows = Array.isArray(tours) ? tours.filter(Boolean).map((t,i)=> `${i+1}. ${t.name||'Servicio'} ${t.date?(' - '+formatDate(t.date)):''}`) : [];
       const toursBox = document.getElementById('toursContent');
       toursBox.innerHTML = toursRows.length ? '<ul style="margin:2px 0 2px 16px">'+toursRows.map(x=>`<li>${x}</li>`).join('')+'</ul>' : 'No hay tours o servicios adicionales registrados.';
