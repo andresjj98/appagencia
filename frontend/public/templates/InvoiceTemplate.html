@@ -21,6 +21,7 @@
     .logo-loaded .logo-fallback{display:none}
     .brand h1{margin:0;font-size:26px;line-height:1;font-weight:800;letter-spacing:.3px}
     .brand small{display:block;margin-top:2px;opacity:.95;font-weight:600;letter-spacing:.06em}
+    .brand small.brand-meta{margin-top:1px;font-size:9.5px;font-weight:600;letter-spacing:.05em;opacity:.88;text-transform:uppercase}
     .fact-box{background:#fff;color:var(--azul-osc);border:1px solid var(--gris-borde);border-radius:8px;padding:8px 10px;min-width:240px}
     .fact-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--turquesa-osc);border-bottom:2px solid var(--turquesa);padding-bottom:4px;margin-bottom:6px}
     .kv{display:grid;grid-template-columns:1fr auto;gap:4px;font-size:11px}
@@ -42,6 +43,12 @@
     .tline{display:flex;justify-content:space-between;border-bottom:1px dashed var(--gris-borde);padding:4px 0;font-weight:700}
     .grand{font-size:16px;border-top:2px solid var(--turquesa);padding-top:6px;color:var(--turquesa-osc)}
     .legal{margin-top:6px;font-size:10.5px;color:#3c4d53;border-top:1px solid var(--gris-borde);padding-top:6px;line-height:1.25}
+    .footer-contact{margin-top:10px;text-align:center;font-size:10px;color:var(--turquesa-osc);line-height:1.55;font-weight:600}
+    .footer-line{margin:8px auto 0;max-width:760px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+    .footer-line:first-child{margin-top:12px}
+    .footer-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;color:var(--turquesa-osc);flex:0 0 auto}
+    .footer-icon svg{width:100%;height:100%}
+    .footer-separator{color:rgba(0,166,199,.55);font-weight:500}
     .actions{display:flex;gap:8px;justify-content:center;padding:10px}
     .btn{border:none;border-radius:999px;background:var(--turquesa);color:#fff;font-weight:700;padding:8px 14px;cursor:pointer;font-size:12px;transition:background .2s ease}
     .btn:disabled{opacity:.6;cursor:not-allowed}
@@ -67,6 +74,7 @@
           <div>
             <h1 id="agencyName">Dream Vacation</h1>
             <small id="agencyLegalName">Agencia Mayorista de Viajes y Turismo</small>
+            <small id="agencyLegalExtra" class="brand-meta">GROUP VC SAS NIT. 901704831-4 Responsables de iva Registro nacional de turismo no. 96518</small>
           </div>
         </div>
         <div class="fact-box">
@@ -233,6 +241,43 @@
         <div id="footerNote"></div>
         <div style="margin-top:4px;opacity:.95">
           ESTA FACTURA DE VENTA SE ASIMILA EN TODOS SUS EFECTOS A UNA LETRA DE CAMBIO SEGN ART.774 DEL C. DE CIO.
+        </div>
+        <div class="footer-contact">
+          <p class="footer-line">
+            <span class="footer-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1118 0z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+            </span>
+            PRINCIPAL: Calle 19 # 30-16 las Cuadras Pasto-Nariño / Sede Pasto: Avenida los estudiantes calle 20#34-34 / Ipiales: Carrera 6ta #11-60 C.C Zafiro oficina 124
+          </p>
+          <p class="footer-line">
+            <span class="footer-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="4" width="20" height="16" rx="2" ry="2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M22 6 12 13 2 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            EMAIL: contactanos@dreamvacation.com.co
+            <span class="footer-separator">|</span>
+            <span class="footer-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M22 16.92v3.09a1 1 0 01-1.09 1 19.79 19.79 0 01-8.63-3.12 19.5 19.5 0 01-6.17-6.17A19.79 19.79 0 013.01 3.09 1 1 0 014.1 2h3.06a1 1 0 011 .76 12.44 12.44 0 00.57 2.49 1 1 0 01-.24 1L7.68 7.91a16 16 0 006.41 6.41l1.66-1.73a1 1 0 011-.24 12.44 12.44 0 002.49.57 1 1 0 01.76 1z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            3116379323-3146507850-3135492857
+            <span class="footer-separator">|</span>
+            <span class="footer-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6" />
+                <path d="M2 12h20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M12 2a15.3 15.3 0 010 20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M12 2a15.3 15.3 0 000 20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            www.dreamvacation.com.co
+          </p>
         </div>
       </div>
     </div>
@@ -886,6 +931,7 @@
       applyAgencyLogo(agency);
       setText('agencyName', agency.name || 'Dream Vacation');
       setText('agencyLegalName', agency.legalName || 'Agencia Mayorista de Viajes y Turismo');
+      setText('agencyLegalExtra', agency.legalExtra || 'GROUP VC SAS NIT. 901704831-4 Responsables de iva Registro nacional de turismo no. 96518');
       setText('invoiceNumber', invoice.number || 'N/A');
       setText('invoiceDate', formatDate(invoice.issueDate));
       setText('invoiceAdvisor', invoice.advisorName || 'N/A');
