@@ -85,6 +85,12 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
                   <p className="text-gray-900">{reservation.clientId}</p>
                 </div>
               )}
+              {reservation.clientIdIssuedPlace && (
+                <div>
+                  <span className="font-semibold text-gray-700">Lugar de Expedición:</span>
+                  <p className="text-gray-900">{reservation.clientIdIssuedPlace}</p>
+                </div>
+              )}
               <div>
                 <span className="font-semibold text-gray-700">Email:</span>
                 <p className="text-gray-900">{reservation.clientEmail}</p>
@@ -342,6 +348,12 @@ const ReservationSummary = ({ reservation, onConfirm, onCancel }) => {
                     <span className="text-gray-600">Precio INF:</span>
                     <p className="font-semibold text-gray-900">{formatCurrency(reservation.pricePerINF)}</p>
                   </div>
+                  {reservation.surcharge > 0 && (
+                    <div className="col-span-2">
+                      <span className="text-gray-600">Recargo Adicional:</span>
+                      <p className="font-semibold text-orange-600">{formatCurrency(reservation.surcharge)}</p>
+                    </div>
+                  )}
                   <div className="col-span-2 mt-2 pt-2 border-t border-emerald-200">
                     <span className="text-gray-600">Total:</span>
                     <p className="text-2xl font-bold text-emerald-600">{formatCurrency(reservation.totalAmount)}</p>

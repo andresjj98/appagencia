@@ -244,7 +244,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
 
   const mapMedical = (medical) =>
     (medical || []).map((m) => ({
-      planType: m.planType || m.plan_type || 'traditional_tourism',
+      planType: m.planType || m.plan_type || 'Turismo Tradicional',
       startDate: formatDate(m.startDate || m.start_date),
       endDate: formatDate(m.endDate || m.end_date),
     }));
@@ -272,6 +272,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     clientEmail: reservation?.clients?.email || '',
     clientPhone: reservation?.clients?.phone || '',
     clientId: reservation?.clients?.id_card || '',
+    clientIdIssuedPlace: reservation?.clients?.id_card_issued_place || '',
     clientAddress: reservation?.clients?.address || '',
     emergencyContact: {
         name: reservation?.clients?.emergency_contact_name || '',
@@ -285,6 +286,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     pricePerADT: reservation?.price_per_adt || 0,
     pricePerCHD: reservation?.price_per_chd || 0,
     pricePerINF: reservation?.price_per_inf || 0,
+    showSurcharge: (reservation?.surcharge || 0) > 0, // Activar checkbox si hay recargo existente
+    surcharge: reservation?.surcharge || 0,
     totalAmount: reservation?.total_amount || 0,
     paymentOption: reservation?.payment_option || 'full_payment',
     installments: reservation ? mapInstallments(reservation.reservation_installments) : [{ amount: 0, dueDate: getTodayDate() }],
@@ -349,7 +352,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       : showMedical
       ? [
           {
-            planType: 'traditional_tourism',
+            planType: 'Turismo Tradicional',
             startDate: initialTripDepartureDate,
             endDate: initialTripReturnDate,
           },
@@ -452,9 +455,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         return sum + (costPerPax * totalPassengersCalculated.total);
       }, 0);
 
-    const calculatedTotal = basePriceTotal + toursCostTotal;
+    // Agregar el recargo (surcharge) al total
+    const surchargeAmount = parseFloat(formData.surcharge) || 0;
+
+    const calculatedTotal = basePriceTotal + toursCostTotal + surchargeAmount;
     setFormData(prev => ({ ...prev, totalAmount: calculatedTotal.toFixed(2) }));
-  }, [totalPassengersCalculated, formData.pricePerADT, formData.pricePerCHD, formData.pricePerINF, formData.tours]);
+  }, [totalPassengersCalculated, formData.pricePerADT, formData.pricePerCHD, formData.pricePerINF, formData.tours, formData.surcharge]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -624,11 +630,11 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     } else if (name === 'clientPhone') {
       // Solo números y el símbolo +
       processedValue = value.replace(/[^0-9+]/g, '');
-    } else if (['clientName', 'clientAddress'].includes(name) && type === 'text') {
+    } else if (['clientName', 'clientAddress', 'clientIdIssuedPlace'].includes(name) && type === 'text') {
       // Convertir a mayúsculas
       processedValue = value.toUpperCase();
-    } else if (['pricePerADT', 'pricePerCHD', 'pricePerINF'].includes(name)) {
-      // Campos de precio: permitir solo números y punto
+    } else if (['pricePerADT', 'pricePerCHD', 'pricePerINF', 'surcharge'].includes(name)) {
+      // Campos de precio: permitir solo números
       const cleanValue = value.replace(/[^\d]/g, '');
       processedValue = cleanValue === '' ? 0 : parseInt(cleanValue);
     }
@@ -675,7 +681,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
           tours: showTours ? [{ name: '', date: newTripDepartureDate, cost: 0, includeCost: false }] : [],
           medicalAssistances: showMedical ? [
               {
-                  planType: 'traditional_tourism',
+                  planType: 'Turismo Tradicional',
                   startDate: newTripDepartureDate,
                   endDate: newTripReturnDate,
               },
@@ -744,6 +750,15 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     setFormData(prev => ({
       ...prev,
       emergencyContact: { ...prev.emergencyContact, [name]: processedValue }
+    }));
+  };
+
+  const handleSurchargeToggle = (e) => {
+    const isChecked = e.target.checked;
+    setFormData(prev => ({
+      ...prev,
+      showSurcharge: isChecked,
+      surcharge: isChecked ? prev.surcharge : 0 // Limpiar recargo si se desactiva
     }));
   };
 
@@ -975,6 +990,26 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   // --- Medical Assistance Handlers ---
   const handleMedicalAssistanceChange = (index, e) => {
     const { name, value } = e.target;
+
+    // Validación cuando se selecciona un tipo de seguro
+    if (name === 'planType') {
+      const currentDate = new Date();
+      const departureDateObj = new Date(tripDepartureDate);
+      const daysDifference = Math.floor((departureDateObj - currentDate) / (1000 * 60 * 60 * 24));
+
+      // Validar Seguro de Cancelación Nacional - mínimo 10 días
+      if (value === 'Seguro de Cancelación Nacional' && daysDifference < 10) {
+        alert('No se puede seleccionar Seguro de Cancelación Nacional. La fecha de salida debe ser al menos 10 días posterior a la fecha actual.');
+        return;
+      }
+
+      // Validar Seguro de Cancelación Internacional - mínimo 15 días
+      if (value === 'Seguro de Cancelación Internacional' && daysDifference < 15) {
+        alert('No se puede seleccionar Seguro de Cancelación Internacional. La fecha de salida debe ser al menos 15 días posterior a la fecha actual.');
+        return;
+      }
+    }
+
     const newMedicalAssistances = [...formData.medicalAssistances];
     newMedicalAssistances[index] = { ...newMedicalAssistances[index], [name]: value };
     setFormData(prev => ({ ...prev, medicalAssistances: newMedicalAssistances }));
@@ -983,7 +1018,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
   const addMedicalAssistance = () => {
     setFormData(prev => ({
       ...prev,
-      medicalAssistances: [...prev.medicalAssistances, { planType: 'traditional_tourism', startDate: tripDepartureDate, endDate: tripReturnDate }]
+      medicalAssistances: [...prev.medicalAssistances, { planType: 'Turismo Tradicional', startDate: tripDepartureDate, endDate: tripReturnDate }]
     }));
   };
 
@@ -1239,6 +1274,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Identificación del Titular</label>
                 <input type="text" name="clientId" value={formData.clientId} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="DNI / Pasaporte" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Lugar de Expedición</label>
+                <input type="text" name="clientIdIssuedPlace" value={formData.clientIdIssuedPlace} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ciudad o país de expedición" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email del Titular</label>
@@ -1949,10 +1988,10 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                         onChange={(e) => handleMedicalAssistanceChange(index, e)}
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
-                        <option value="traditional_tourism">Turismo Tradicional</option>
-                        <option value="international_assistance">Asistencia Internacional</option>
-                        <option value="national_cancellation_insurance">Seguro de Cancelación Nacional</option>
-                        <option value="international_cancellation_insurance">Seguro de Cancelación Internacional</option>
+                        <option value="Turismo Tradicional">Turismo Tradicional</option>
+                        <option value="Asistencia Internacional">Asistencia Internacional</option>
+                        <option value="Seguro de Cancelación Nacional">Seguro de Cancelación Nacional</option>
+                        <option value="Seguro de Cancelación Internacional">Seguro de Cancelación Internacional</option>
                       </select>
                     </div>
 
@@ -1986,12 +2025,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                     <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="font-semibold text-blue-900 mb-2">Resumen de Cobertura:</p>
                       <p className="text-sm text-blue-800">
-                        Tipo: {
-                          ma.planType === 'traditional_tourism' ? 'Turismo Tradicional' :
-                          ma.planType === 'international_assistance' ? 'Asistencia Internacional' :
-                          ma.planType === 'national_cancellation_insurance' ? 'Seguro de Cancelación Nacional' :
-                          ma.planType === 'international_cancellation_insurance' ? 'Seguro de Cancelación Internacional' : ''
-                        }
+                        Tipo: {ma.planType}
                       </p>
                       <p className="text-sm text-blue-800">
                         Duración: {calculateDaysBetweenDates(ma.startDate || tripDepartureDate, ma.endDate || tripReturnDate)} días
@@ -2074,6 +2108,54 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="0"
                 />
+              </div>
+            </div>
+
+            {/* Campo de Recargo con Checkbox */}
+            <div className="border-t border-gray-200 pt-4">
+              <div className="max-w-md space-y-3">
+                {/* Checkbox para activar recargo */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="showSurcharge"
+                    checked={formData.showSurcharge}
+                    onChange={handleSurchargeToggle}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                  />
+                  <label htmlFor="showSurcharge" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                    Agregar recargo adicional
+                    <span className="text-xs text-gray-500 ml-2">(ej: comisión bancaria, cargo por transacción)</span>
+                  </label>
+                </div>
+
+                {/* Campo de entrada - solo visible si checkbox está activado */}
+                {formData.showSurcharge && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Monto del Recargo ({resolvedCurrency})
+                    </label>
+                    <input
+                      type="text"
+                      name="surcharge"
+                      value={formatNumberWithThousands(formData.surcharge)}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="0"
+                    />
+                    {formData.surcharge > 0 && (
+                      <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Este recargo se agregará automáticamente al total de la reserva.
+                      </p>
+                    )}
+                  </motion.div>
+                )}
               </div>
             </div>
 

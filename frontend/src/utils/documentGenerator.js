@@ -320,6 +320,7 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       currency,
       lineItems: paymentLines,
       subtotal,
+      surcharge: normalizeNumber(reservation.surcharge),
       total: totalAmount,
       passengersCount: totalPassengers,
       installments: mapInstallments(installments),

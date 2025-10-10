@@ -307,6 +307,7 @@ CREATE TABLE public.reservations (
   rejected_at timestamp with time zone,
   rejected_by uuid,
   office_id uuid NOT NULL,
+  surcharge numeric DEFAULT 0,
   CONSTRAINT reservations_pkey PRIMARY KEY (id),
   CONSTRAINT reservations_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
   CONSTRAINT reservations_advisor_id_fkey FOREIGN KEY (advisor_id) REFERENCES public.usuarios(id),

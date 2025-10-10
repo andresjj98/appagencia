@@ -457,9 +457,10 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             <InfoSection id="info-basica" title="Información Básica" icon={<FileText className="w-5 h-5 text-blue-600" />} gridColsClass="lg:grid-cols-2">
                 <InfoItem label="Cliente" value={reservation.clientName} />
                 <InfoItem label="Identificación" value={reservation.clientId} />
+                <InfoItem label="Lugar de Expedición" value={reservation._original.clients?.id_card_issued_place} />
                 <InfoItem label="Email" value={reservation.clientEmail} />
                 <InfoItem label="Teléfono" value={reservation.clientPhone} />
-                <InfoItem label="Dirección" value={reservation._original.clients?.address} fullWidth />
+                <InfoItem label="Dirección" value={reservation._original.clients?.address} />
                 <InfoItem label="Contacto de Emergencia" value={reservation._original.clients?.emergency_contact_name} />
                 <InfoItem label="Tel. Emergencia" value={reservation._original.clients?.emergency_contact_phone} />
                 {segments.length > 0 && (
@@ -608,17 +609,20 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 <InfoItem label="Precio ADT" value={formatCurrencyCOP(reservation._original.price_per_adt)} />
                 <InfoItem label="Precio CHD" value={formatCurrencyCOP(reservation._original.price_per_chd)} />
                 <InfoItem label="Precio INF" value={formatCurrencyCOP(reservation._original.price_per_inf)} />
+                {reservation._original.surcharge > 0 && (
+                    <InfoItem label="Recargo Adicional" value={formatCurrencyCOP(reservation._original.surcharge)} />
+                )}
                 <InfoItem label="Total" value={formatCurrencyCOP(reservation._original.total_amount)} />
                 <InfoItem label="Opción" value={reservation._original.payment_option === 'full_payment' ? 'Pago completo' : 'Cuotas'} />
                 {(reservation._original.installments || []).map((inst, index) => (
-                    <InfoItem key={index} label={`Cuota ${index + 1}`} value={`${formatCurrencyCOP(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
+                    <InfoItem key={`inst-${index}`} label={`Cuota ${index + 1}`} value={`${formatCurrencyCOP(inst.amount)} - ${formatDate(inst.due_date || inst.dueDate)}`} fullWidth />
                 ))}
             </InfoSection>
 
             <InfoSection id="plan-pagos" title="Plan de pagos (Cuotas)" icon={<ListChecks className="w-5 h-5 text-emerald-600" />}>
             {paymentOption === 'full_payment' ? (
                 <>
-                <InfoItem label="Fecha de pago" value={formatDate(reservation._original.payment_date)} />
+                <InfoItem label="Fecha de pago" value={formatDate(reservation._original.payment_date || reservation._original.created_at)} />
                 <InfoItem label="Valor" value={formatCurrencyCOP(reservation._original.total_amount)} />
                 <InfoItem label="Estado" value={getStatusLabel(reservation._original.payment_status)} />
                 </>

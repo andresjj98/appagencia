@@ -191,6 +191,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
         clientEmail: updatedReservationPayload.clients.email,
         clientPhone: updatedReservationPayload.clients.phone,
         clientId: updatedReservationPayload.clients.id_card,
+        clientIdIssuedPlace: updatedReservationPayload.clients.id_card_issued_place || '',
         clientAddress: updatedReservationPayload.clients.address,
         emergencyContact: {
             name: updatedReservationPayload.clients.emergency_contact_name,
@@ -203,6 +204,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
         pricePerADT: updatedReservationPayload.price_per_adt,
         pricePerCHD: updatedReservationPayload.price_per_chd,
         pricePerINF: updatedReservationPayload.price_per_inf,
+        surcharge: updatedReservationPayload.surcharge || 0,
         totalAmount: updatedReservationPayload.total_amount,
         paymentOption: updatedReservationPayload.payment_option,
     };
