@@ -210,6 +210,7 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       fullName: buildClientName(client),
       document: client.id_card || '',
       documentType: client.document_type || 'CC',
+      issuedPlace: client.id_card_issued_place || '',
       email: client.email || '',
       phone: client.phone || '',
       address: client.address || '',
