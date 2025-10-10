@@ -132,6 +132,36 @@ const getAllUsers = async (_req, res) => {
   }
 };
 
+const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ message: 'ID de usuario requerido.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .select(USER_SELECT)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ message: 'Usuario no encontrado.' });
+      }
+      console.error('Error fetching user by id:', error);
+      return res.status(500).json({ message: 'Error al obtener usuario.' });
+    }
+
+    const user = mapDbUserToClient(data);
+    return res.json(user);
+  } catch (err) {
+    console.error('Unexpected error fetching user by id:', err);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
 const createUser = async (req, res) => {
   try {
     const missing = validateRequiredFields(req.body || {});
@@ -338,6 +368,7 @@ const deleteAvatar = async (req, res) => {
 
 module.exports = {
   getAllUsers,
+  getUserById,
   createUser,
   updateUser,
   deleteUser,

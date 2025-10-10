@@ -134,7 +134,7 @@ const buildInvoicePayloadFromReservation = (reservation) => {
     : {};
 
   const client = reservation.clients || {};
-  const advisor = reservation.advisor || reservation.advisor_id || null;
+  const advisor = reservation.advisor || reservation.advisors || reservation.advisor_id || reservation.user || null;
 
   const segments = normalizeArray(reservation.reservation_segments);
   const travelSegments = buildTravelSegments(segments);
@@ -200,6 +200,9 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       issueDate: pickIssueDate(reservation),
       status: reservation.status || '',
       advisorName: buildAdvisorName(advisor),
+      advisorId: typeof advisor === 'object' && advisor !== null
+        ? (advisor.idCard || advisor.id_card || advisor.document_number || advisor.documentNumber || advisor.cedula || advisor.dni || advisor.cc || null)
+        : null,
       currency,
       paymentOption: reservation.payment_option || '',
     },
@@ -320,6 +323,14 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       total: totalAmount,
       passengersCount: totalPassengers,
       installments: mapInstallments(installments),
+    },
+    contract: {
+      template:
+        settings.travel_contract ||
+        settings.travelContract ||
+        settings.contract ||
+        '',
+      content: '', // Se procesará dinámicamente con processContractTemplate
     },
     footer: {
       invoiceMessage: settings.invoice_message || '',
@@ -863,6 +874,158 @@ const mapInstallments = (installments) =>
     paymentDate: installment.payment_date || installment.paymentDate || null,
     receiptUrl: installment.receipt_url || installment.receiptUrl || '',
   }));
+
+/**
+ * Procesa la plantilla de contrato reemplazando placeholders con datos de la reserva
+ * @param {string} contractTemplate - Plantilla con placeholders {{campo}}
+ * @param {object} invoiceData - Datos de la factura/reserva
+ * @returns {string} - Contrato con campos reemplazados
+ */
+export const processContractTemplate = (contractTemplate, invoiceData) => {
+  if (!contractTemplate || typeof contractTemplate !== 'string') {
+    return '';
+  }
+
+  if (!invoiceData || typeof invoiceData !== 'object') {
+    return contractTemplate;
+  }
+
+  // Helper para obtener valores anidados (ej: titular.fullName)
+  const getNestedValue = (obj, path) => {
+    if (!path) return '';
+    const keys = path.split('.');
+    let value = obj;
+    for (const key of keys) {
+      if (value && typeof value === 'object' && key in value) {
+        value = value[key];
+      } else {
+        return '';
+      }
+    }
+    return value ?? '';
+  };
+
+  // Helper para formatear números a texto (millones, miles, etc)
+  const numberToWords = (num) => {
+    // TODO: Implementar conversión completa si lo necesitas
+    // Por ahora retorna el número formateado
+    return new Intl.NumberFormat('es-CO').format(num);
+  };
+
+  // Helper para formatear moneda
+  const formatCurrency = (num) => {
+    return new Intl.NumberFormat('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  // Helper para extraer día, mes, año de fechas
+  const extractDateParts = (dateString) => {
+    if (!dateString) return { day: '', month: '', year: '' };
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return { day: '', month: '', year: '' };
+
+    const months = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+
+    // Usar UTC para evitar desfase de zona horaria
+    return {
+      day: date.getUTCDate(),
+      month: months[date.getUTCMonth()],
+      year: date.getUTCFullYear(),
+    };
+  };
+
+  // Obtener la última fecha de retorno de todos los tramos
+  const getLastReturnDate = (invoiceData) => {
+    let lastDate = null;
+
+    // Buscar en los segmentos de viaje
+    const segments = invoiceData.travel?.segments ||
+                    invoiceData.travel?.segmentList ||
+                    invoiceData.travelSegments ||
+                    invoiceData.travel?.itinerary ||
+                    [];
+
+    if (Array.isArray(segments) && segments.length > 0) {
+      // Obtener todas las fechas de retorno
+      const returnDates = segments
+        .map(seg => seg.returnDate || seg.return_date || seg.endDate || seg.end_date)
+        .filter(Boolean)
+        .map(d => new Date(d))
+        .filter(d => !isNaN(d.getTime()));
+
+      if (returnDates.length > 0) {
+        // Encontrar la fecha más lejana (última fecha de retorno)
+        lastDate = new Date(Math.max(...returnDates.map(d => d.getTime())));
+      }
+    }
+
+    // Fallback a la fecha de retorno general del viaje
+    if (!lastDate) {
+      const generalReturn = invoiceData.travel?.returnDate ||
+                           invoiceData.travel?.return_date ||
+                           invoiceData.travel?.departureDate ||
+                           invoiceData.travel?.departure_date;
+      if (generalReturn) {
+        const d = new Date(generalReturn);
+        if (!isNaN(d.getTime())) {
+          lastDate = d;
+        }
+      }
+    }
+
+    return lastDate ? lastDate.toISOString() : null;
+  };
+
+  // Preparar datos adicionales de contrato (fechas de inicio y fin)
+  const startDate = extractDateParts(invoiceData.invoice?.issueDate || new Date().toISOString());
+  const lastReturnDate = getLastReturnDate(invoiceData);
+  const endDate = extractDateParts(lastReturnDate || invoiceData.travel?.departureDate);
+
+  const contractData = {
+    ...invoiceData,
+    contract: {
+      ...invoiceData.contract,
+      startDay: startDate.day,
+      startMonth: startDate.month,
+      startYear: startDate.year,
+      endDay: endDate.day,
+      endMonth: endDate.month,
+      endYear: endDate.year,
+    },
+  };
+
+  // Reemplazar placeholders {{campo}} o {{campo|filtro}}
+  return contractTemplate.replace(/\{\{([^}]+)\}\}/g, (match, placeholder) => {
+    const trimmed = placeholder.trim();
+
+    // Verificar si tiene filtro (ej: payments.total|currency)
+    const [path, filter] = trimmed.split('|').map(s => s.trim());
+
+    let value = getNestedValue(contractData, path);
+
+    // Aplicar filtros
+    if (filter) {
+      switch (filter) {
+        case 'numberToWords':
+          value = numberToWords(value);
+          break;
+        case 'currency':
+          value = formatCurrency(value);
+          break;
+        default:
+          // filtro no reconocido, usar valor sin filtrar
+          break;
+      }
+    }
+
+    return value !== null && value !== undefined ? String(value) : match;
+  });
+};
 
 const transformReservationToVoucher = (reservation) => {
   // TODO: Implementar cuando el diseño del voucher esté definido

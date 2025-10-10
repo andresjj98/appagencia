@@ -2,6 +2,7 @@
 const multer = require('multer');
 const {
   getAllUsers,
+  getUserById,
   createUser,
   updateUser,
   deleteUser,
@@ -13,6 +14,7 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/', getAllUsers);
+router.get('/:id', getUserById);
 router.post('/', createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);

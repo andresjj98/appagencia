@@ -43,6 +43,12 @@
     .tline{display:flex;justify-content:space-between;border-bottom:1px dashed var(--gris-borde);padding:4px 0;font-weight:700}
     .grand{font-size:16px;border-top:2px solid var(--turquesa);padding-top:6px;color:var(--turquesa-osc)}
     .legal{margin-top:6px;font-size:10.5px;color:#3c4d53;border-top:1px solid var(--gris-borde);padding-top:6px;line-height:1.25}
+    .contract-section{margin-top:10px}
+    .contract-signatures{margin-top:10px}
+    .contract-content{font-size:10.5px;text-align:justify;line-height:1.6;color:var(--gris-txt)}
+    .contract-content p{margin:6px 0}
+    .contract-content ul,.contract-content ol{margin:6px 0 6px 16px;padding-left:8px}
+    .contract-content li{margin:4px 0}
     .footer-contact{margin-top:10px;text-align:center;font-size:10px;color:var(--turquesa-osc);line-height:1.55;font-weight:600}
     .footer-line{margin:8px auto 0;max-width:760px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
     .footer-line:first-child{margin-top:12px}
@@ -82,7 +88,7 @@
           <div class="kv">
             <div>Factura:</div><div id="invoiceNumber" class="v">N/A</div>
             <div>Fecha:</div><div id="invoiceDate" class="v">N/A</div>
-            <div>Asesor:</div><div id="invoiceAdvisor" class="v">N/A</div>
+            <div>Código de Asesor:</div><div id="invoiceAdvisor" class="v">N/A</div>
           </div>
         </div>
       </div>
@@ -222,25 +228,51 @@
         </div>
       </div>
 
-      <div class="sect" style="margin-top:6px">
+      <div class="sect">
         <div class="grid grid-cols-2 gap-2">
           <div class="box">
-            <div class="h-10 flex items-center justify-center border border-[color:var(--gris-borde)] bg-white rounded mb-1">Firma asesor</div>
-            <div id="signatureAdvisor" class="text-center text-[11px] text-[color:var(--gris-txt)]">N/A</div>
+            <div class="text-center text-[11px] text-[color:var(--gris-txt)]">
+              Código de Asesor: <span id="signatureAdvisorPrimary">N/A</span>
+            </div>
           </div>
           <div class="box">
-            <div class="h-10 flex items-center justify-center border border-[color:var(--gris-borde)] bg-white rounded mb-1">Firma titular</div>
-            <div id="signatureClient" class="text-center text-[11px] text-[color:var(--gris-txt)]">N/A</div>
+            <div class="h-20 flex items-center justify-center border border-[color:var(--gris-borde)] bg-white rounded mb-1">
+              <span style="opacity:0.3">Firma titular</span>
+            </div>
+            <div id="signatureClientPrimary" class="text-center text-[11px] text-[color:var(--gris-txt)]">N/A</div>
           </div>
         </div>
       </div>
 
-      <div class="legal">
+      <div class="legal" style="text-align:center">
         <div id="invoiceMessage"></div>
         <div id="footerTerms"></div>
         <div id="footerNote"></div>
-        <div style="margin-top:4px;opacity:.95">
+        <div style="margin-top:8px;margin-bottom:8px;">
+          La emisión de esta factura confirma la aceptación de los siguientes términos y condiciones por parte del cliente, en relación con la(s) reserva(s) detallada(s).<br/>
+          Group VC SAS<br/>
           ESTA FACTURA DE VENTA SE ASIMILA EN TODOS SUS EFECTOS A UNA LETRA DE CAMBIO SEGN ART.774 DEL C. DE CIO.
+        </div>
+        <div id="contractSection" class="contract-section" style="display:none">
+          <span class="sect-title">Contrato de viaje</span>
+          <div class="box">
+            <div id="travelContractContent" class="contract-content"></div>
+          </div>
+        </div>
+        <div id="contractSignatureSection" class="contract-signatures" style="display:none">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="box">
+              <div class="text-center text-[11px] text-[color:var(--gris-txt)]">
+                Código de Asesor: <span id="signatureAdvisorSecondary">N/A</span>
+              </div>
+            </div>
+            <div class="box">
+              <div class="h-20 flex items-center justify-center border border-[color:var(--gris-borde)] bg-white rounded mb-1">
+                <span style="opacity:0.3">Firma titular</span>
+              </div>
+              <div id="signatureClientSecondary" class="text-center text-[11px] text-[color:var(--gris-txt)]">N/A</div>
+            </div>
+          </div>
         </div>
         <div class="footer-contact">
           <p class="footer-line">
@@ -288,7 +320,131 @@
     const two=(n)=>String(n).padStart(2,'0');
     const formatDate=(v)=>{ const d=parseDate(v); if(!d) return 'N/A'; return two(d.getUTCDate())+'/'+two(d.getUTCMonth()+1)+'/'+d.getUTCFullYear(); };
     const formatCurrency=(n,cur='COP')=>{ const x=Number(n); if(!Number.isFinite(x)) return ''; try{ return new Intl.NumberFormat('es-CO',{style:'currency',currency:cur,maximumFractionDigits:0}).format(x);}catch{return cur+' '+x.toLocaleString('es-CO');} };
-    const numeroALetras=(num)=>{ if(!Number.isFinite(num)) return ''; const u=['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE']; const e={10:'DIEZ',11:'ONCE',12:'DOCE',13:'TRECE',14:'CATORCE',15:'QUINCE',16:'DIECISEIS',17:'DIECISIETE',18:'DIECIOCHO',19:'DIECINUEVE',20:'VEINTE',21:'VEINTIUNO',22:'VEINTIDOS',23:'VEINTITRES',24:'VEINTICUATRO',25:'VEINTICINCO',26:'VEINTISEIS',27:'VEINTISIETE',28:'VEINTIOCHO',29:'VEINTINUEVE'}; const d=['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA']; const c=['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS']; const sec=(n)=>{ if(n===0) return ''; if(n<10) return u[n]; if(n<30) return e[n]; if(n<100){const D=Math.floor(n/10),R=n%10;return d[D]+(R?' Y '+u[R]:'');} if(n===100) return 'CIEN'; if(n<1000){const C=Math.floor(n/100),R=n%100;return c[C]+(R?' '+sec(R):'');} if(n<1e6){const M=Math.floor(n/1e3),R=n%1e3;return (M===1?'MIL':sec(M)+' MIL')+(R?' '+sec(R):'');} if(n<1e9){const MM=Math.floor(n/1e6),R=n%1e6;return (MM===1?'UN MILLON':sec(MM)+' MILLONES')+(R?' '+sec(R):'');} const B=Math.floor(n/1e9),R2=n%1e9;return (B===1?'UN BILLON':sec(B)+' BILLONES')+(R2?' '+sec(R2):''); }; const ent=Math.floor(Math.abs(num)); const cents=Math.round((Math.abs(num)-ent)*100); let out=ent===0?'CERO':sec(ent); out+=' PESOS'; if(cents>0) out+=' CON '+String(cents).padStart(2,'0')+'/100'; return out; };
+    const numeroALetras=(num)=>{ if(!Number.isFinite(num)) return ''; const u=['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE']; const e={10:'DIEZ',11:'ONCE',12:'DOCE',13:'TRECE',14:'CATORCE',15:'QUINCE',16:'DIECISEIS',17:'DIECISIETE',18:'DIECIOCHO',19:'DIECINUEVE',20:'VEINTE',21:'VEINTIUNO',22:'VEINTIDOS',23:'VEINTITRES',24:'VEINTICUATRO',25:'VEINTICINCO',26:'VEINTISEIS',27:'VEINTISIETE',28:'VEINTIOCHO',29:'VEINTINUEVE'}; const d=['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA']; const c=['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS']; const sec=(n)=>{ if(n===0) return ''; if(n<10) return u[n]; if(n<30) return e[n]; if(n<100){const D=Math.floor(n/10),R=n%10;return d[D]+(R?' Y '+u[R]:'');} if(n===100) return 'CIEN'; if(n<1000){const C=Math.floor(n/100),R=n%100;return c[C]+(R?' '+sec(R):'');} if(n<1e6){const M=Math.floor(n/1e3),R=n%1e3;return (M===1?'MIL':sec(M)+' MIL')+(R?' '+sec(R):'');} if(n<1e9){const MM=Math.floor(n/1e6),R=n%1e6;return (MM===1?'UN MILLON':sec(MM)+' MILLONES')+(R?' '+sec(R):'');} const B=Math.floor(n/1e9),R2=n%1e9;return (B===1?'UN BILLON':sec(B)+' BILLONES')+(R2?' '+sec(R2):''); }; const ent=Math.floor(Math.abs(num)); const cents=Math.round((Math.abs(num)-ent)*100); let out=ent===0?'CERO':sec(ent); const isRoundThousands=(ent>=1000&&ent%1000===0); const isRoundMillions=(ent>=1000000&&ent%1000000===0); if(isRoundMillions) out+=' DE PESOS'; else if(isRoundThousands) out+=' DE PESOS'; else out+=' PESOS'; if(cents>0) out+=' CON '+String(cents).padStart(2,'0')+'/100'; return out; };
+
+    const processContractTemplate = (contractTemplate, invoiceData) => {
+      if (!contractTemplate || typeof contractTemplate !== 'string') return '';
+      if (!invoiceData || typeof invoiceData !== 'object') return contractTemplate;
+
+      const getNestedValue = (obj, path) => {
+        if (!path) return '';
+        const keys = path.split('.');
+        let value = obj;
+        for (const key of keys) {
+          if (value && typeof value === 'object' && key in value) {
+            value = value[key];
+          } else {
+            return '';
+          }
+        }
+        return value ?? '';
+      };
+
+      const formatCurrencyForContract = (num) => {
+        return new Intl.NumberFormat('es-CO', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(num);
+      };
+
+      const extractDateParts = (dateString) => {
+        if (!dateString) return { day: '', month: '', year: '' };
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return { day: '', month: '', year: '' };
+
+        const months = [
+          'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+          'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        ];
+
+        // Usar UTC para evitar desfase de zona horaria
+        return {
+          day: date.getUTCDate(),
+          month: months[date.getUTCMonth()],
+          year: date.getUTCFullYear(),
+        };
+      };
+
+      // Obtener la última fecha de retorno de todos los tramos
+      const getLastReturnDate = (invoiceData) => {
+        let lastDate = null;
+
+        // Buscar en los segmentos de viaje
+        const segments = invoiceData.travel?.segments ||
+                        invoiceData.travel?.segmentList ||
+                        invoiceData.travelSegments ||
+                        invoiceData.travel?.itinerary ||
+                        [];
+
+        if (Array.isArray(segments) && segments.length > 0) {
+          // Obtener todas las fechas de retorno
+          const returnDates = segments
+            .map(seg => seg.returnDate || seg.return_date || seg.endDate || seg.end_date)
+            .filter(Boolean)
+            .map(d => new Date(d))
+            .filter(d => !isNaN(d.getTime()));
+
+          if (returnDates.length > 0) {
+            // Encontrar la fecha más lejana (última fecha de retorno)
+            lastDate = new Date(Math.max(...returnDates.map(d => d.getTime())));
+          }
+        }
+
+        // Fallback a la fecha de retorno general del viaje
+        if (!lastDate) {
+          const generalReturn = invoiceData.travel?.returnDate ||
+                               invoiceData.travel?.return_date ||
+                               invoiceData.travel?.departureDate ||
+                               invoiceData.travel?.departure_date;
+          if (generalReturn) {
+            const d = new Date(generalReturn);
+            if (!isNaN(d.getTime())) {
+              lastDate = d;
+            }
+          }
+        }
+
+        return lastDate ? lastDate.toISOString() : null;
+      };
+
+      const startDate = extractDateParts(invoiceData.invoice?.issueDate || new Date().toISOString());
+      const lastReturnDate = getLastReturnDate(invoiceData);
+      const endDate = extractDateParts(lastReturnDate || invoiceData.travel?.departureDate);
+
+      const contractData = {
+        ...invoiceData,
+        contract: {
+          ...invoiceData.contract,
+          startDay: startDate.day,
+          startMonth: startDate.month,
+          startYear: startDate.year,
+          endDay: endDate.day,
+          endMonth: endDate.month,
+          endYear: endDate.year,
+        },
+      };
+
+      return contractTemplate.replace(/\{\{([^}]+)\}\}/g, (match, placeholder) => {
+        const trimmed = placeholder.trim();
+        const [path, filter] = trimmed.split('|').map(s => s.trim());
+        let value = getNestedValue(contractData, path);
+
+        if (filter) {
+          switch (filter) {
+            case 'numberToWords':
+              value = numeroALetras(value);
+              break;
+            case 'currency':
+              value = formatCurrencyForContract(value);
+              break;
+            default:
+              break;
+          }
+        }
+
+        return value !== null && value !== undefined ? String(value) : match;
+      });
+    };
 
     const setText=(id,v,empty='N/A')=>{ const el=document.getElementById(id); if(el) el.textContent=v? v: empty; };
     const fillTable=(tbodyId,rows,emptyCols,emptyText)=>{ const tb=document.getElementById(tbodyId); if(!tb) return; tb.innerHTML=''; if(!rows||!rows.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=emptyCols; td.textContent=emptyText; td.style.textAlign='center'; tr.appendChild(td); tb.appendChild(tr); return;} rows.forEach(r=>{ const tr=document.createElement('tr'); r.forEach(c=>{ const td=document.createElement('td'); td.textContent=c; tr.appendChild(td); }); tb.appendChild(tr); }); };
@@ -927,14 +1083,14 @@
     };
 
     const renderInvoice=(data={})=>{
-      const { agency={}, invoice={}, titular={}, emergencyContact={}, travel={}, flights={}, hotel={}, passengers={}, transfers={}, tours=[], payments={}, footer={}, signatures={} } = data;
+      const { agency={}, invoice={}, titular={}, emergencyContact={}, travel={}, flights={}, hotel={}, passengers={}, transfers={}, tours=[], payments={}, contract={}, footer={}, signatures={} } = data;
       applyAgencyLogo(agency);
       setText('agencyName', agency.name || 'Dream Vacation');
       setText('agencyLegalName', agency.legalName || 'Agencia Mayorista de Viajes y Turismo');
       setText('agencyLegalExtra', agency.legalExtra || 'GROUP VC SAS NIT. 901704831-4 Responsables de iva Registro nacional de turismo no. 96518');
       setText('invoiceNumber', invoice.number || 'N/A');
       setText('invoiceDate', formatDate(invoice.issueDate));
-      setText('invoiceAdvisor', invoice.advisorName || 'N/A');
+      setText('invoiceAdvisor', invoice.advisorId || invoice.advisor_id || 'N/A');
       setText('clientFullName', titular.fullName||'N/A');
       setText('clientDocument', (titular.documentType?titular.documentType+' ':'') + (titular.document||'N/A'));
       setText('clientEmail', titular.email||'N/A');
@@ -1053,8 +1209,40 @@
           installmentsBodyEl.appendChild(tr);
         }
       }
-      setText('signatureAdvisor', signatures.advisor||'N/A');
-      setText('signatureClient', signatures.client||'N/A');
+      setText('signatureAdvisorPrimary', invoice.advisorId || invoice.advisor_id || 'N/A');
+      setText('signatureClientPrimary', signatures.client||'N/A');
+      setText('signatureAdvisorSecondary', invoice.advisorId || invoice.advisor_id || 'N/A');
+      setText('signatureClientSecondary', signatures.client||'N/A');
+      const contractSection=document.getElementById('contractSection');
+      const contractSignatureSection=document.getElementById('contractSignatureSection');
+      const contractContentEl=document.getElementById('travelContractContent');
+
+      // Procesar plantilla de contrato con campos dinámicos
+      const contractTemplate = contract && (contract.template || contract.content || contract.html || contract.text || '');
+      const contractTemplateStr = typeof contractTemplate === 'string' ? contractTemplate.trim() : '';
+
+      let contractProcessed = '';
+      if (contractTemplateStr) {
+        // Verificar si tiene placeholders {{}} para procesar
+        const hasPlaceholders = /\{\{[^}]+\}\}/.test(contractTemplateStr);
+        if (hasPlaceholders) {
+          contractProcessed = processContractTemplate(contractTemplateStr, data);
+        } else {
+          contractProcessed = contractTemplateStr;
+        }
+      }
+
+      if(contractProcessed && contractContentEl){
+        const looksLikeHtml=/<\s*[a-z!\/]/i.test(contractProcessed);
+        const normalizedContract=looksLikeHtml?contractProcessed:contractProcessed.replace(/\r?\n/g,'<br/>');
+        contractContentEl.innerHTML=normalizedContract;
+        if(contractSection){ contractSection.style.display=''; }
+        if(contractSignatureSection){ contractSignatureSection.style.display=''; }
+      }else{
+        if(contractContentEl){ contractContentEl.innerHTML=''; }
+        if(contractSection){ contractSection.style.display='none'; }
+        if(contractSignatureSection){ contractSignatureSection.style.display='none'; }
+      }
       document.getElementById('invoiceMessage').textContent = footer.invoiceMessage||'';
       document.getElementById('footerTerms').textContent = footer.terms||'';
       document.getElementById('footerNote').textContent = footer.footerNote||footer.contractMessage||'';
