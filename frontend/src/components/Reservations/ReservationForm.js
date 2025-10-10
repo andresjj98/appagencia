@@ -702,6 +702,12 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
         };
       });
     } else if (name === 'paymentOption') {
+      // Validar si se puede usar pago a cuotas
+      if (processedValue === 'installments' && !canUseInstallments) {
+        alert('No se puede seleccionar pago a cuotas. La fecha de viaje debe ser al menos 30 días posterior a la fecha actual.');
+        return;
+      }
+
       // Si cambia a pago completo, establecer una cuota con la fecha de hoy
       if (processedValue === 'full_payment') {
         setFormData(prev => ({
@@ -750,6 +756,26 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     if (name === 'departureDate') {
       if (!newSegments[index].returnDate) {
         newSegments[index].returnDate = value;
+      }
+
+      // Si es el primer segmento y cambia la fecha de salida, verificar si aún se puede usar pago a cuotas
+      if (index === 0 && value) {
+        const currentDate = new Date();
+        const newDepartureDate = new Date(value);
+        const daysDifference = Math.floor((newDepartureDate - currentDate) / (1000 * 60 * 60 * 24));
+
+        // Si ya no hay 30 días y está en modo cuotas, cambiar a pago total
+        if (daysDifference < 30 && formData.paymentOption === 'installments') {
+          alert('La nueva fecha de viaje no permite pagos a cuotas (requiere al menos 30 días). Se cambiará automáticamente a pago total.');
+          setFormData(prev => ({
+            ...prev,
+            segments: newSegments,
+            paymentOption: 'full_payment',
+            installments: [{ amount: prev.totalAmount || 0, dueDate: getTodayDate() }],
+            installmentsCount: 1
+          }));
+          return;
+        }
       }
     }
 
@@ -1013,6 +1039,11 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       return;
     }
 
+    if (numInstallments < 2) {
+      alert("Para pagos a cuotas, debes tener al menos 2 cuotas. La primera cuota es el 50% del total.");
+      return;
+    }
+
     const totalAmount = parseFloat(formData.totalAmount);
     if (isNaN(totalAmount) || totalAmount <= 0) {
       alert("El monto total del plan debe ser mayor a 0 para calcular cuotas.");
@@ -1020,36 +1051,86 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
     }
 
     const totalRounded = Math.round(totalAmount);
-    const baseAmount = Math.floor(totalRounded / numInstallments);
-    const remainder = totalRounded - baseAmount * numInstallments;
+    const firstInstallmentAmount = Math.round(totalRounded * 0.5); // 50% del total
+    const remainingAmount = totalRounded - firstInstallmentAmount;
 
     const newInstallments = [];
     let currentDate = new Date();
     const departureDateObj = new Date(tripDepartureDate);
 
-    for (let i = 0; i < numInstallments; i++) {
-      let dueDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, currentDate.getDate());
+    // PRIMERA CUOTA: 50% del total, fecha actual
+    newInstallments.push({
+      amount: firstInstallmentAmount,
+      dueDate: currentDate.toISOString().split('T')[0],
+      isFirstInstallment: true // Marcador para identificar la primera cuota
+    });
 
-      if (dueDate > departureDateObj) {
-        dueDate = new Date(departureDateObj);
-        dueDate.setDate(departureDateObj.getDate() - 1);
-        if (dueDate < currentDate) {
-          dueDate = new Date();
+    // CUOTAS INTERMEDIAS Y ÚLTIMA CUOTA
+    const numRemainingInstallments = numInstallments - 1;
+
+    // Calcular la fecha límite: 30 días antes del viaje
+    const lastInstallmentDate = new Date(departureDateObj);
+    lastInstallmentDate.setDate(lastInstallmentDate.getDate() - 30);
+
+    // Verificar si hay tiempo suficiente (30 días mínimo)
+    const daysDifference = Math.floor((lastInstallmentDate - currentDate) / (1000 * 60 * 60 * 24));
+    if (daysDifference < 30) {
+      alert("No hay suficiente tiempo para pagos a cuotas. La fecha de viaje debe ser al menos 30 días posterior a la fecha actual.");
+      return;
+    }
+
+    // Distribuir el monto restante entre las cuotas restantes
+    const baseAmount = Math.floor(remainingAmount / numRemainingInstallments);
+    const remainder = remainingAmount - (baseAmount * numRemainingInstallments);
+
+    for (let i = 0; i < numRemainingInstallments; i++) {
+      const isLastInstallment = (i === numRemainingInstallments - 1);
+      let dueDate;
+
+      if (isLastInstallment) {
+        // ÚLTIMA CUOTA: 30 días antes del viaje
+        dueDate = new Date(lastInstallmentDate);
+      } else {
+        // CUOTAS INTERMEDIAS: distribuidas mensualmente entre la primera y la última
+        const monthsToAdd = i + 1;
+        dueDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + monthsToAdd, currentDate.getDate());
+
+        // Asegurarse de que no exceda la fecha límite
+        if (dueDate > lastInstallmentDate) {
+          dueDate = new Date(lastInstallmentDate);
         }
       }
 
-      const roundedAmount = baseAmount + (i < remainder ? 1 : 0);
+      const installmentAmount = baseAmount + (i < remainder ? 1 : 0);
 
       newInstallments.push({
-        amount: roundedAmount,
-        dueDate: dueDate.toISOString().split('T')[0]
+        amount: installmentAmount,
+        dueDate: dueDate.toISOString().split('T')[0],
+        isLastInstallment: isLastInstallment
       });
     }
+
     setFormData(prev => ({ ...prev, installments: newInstallments }));
   };
 
   const totalInstallmentsAmount = formData.installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
   const expectedInstallmentsTotal = Math.round(parseFloat(formData.totalAmount) || 0);
+
+  // Verificar si el usuario puede editar cuotas según su rol
+  const isSuperAdmin = user?.isSuperAdmin === true;
+  const isAdmin = user?.role === 'administrador' && !isSuperAdmin;
+  const isAsesor = user?.role === 'asesor';
+
+  // Calcular si hay al menos 30 días hasta la fecha de viaje
+  const canUseInstallments = useMemo(() => {
+    if (!tripDepartureDate) return false;
+
+    const currentDate = new Date();
+    const departureDateObj = new Date(tripDepartureDate);
+    const daysDifference = Math.floor((departureDateObj - currentDate) / (1000 * 60 * 60 * 24));
+
+    return daysDifference >= 30;
+  }, [tripDepartureDate]);
 
   const tripMinDate = useMemo(() => {
     if (!formData.segments || formData.segments.length === 0) return getTodayDate();
@@ -2011,10 +2092,23 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
               </h4>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Pago</label>
-                <select name="paymentOption" value={formData.paymentOption} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                <select
+                  name="paymentOption"
+                  value={formData.paymentOption}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                >
                   <option value="full_payment">Pago Total</option>
-                  <option value="installments">Pago a Cuotas</option>
+                  <option value="installments" disabled={!canUseInstallments}>
+                    Pago a Cuotas {!canUseInstallments && '(Requiere al menos 30 días hasta el viaje)'}
+                  </option>
                 </select>
+                {!canUseInstallments && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <Info className="w-3 h-3" />
+                    Para habilitar pagos a cuotas, la fecha de viaje debe ser al menos 30 días posterior a hoy.
+                  </p>
+                )}
               </div>
 
               {formData.paymentOption === 'installments' && (
@@ -2054,30 +2148,84 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                       </motion.button>
                     </div>
                   </div>
-                  {formData.installments.map((installment, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Monto ({resolvedCurrency})</label>
-                        <input
-                          type="text"
-                          name="amount"
-                          value={formatNumberWithThousands(installment.amount)}
-                          onChange={(e) => handleInstallmentChange(index, e)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de Vencimiento</label>
-                        <input type="date" name="dueDate" value={installment.dueDate} onChange={(e) => handleInstallmentChange(index, e)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" min={getTodayDate()} />
-                      </div>
-                      {formData.installments.length > 1 && (
-                        <motion.button type="button" onClick={() => removeInstallment(index)} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                          <MinusCircle className="w-4 h-4" />
+                  {formData.installments.map((installment, index) => {
+                    const isFirstInstallment = index === 0;
+                    const isLastInstallment = index === formData.installments.length - 1;
+
+                    // Permisos de edición:
+                    // - SuperAdmin: puede editar todo
+                    // - Admin/Asesor: NO pueden editar monto de primera cuota ni fecha de última cuota
+                    // - Admin/Asesor: SÍ pueden editar cuotas intermedias
+                    const canEditAmount = isSuperAdmin || !isFirstInstallment;
+                    const canEditDate = isSuperAdmin || (!isFirstInstallment && !isLastInstallment);
+
+                    return (
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-end relative p-2 bg-gray-100 rounded-lg">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Monto ({resolvedCurrency})
+                            {isFirstInstallment && (
+                              <span className="ml-1 text-blue-600 font-semibold">(Inicial: 50%)</span>
+                            )}
+                          </label>
+                          <input
+                            type="text"
+                            name="amount"
+                            value={formatNumberWithThousands(installment.amount)}
+                            onChange={(e) => handleInstallmentChange(index, e)}
+                            className={`w-full px-2 py-1 border border-gray-300 rounded-md text-sm ${
+                              !canEditAmount ? 'bg-gray-200 cursor-not-allowed' : ''
+                            }`}
+                            placeholder="0"
+                            disabled={!canEditAmount}
+                            title={!canEditAmount ? 'Solo superadministradores pueden editar este campo' : ''}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Fecha de Vencimiento
+                            {isLastInstallment && (
+                              <span className="ml-1 text-orange-600 font-semibold">(30 días antes del viaje)</span>
+                            )}
+                          </label>
+                          <input
+                            type="date"
+                            name="dueDate"
+                            value={installment.dueDate}
+                            onChange={(e) => handleInstallmentChange(index, e)}
+                            className={`w-full px-2 py-1 border border-gray-300 rounded-md text-sm ${
+                              !canEditDate ? 'bg-gray-200 cursor-not-allowed' : ''
+                            }`}
+                            min={getTodayDate()}
+                            disabled={!canEditDate}
+                            title={!canEditDate ? 'Solo superadministradores pueden editar este campo' : ''}
+                          />
+                        </div>
+                        {formData.installments.length > 1 && (
+                          <motion.button
+                            type="button"
+                            onClick={() => removeInstallment(index)}
+                            className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-md"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <MinusCircle className="w-4 h-4" />
                         </motion.button>
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
+
+                  {/* Información sobre permisos de edición */}
+                  {!isSuperAdmin && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                      <p className="text-xs text-blue-800 flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        <strong>Nota:</strong> La primera cuota (50% del total) y la fecha de la última cuota (30 días antes del viaje) solo pueden ser editadas por superadministradores.
+                      </p>
+                    </div>
+                  )}
+
                   <p className="text-sm font-semibold text-gray-800 mt-4">Total Cuotas: {formatCurrencyValue(totalInstallmentsAmount)}</p>
                   {totalInstallmentsAmount !== expectedInstallmentsTotal && (
                     <p className="text-sm text-red-600 flex items-center gap-1">
