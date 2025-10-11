@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search,
   Calendar,
   Mail,
   Phone,
@@ -19,6 +18,7 @@ import {
 import { RESERVATION_STATUS, PAYMENT_STATUS, filterReservationsByRole, canEditReservation, canApproveReservation } from '../utils/constants';
 import ReservationManagementPanel from '../components/Gestion/ReservationManagementPanel';
 import RejectReservationModal from '../components/Gestion/RejectReservationModal';
+import ReservationFilters from '../components/Gestion/ReservationFilters';
 import { useSettings } from '../utils/SettingsContext';
 import { useAuth } from './AuthContext';
 
@@ -93,7 +93,24 @@ const transformReservationForGestion = (reservation) => {
   const passengersINF = Number(reservation.passengers_inf ?? reservation.passengersINF ?? 0);
   const totalPassengers = passengersADT + passengersCHD + passengersINF;
   const totalAmount = Number(reservation.total_amount ?? reservation.totalAmount ?? 0);
-  const paymentStatus = reservation.payment_status ?? reservation.paymentStatus ?? reservation._original?.payment_status;
+
+  // Calcular el estado de pago basado en las cuotas
+  const installments = reservation.reservation_installments || [];
+  let paymentStatus = 'pending';
+
+  if (installments.length > 0) {
+    const paidInstallments = installments.filter(inst => inst.status === 'paid');
+    const totalPaid = paidInstallments.reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
+
+    if (totalPaid >= totalAmount) {
+      paymentStatus = 'paid';
+    } else if (totalPaid > 0) {
+      paymentStatus = 'partial';
+    } else {
+      paymentStatus = 'pending';
+    }
+  }
+
   const destinationSummary = firstSegment ? `${firstSegment.origin ?? 'N/A'} -> ${firstSegment.destination ?? 'N/A'}` : 'Destino no especificado';
 
   return {
@@ -124,10 +141,11 @@ const transformReservationForGestion = (reservation) => {
 
 const Gestion = () => {
   const [reservations, setReservations] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [reservationToReject, setReservationToReject] = useState(null);
+  const [activeFilters, setActiveFilters] = useState({});
+  const [offices, setOffices] = useState([]);
   const { formatCurrency, formatDate } = useSettings();
   const { currentUser } = useAuth();
 
@@ -162,20 +180,107 @@ const Gestion = () => {
     }
   }, [currentUser]);
 
+  const fetchOffices = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/offices');
+      const data = await response.json();
+      if (response.ok) {
+        setOffices(data);
+      } else {
+        console.error('Error fetching offices:', data.message);
+      }
+    } catch (error) {
+      console.error('Error fetching offices:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchReservations();
-  }, [fetchReservations]);
+    fetchOffices();
+  }, [fetchReservations, fetchOffices]);
 
+  // Función para calcular urgencia
+  const calculateUrgency = (departureDate) => {
+    if (!departureDate) return null;
+    const today = new Date();
+    const departure = new Date(departureDate);
+    today.setHours(0, 0, 0, 0);
+    departure.setHours(0, 0, 0, 0);
+
+    const diffTime = departure.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'past';
+    if (diffDays === 0) return 'today';
+    if (diffDays <= 3) return 'urgent';
+    if (diffDays <= 7) return 'soon';
+    return null;
+  };
+
+  // Función de filtrado avanzada
   const filteredReservations = reservations.filter(reservation => {
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const clientName = reservation.clientName || '';
-    const destination = reservation.destinationSummary || '';
-    const invoice = reservation.invoiceNumber ? reservation.invoiceNumber.toString() : '';
-    return (
-      clientName.toLowerCase().includes(lowerCaseSearchTerm) ||
-      destination.toLowerCase().includes(lowerCaseSearchTerm) ||
-      invoice.toLowerCase().includes(lowerCaseSearchTerm)
-    );
+    // Filtro por búsqueda de texto (incluye búsqueda de pasajeros)
+    if (activeFilters.searchTerm) {
+      const searchValue = activeFilters.searchTerm.toLowerCase();
+      const clientName = reservation.clientName || '';
+      const destination = reservation.destinationSummary || '';
+      const invoice = reservation.invoiceNumber ? reservation.invoiceNumber.toString() : '';
+
+      // Buscar en pasajeros
+      const passengers = reservation._original?.reservation_passengers || [];
+      const passengerMatch = passengers.some(passenger =>
+        (passenger.name || '').toLowerCase().includes(searchValue) ||
+        (passenger.lastname || '').toLowerCase().includes(searchValue) ||
+        `${passenger.name || ''} ${passenger.lastname || ''}`.toLowerCase().includes(searchValue)
+      );
+
+      const basicMatch = (
+        clientName.toLowerCase().includes(searchValue) ||
+        destination.toLowerCase().includes(searchValue) ||
+        invoice.toLowerCase().includes(searchValue)
+      );
+
+      if (!basicMatch && !passengerMatch) return false;
+    }
+
+    // Filtro por oficina
+    if (activeFilters.office) {
+      const reservationOffice = reservation._original?.office_id || reservation.office_id;
+      if (reservationOffice !== activeFilters.office) return false;
+    }
+
+    // Filtro por estado de reserva
+    if (activeFilters.status) {
+      if (reservation.status !== activeFilters.status) return false;
+    }
+
+    // Filtro por estado de pago
+    if (activeFilters.paymentStatus) {
+      const paymentStatus = reservation.paymentStatus ?? reservation.payment_status ?? reservation._original?.payment_status;
+      if (paymentStatus !== activeFilters.paymentStatus) return false;
+    }
+
+    // Filtro por urgencia
+    if (activeFilters.urgency) {
+      const urgency = calculateUrgency(reservation.departureDate);
+      if (urgency !== activeFilters.urgency) return false;
+    }
+
+    // Filtro por fecha desde
+    if (activeFilters.dateFrom) {
+      const departureDate = new Date(reservation.departureDate);
+      const fromDate = new Date(activeFilters.dateFrom);
+      if (departureDate < fromDate) return false;
+    }
+
+    // Filtro por fecha hasta
+    if (activeFilters.dateTo) {
+      const departureDate = new Date(reservation.departureDate);
+      const toDate = new Date(activeFilters.dateTo);
+      if (departureDate > toDate) return false;
+    }
+
+    return true;
   });
 
   const sortedReservations = [...filteredReservations].sort((a, b) => {
@@ -285,22 +390,20 @@ const Gestion = () => {
     >
       {!selectedReservation && (
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Gestion de Reservas</h1>
               <p className="text-sm text-gray-500">Controla el estado, pagos y servicios contratados con una vista unificada.</p>
             </div>
-            <div className="relative w-full max-w-sm">
-              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Buscar cliente, destino o factura"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              />
-            </div>
           </div>
+
+          {/* Componente de Filtros */}
+          <ReservationFilters
+            reservations={reservations}
+            onFilterChange={setActiveFilters}
+            currentUser={currentUser}
+            availableOffices={offices}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <AnimatePresence>
