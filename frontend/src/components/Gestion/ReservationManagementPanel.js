@@ -34,36 +34,89 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
   };
 
   const handleUpdateReservation = async (updatedPayload) => {
+    console.log('=== FRONTEND DEBUG ===');
+    console.log('handleUpdateReservation called');
+    console.log('updatedPayload:', updatedPayload);
+    console.log('Has reservation_passengers?', !!updatedPayload.reservation_passengers);
+    console.log('Reservation ID:', reservation.id);
+
     setIsSaving(true);
 
-    const payloadForSql = {
-        ...updatedPayload,
-        // Client data mapping
-        clientName: updatedPayload.clients.name,
-        clientEmail: updatedPayload.clients.email,
-        clientPhone: updatedPayload.clients.phone,
-        clientId: updatedPayload.clients.id_card,
-        clientAddress: updatedPayload.clients.address,
-        emergencyContact: {
-            name: updatedPayload.clients.emergency_contact_name,
-            phone: updatedPayload.clients.emergency_contact_phone,
-        },
-        // Reservation data mapping (snake_case to camelCase)
-        tripType: updatedPayload.trip_type,
-        passengersADT: updatedPayload.passengers_adt,
-        passengersCHD: updatedPayload.passengers_chd,
-        passengersINF: updatedPayload.passengers_inf,
-        pricePerADT: updatedPayload.price_per_adt,
-        pricePerCHD: updatedPayload.price_per_chd,
-        pricePerINF: updatedPayload.price_per_inf,
-        totalAmount: updatedPayload.total_amount,
-        paymentOption: updatedPayload.payment_option,
-    };
-
     try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+
+      // Si el payload contiene reservation_passengers, usar endpoint específico
+      if (updatedPayload.reservation_passengers) {
+        console.log('Using passengers endpoint');
+        console.log('Passengers data:', updatedPayload.reservation_passengers);
+
+        const url = `/api/reservations/${reservation.id}/passengers`;
+        const body = {
+          passengers: updatedPayload.reservation_passengers
+        };
+
+        console.log('Fetching:', url);
+        console.log('Body:', body);
+
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(body),
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          throw new Error(errorData.message || 'Failed to update passengers');
+        }
+
+        const successData = await response.json();
+        console.log('Success response:', successData);
+
+        if(onUpdate) {
+          onUpdate();
+        }
+
+        alert('Pasajeros actualizados con exito');
+        return;
+      }
+
+      // Para otras actualizaciones, usar el endpoint general
+      const payloadForSql = {
+          ...updatedPayload,
+          // Client data mapping
+          clientName: updatedPayload.clients.name,
+          clientEmail: updatedPayload.clients.email,
+          clientPhone: updatedPayload.clients.phone,
+          clientId: updatedPayload.clients.id_card,
+          clientAddress: updatedPayload.clients.address,
+          emergencyContact: {
+              name: updatedPayload.clients.emergency_contact_name,
+              phone: updatedPayload.clients.emergency_contact_phone,
+          },
+          // Reservation data mapping (snake_case to camelCase)
+          tripType: updatedPayload.trip_type,
+          passengersADT: updatedPayload.passengers_adt,
+          passengersCHD: updatedPayload.passengers_chd,
+          passengersINF: updatedPayload.passengers_inf,
+          pricePerADT: updatedPayload.price_per_adt,
+          pricePerCHD: updatedPayload.price_per_chd,
+          pricePerINF: updatedPayload.price_per_inf,
+          totalAmount: updatedPayload.total_amount,
+          paymentOption: updatedPayload.payment_option,
+      };
+      payloadForSql.updateContext = payloadForSql.updateContext || 'general';
+
       const response = await fetch(`/api/reservations/${reservation.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payloadForSql),
       });
 
@@ -71,11 +124,11 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update reservation');
       }
-      
+
       if(onUpdate) {
         onUpdate();
       }
-      
+
       alert('Reserva actualizada con exito');
 
     } catch (error) {

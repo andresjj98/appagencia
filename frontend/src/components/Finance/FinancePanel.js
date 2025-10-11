@@ -440,6 +440,13 @@ const FinancePanel = () => {
     return reservation.payments.length > 0 && reservation.payments.every(p => p.status === 'paid');
   };
 
+  const activeModalReservation = modalReservation
+    ? reservations.find(r => r.id === modalReservation.id) || modalReservation
+    : null;
+  const activeModalHasPendingChanges = !!activeModalReservation?.payments?.some(
+    (p) => pendingStatusChanges[p.id]
+  );
+
   const getReservationPaymentStatus = (reservation) => {
     if (isReservationPaidUp(reservation)) {
       return 'paid';
@@ -586,15 +593,15 @@ const FinancePanel = () => {
         )}
         </div>
 
-      {modalReservation && (
-        <FinanceDetailModal reservation={modalReservation} onClose={() => setModalReservation(null)}>
+      {activeModalReservation && (
+        <FinanceDetailModal reservation={activeModalReservation} onClose={() => setModalReservation(null)}>
             <InstallmentManager 
-                reservation={reservations.find(r => r.id === modalReservation.id)} 
+                reservation={activeModalReservation} 
                 onStatusChange={handleStatusChange} 
                 onFileSelect={handleFileSelect} 
                 onFileRemove={handleFileRemove}
                 selectedFiles={selectedFiles} 
-                hasPendingChanges={reservations.find(r => r.id === modalReservation.id).payments.some(p => pendingStatusChanges[p.id])}
+                hasPendingChanges={activeModalHasPendingChanges}
                 onSave={handleSaveStatusChanges}
                 onCancel={handleCancelStatusChanges}
             />

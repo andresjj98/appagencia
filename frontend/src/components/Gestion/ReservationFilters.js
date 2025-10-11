@@ -9,7 +9,13 @@ import {
   AlertCircle,
   CreditCard,
   User,
-  RotateCcw
+  RotateCcw,
+  Globe,
+  Plane,
+  Hotel,
+  Ticket,
+  HeartPulse,
+  Briefcase
 } from 'lucide-react';
 import { RESERVATION_STATUS, PAYMENT_STATUS } from '../../utils/constants';
 
@@ -28,6 +34,7 @@ const ReservationFilters = ({
     dateFrom: '',
     dateTo: '',
     urgency: '',
+    reservationType: '',
   });
 
   // Usar las oficinas proporcionadas desde el backend
@@ -39,6 +46,16 @@ const ReservationFilters = ({
     { value: 'urgent', label: 'Urgente (≤3 días)' },
     { value: 'soon', label: 'Próxima salida (≤7 días)' },
     { value: 'past', label: 'Viajes pasados' }
+  ];
+
+  // Tipos de reserva
+  const reservationTypes = [
+    { value: 'all_inclusive', label: 'Paquete Completo', icon: Globe },
+    { value: 'flights_only', label: 'Solo Vuelos', icon: Plane },
+    { value: 'hotel_only', label: 'Solo Hotel', icon: Hotel },
+    { value: 'tours_only', label: 'Tours y Actividades', icon: Ticket },
+    { value: 'medical_assistance', label: 'Asistencia Médica', icon: HeartPulse },
+    { value: 'other', label: 'Servicios Varios', icon: Briefcase }
   ];
 
   // Contar filtros activos
@@ -67,6 +84,7 @@ const ReservationFilters = ({
       dateFrom: '',
       dateTo: '',
       urgency: '',
+      reservationType: '',
     });
   };
 
@@ -144,6 +162,26 @@ const ReservationFilters = ({
 
               {/* Grid de filtros */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Filtro por Tipo de Reserva */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                    <Globe className="w-4 h-4" />
+                    Tipo de Reserva
+                  </label>
+                  <select
+                    value={filters.reservationType}
+                    onChange={(e) => handleFilterChange('reservationType', e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                  >
+                    <option value="">Todos los tipos</option>
+                    {reservationTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Filtro por Oficina */}
                 {(currentUser?.isSuperAdmin || currentUser?.role === 'administrador') && offices.length > 0 && (
                   <div>
@@ -264,6 +302,12 @@ const ReservationFilters = ({
                       <FilterBadge
                         label={`Búsqueda: ${filters.searchTerm}`}
                         onRemove={() => handleFilterChange('searchTerm', '')}
+                      />
+                    )}
+                    {filters.reservationType && (
+                      <FilterBadge
+                        label={`Tipo: ${reservationTypes.find(t => t.value === filters.reservationType)?.label}`}
+                        onRemove={() => handleFilterChange('reservationType', '')}
                       />
                     )}
                     {filters.office && (

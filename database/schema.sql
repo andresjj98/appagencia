@@ -98,6 +98,7 @@ CREATE TABLE public.clients (
   emergency_contact_name text,
   emergency_contact_phone text,
   created_at timestamp with time zone DEFAULT now(),
+  id_card_issued_place text,
   CONSTRAINT clients_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.documents (

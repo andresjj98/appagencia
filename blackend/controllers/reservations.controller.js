@@ -158,10 +158,20 @@ const createReservation = async (req, res) => {
 
 const updateReservation = async (req, res) => {
   const { id } = req.params;
+
+  if (!req.user?.id) {
+    return res.status(401).json({ message: 'Usuario no autenticado' });
+  }
+
+  const updateContext = req.body?.updateContext || 'general';
+
   try {
-    const { error } = await supabaseAdmin.rpc('update_full_reservation', { 
+    const { error } = await supabaseAdmin.rpc('update_full_reservation', {
       reservation_id_input: id,
-      payload: req.body 
+      payload: req.body,
+      actor_id: req.user.id,
+      actor_role: req.user.role,
+      update_context: updateContext
     });
 
     if (error) {
@@ -169,14 +179,13 @@ const updateReservation = async (req, res) => {
       return res.status(500).json({ message: 'Error en la base de datos al actualizar la reserva', details: error.message });
     }
 
-    res.status(200).json({ message: 'Reserva actualizada con éxito' });
+    res.status(200).json({ message: 'Reserva actualizada con exito' });
 
   } catch (error) {
     console.error('Server error in updateReservation:', error);
     res.status(500).json({ message: 'Error interno del servidor', details: error.message });
   }
 };
-
 
 const approveReservation = async (req, res) => {
   const { id } = req.params;
@@ -410,6 +419,210 @@ const getReservationActivities = async (req, res) => {
   }
 };
 
+// =====================================================
+// CONFIRM SERVICE
+// =====================================================
+const confirmService = async (req, res) => {
+  const { id } = req.params;
+  const { serviceType, serviceId, confirmedBy } = req.body;
+
+  try {
+    // Validar parámetros requeridos
+    if (!serviceType) {
+      return res.status(400).json({ message: 'El tipo de servicio es requerido.' });
+    }
+
+    // Verificar que la reserva existe
+    const { data: reservation, error: reservationError } = await supabaseAdmin
+      .from('reservations')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (reservationError || !reservation) {
+      console.error('Error fetching reservation for service confirmation:', reservationError);
+      return res.status(404).json({ message: 'Reserva no encontrada.' });
+    }
+
+    // Mapear tipo de servicio a campo de estado
+    const serviceStatusMap = {
+      'flight': 'flight_status_ok',
+      'hotel': 'hotel_status_ok',
+      'tour': 'tours_status_ok',
+      'medical': 'assistance_status_ok',
+      'transfer': 'transfer_status_ok'
+    };
+
+    const statusField = serviceStatusMap[serviceType];
+
+    if (!statusField) {
+      return res.status(400).json({ message: 'Tipo de servicio no válido.' });
+    }
+
+    // Actualizar el estado del servicio en la reserva
+    const updatePayload = {
+      [statusField]: true,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: updatedReservation, error: updateError } = await supabaseAdmin
+      .from('reservations')
+      .update(updatePayload)
+      .eq('id', id)
+      .select(fullReservationSelect)
+      .maybeSingle();
+
+    if (updateError || !updatedReservation) {
+      console.error('Error confirming service:', updateError);
+      return res.status(500).json({ message: 'Error al confirmar el servicio.' });
+    }
+
+    return res.json({
+      message: 'Servicio confirmado correctamente.',
+      reservation: updatedReservation,
+    });
+  } catch (error) {
+    console.error('Unexpected error confirming service:', error);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+// =====================================================
+// PASSENGER MANAGEMENT
+// =====================================================
+
+const updatePassengers = async (req, res) => {
+  const { id } = req.params;
+  const passengers = req.body.passengers || req.body.reservation_passengers || [];
+
+  console.log('=== UPDATE PASSENGERS DEBUG ===');
+  console.log('Reservation ID:', id);
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  console.log('Passengers array:', JSON.stringify(passengers, null, 2));
+  console.log('Passengers count:', passengers.length);
+  console.log('Is array?', Array.isArray(passengers));
+
+  try {
+    // Validar que la reserva existe
+    const { data: reservation, error: reservationError } = await supabaseAdmin
+      .from('reservations')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (reservationError || !reservation) {
+      console.error('Error fetching reservation for passenger update:', reservationError);
+      return res.status(404).json({ message: 'Reserva no encontrada.' });
+    }
+
+    console.log('Reservation found:', reservation);
+
+    // Validar que passengers sea un array
+    if (!Array.isArray(passengers)) {
+      console.error('Passengers is not an array:', typeof passengers);
+      return res.status(400).json({ message: 'El campo passengers debe ser un array.' });
+    }
+
+    console.log('Calling RPC upsert_passengers with:', {
+      reservation_id_input: parseInt(id),
+      passengers_count: passengers.length
+    });
+
+    // Llamar a la función RPC para actualizar pasajeros
+    const { data, error } = await supabaseAdmin.rpc('upsert_passengers', {
+      reservation_id_input: parseInt(id),
+      passengers_payload: passengers
+    });
+
+    console.log('RPC Response - Data:', JSON.stringify(data, null, 2));
+    console.log('RPC Response - Error:', error);
+
+    if (error) {
+      console.error('Error updating passengers via RPC:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      return res.status(500).json({
+        message: 'Error al actualizar los pasajeros',
+        details: error.message,
+        hint: error.hint,
+        code: error.code
+      });
+    }
+
+    console.log('Passengers updated successfully!');
+    res.status(200).json({
+      message: 'Pasajeros actualizados exitosamente',
+      result: data
+    });
+
+  } catch (error) {
+    console.error('Server error in updatePassengers:', error);
+    res.status(500).json({
+      message: 'Error interno del servidor',
+      details: error.message
+    });
+  }
+};
+
+const getPassengers = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { data, error } = await supabaseAdmin.rpc('get_passengers_by_reservation', {
+      reservation_id_input: parseInt(id)
+    });
+
+    if (error) {
+      console.error('Error fetching passengers via RPC:', error);
+      return res.status(500).json({
+        message: 'Error al obtener los pasajeros',
+        details: error.message
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      passengers: data || []
+    });
+
+  } catch (error) {
+    console.error('Server error in getPassengers:', error);
+    res.status(500).json({
+      message: 'Error interno del servidor',
+      details: error.message
+    });
+  }
+};
+
+const deletePassenger = async (req, res) => {
+  const { passengerId } = req.params;
+
+  try {
+    const { data, error } = await supabaseAdmin.rpc('delete_passenger', {
+      passenger_id_input: parseInt(passengerId)
+    });
+
+    if (error) {
+      console.error('Error deleting passenger via RPC:', error);
+      return res.status(500).json({
+        message: 'Error al eliminar el pasajero',
+        details: error.message
+      });
+    }
+
+    res.status(200).json({
+      message: 'Pasajero eliminado exitosamente',
+      result: data
+    });
+
+  } catch (error) {
+    console.error('Server error in deletePassenger:', error);
+    res.status(500).json({
+      message: 'Error interno del servidor',
+      details: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllReservations,
   getReservationById,
@@ -418,5 +631,13 @@ module.exports = {
   approveReservation,
   rejectReservation,
   deleteReservation,
-  getReservationActivities
+  getReservationActivities,
+  confirmService,
+  updatePassengers,
+  getPassengers,
+  deletePassenger
 };
+
+
+
+

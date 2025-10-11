@@ -384,6 +384,10 @@ const PassengerManagementTab = ({ reservation, onUpdateReservation, onUpdate }) 
   };
 
   const handleSubmitAll = async () => {
+    console.log('=== PASSENGER TAB DEBUG ===');
+    console.log('handleSubmitAll called');
+    console.log('updateHandler exists?', !!updateHandler);
+
     if (!updateHandler) {
       setSubmissionError('No hay una accion definida para guardar los pasajeros.');
       return;
@@ -398,19 +402,33 @@ const PassengerManagementTab = ({ reservation, onUpdateReservation, onUpdate }) 
       return sanitized;
     });
 
+    console.log('Passengers to send:', payloadPassengers);
+    console.log('Passengers count:', payloadPassengers.length);
+
     const basePayload = reservation._original ? { ...reservation._original } : { ...reservation };
     const updatedReservation = {
       ...basePayload,
       reservation_passengers: payloadPassengers,
     };
 
+    console.log('Full payload:', updatedReservation);
+    console.log('Calling updateHandler...');
+
     try {
       const result = updateHandler(updatedReservation);
+      console.log('updateHandler result:', result);
+      console.log('Is promise?', result && typeof result.then === 'function');
+
       if (result && typeof result.then === 'function') {
+        console.log('Awaiting promise...');
         await result;
+        console.log('Promise resolved');
       }
+
       setInitialPassengersSnapshot(payloadPassengers.map(toComparablePassenger));
+      console.log('Passengers saved successfully!');
     } catch (error) {
+      console.error('Error saving passengers:', error);
       setSubmissionError(error?.message || 'No se pudieron guardar los pasajeros.');
     } finally {
       setIsSubmitting(false);

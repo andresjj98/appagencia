@@ -18,9 +18,15 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, onEditSection, readOnly
   const handleConfirmService = async (serviceType, serviceId) => {
     setIsConfirming(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+
       const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/confirm-service`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           serviceType,
           serviceId,

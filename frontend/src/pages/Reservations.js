@@ -17,6 +17,16 @@ import { filterReservationsByRole, canEditReservation } from '../utils/constants
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
 const ChangeRequestModal = CancelRequestModal;
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const buildJsonHeaders = () => ({
+  'Content-Type': 'application/json',
+  ...getAuthHeaders(),
+});
+
 const getPaymentStatus = (reservation) => {
     const installments = reservation.reservation_installments || [];
     if (installments.length === 0) {
@@ -106,12 +116,27 @@ const Reservations = () => {
     setShowDetailsModal(true);
   }, []);
 
-  const handleUpdateReservationDetails = (updatedReservation) => {
-    // Here you would typically send the update to the backend
+  const handleUpdateReservationDetails = async (updatedReservation) => {
+    console.log('=== RESERVATIONS.JS UPDATE ===');
     console.log('Updating reservation details:', updatedReservation);
-    // For now, just refetch all reservations to see changes
-    fetchReservations();
-    setShowDetailsModal(false);
+    console.log('Has reservation_passengers?', !!updatedReservation?.reservation_passengers);
+
+    // Actualizar la reserva seleccionada con los nuevos datos
+    if (updatedReservation) {
+      console.log('Updating selectedReservationForDetails with fresh data');
+
+      // Transform the updated reservation data to include _original
+      const transformedUpdate = {
+        ...selectedReservationForDetails,
+        _original: updatedReservation,
+        reservation_passengers: updatedReservation.reservation_passengers
+      };
+
+      setSelectedReservationForDetails(transformedUpdate);
+
+      // Recargar la lista de reservas para mantenerla sincronizada
+      fetchReservations();
+    }
   };
 
   const transformReservationData = (apiData) => {
@@ -235,10 +260,14 @@ const Reservations = () => {
       dataToSend.transfers = transfersArray;
     }
 
+    if (method === 'PUT' && !dataToSend.updateContext) {
+      dataToSend.updateContext = 'general';
+    }
+
     try {
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildJsonHeaders(),
         body: JSON.stringify(dataToSend),
       });
 
@@ -298,6 +327,7 @@ const Reservations = () => {
     try {
       const response = await fetch(`http://localhost:4000/api/reservations/${reservationToDelete.id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (response.ok) {

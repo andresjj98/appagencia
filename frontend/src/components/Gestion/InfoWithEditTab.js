@@ -54,14 +54,31 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false, editingSecti
 
       const cleanedReservation = cleanPayload(updatedReservation);
 
+      // ⚠️ IMPORTANTE: Eliminar installments del payload para preservar estados de pago
+      // Las cuotas solo deben actualizarse desde el módulo de Finanzas
+      if (cleanedReservation.installments) {
+        delete cleanedReservation.installments;
+      }
+      if (cleanedReservation.reservation_installments) {
+        delete cleanedReservation.reservation_installments;
+      }
+
       console.log('Enviando actualización de reserva:', {
         reservationId,
         payload: cleanedReservation
       });
 
+      cleanedReservation.updateContext = cleanedReservation.updateContext || 'general';
+
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+
       const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(cleanedReservation)
       });
 

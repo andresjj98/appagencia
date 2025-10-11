@@ -22,6 +22,11 @@ import ReservationFilters from '../components/Gestion/ReservationFilters';
 import { useSettings } from '../utils/SettingsContext';
 import { useAuth } from './AuthContext';
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 const getUrgency = (departureDate) => {
   if (!departureDate) return null;
   const today = new Date();
@@ -243,6 +248,12 @@ const Gestion = () => {
       if (!basicMatch && !passengerMatch) return false;
     }
 
+    // Filtro por tipo de reserva
+    if (activeFilters.reservationType) {
+      const reservationType = reservation.reservation_type || reservation._original?.reservation_type;
+      if (reservationType !== activeFilters.reservationType) return false;
+    }
+
     // Filtro por oficina
     if (activeFilters.office) {
       const reservationOffice = reservation._original?.office_id || reservation.office_id;
@@ -308,7 +319,7 @@ const Gestion = () => {
     try {
       const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ managerId: currentUser.id })
       });
       if (!response.ok) {
@@ -331,7 +342,7 @@ const Gestion = () => {
     try {
       const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           reason,
           rejectedBy: currentUser.id
@@ -359,11 +370,20 @@ const Gestion = () => {
 
   const handleUpdateReservation = async (updatedReservation) => {
     try {
+      // Crear una copia del payload sin las cuotas de pago
+      const payload = { ...(updatedReservation._original || updatedReservation) };
+
+      // ⚠️ IMPORTANTE: Eliminar installments del payload para preservar estados de pago
+      // Las cuotas solo deben actualizarse desde el módulo de Finanzas
+      delete payload.reservation_installments;
+      delete payload.installments;
+      payload.updateContext = payload.updateContext || 'general';
+
       const response = await fetch(`http://localhost:4000/api/reservations/${updatedReservation.id}`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedReservation._original),
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(payload),
         }
       );
 

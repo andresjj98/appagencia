@@ -183,54 +183,63 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   };
 
   const handlePassengerSave = async (updatedReservationPayload) => {
+    console.log('=== RESERVATION FULL DETAIL DEBUG ===');
+    console.log('handlePassengerSave called');
+    console.log('Payload:', updatedReservationPayload);
+    console.log('Has reservation_passengers?', !!updatedReservationPayload?.reservation_passengers);
+
     setIsSaving(true);
 
-    const payloadForSql = {
-        ...updatedReservationPayload,
-        clientName: updatedReservationPayload.clients.name,
-        clientEmail: updatedReservationPayload.clients.email,
-        clientPhone: updatedReservationPayload.clients.phone,
-        clientId: updatedReservationPayload.clients.id_card,
-        clientIdIssuedPlace: updatedReservationPayload.clients.id_card_issued_place || '',
-        clientAddress: updatedReservationPayload.clients.address,
-        emergencyContact: {
-            name: updatedReservationPayload.clients.emergency_contact_name,
-            phone: updatedReservationPayload.clients.emergency_contact_phone,
-        },
-        tripType: updatedReservationPayload.trip_type,
-        passengersADT: updatedReservationPayload.passengers_adt,
-        passengersCHD: updatedReservationPayload.passengers_chd,
-        passengersINF: updatedReservationPayload.passengers_inf,
-        pricePerADT: updatedReservationPayload.price_per_adt,
-        pricePerCHD: updatedReservationPayload.price_per_chd,
-        pricePerINF: updatedReservationPayload.price_per_inf,
-        surcharge: updatedReservationPayload.surcharge || 0,
-        totalAmount: updatedReservationPayload.total_amount,
-        paymentOption: updatedReservationPayload.payment_option,
-    };
-
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payloadForSql),
-      });
-      
-      if (!response.ok) {
-        let errorMessage = 'Error en el servidor';
-        try {
-            const errorData = await response.json();
-            errorMessage = errorData.message || JSON.stringify(errorData);
-        } catch (e) {
-            errorMessage = await response.text();
-        }
-        throw new Error(errorMessage);
-      }
+      // Si tiene pasajeros, usar endpoint específico
+      if (updatedReservationPayload && updatedReservationPayload.reservation_passengers) {
+        console.log('Using passengers endpoint');
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
 
-      onUpdateReservation();
-      setViewMode('view');
-      showAlert('Éxito', 'Los pasajeros se han guardado correctamente.', 'success');
+        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/passengers`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({
+            passengers: updatedReservationPayload.reservation_passengers
+          }),
+        });
+
+        console.log('Response status:', response.status);
+        const result = await response.json();
+        console.log('Response data:', result);
+
+        if (!response.ok) {
+          throw new Error(result.message || 'Error al actualizar pasajeros');
+        }
+
+        // Recargar los datos de la reserva para obtener los pasajeros actualizados
+        console.log('Reloading reservation data...');
+        const reloadResponse = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
+          method: 'GET',
+          headers,
+        });
+
+        if (reloadResponse.ok) {
+          const updatedReservationData = await reloadResponse.json();
+          console.log('Reloaded reservation with passengers:', updatedReservationData);
+
+          // Actualizar el estado llamando a onUpdateReservation con los datos frescos
+          if (onUpdateReservation) {
+            onUpdateReservation(updatedReservationData);
+          }
+        }
+
+        setViewMode('view');
+        showAlert('Éxito', 'Los pasajeros se han guardado correctamente.', 'success');
+      } else {
+        throw new Error('No se encontraron datos de pasajeros para guardar');
+      }
     } catch (error) {
+      console.error('Error in handlePassengerSave:', error);
       showAlert('Error al Guardar', error.message);
     } finally {
       setIsSaving(false);
@@ -240,8 +249,10 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const handleAttachmentSave = async (formData) => {
     setIsSaving(true);
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/attachments/upsert`, {
             method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
             body: formData,
         });
         const savedData = await response.json();
