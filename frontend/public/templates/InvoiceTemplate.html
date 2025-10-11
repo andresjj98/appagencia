@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -45,10 +45,10 @@
     .legal{margin-top:6px;font-size:10.5px;color:#3c4d53;border-top:1px solid var(--gris-borde);padding-top:6px;line-height:1.25}
     .contract-section{margin-top:10px}
     .contract-signatures{margin-top:10px}
-    .contract-content{font-size:10.5px;text-align:justify;line-height:1.6;color:var(--gris-txt)}
-    .contract-content p{margin:6px 0}
-    .contract-content ul,.contract-content ol{margin:6px 0 6px 16px;padding-left:8px}
-    .contract-content li{margin:4px 0}
+    .contract-content{font-size:9px;text-align:justify;line-height:1.4;color:var(--gris-txt)}
+    .contract-content p{margin:4px 0}
+    .contract-content ul,.contract-content ol{margin:4px 0 4px 12px;padding-left:6px}
+    .contract-content li{margin:2px 0}
     .footer-contact{margin-top:10px;text-align:center;font-size:10px;color:var(--turquesa-osc);line-height:1.55;font-weight:600}
     .footer-line{margin:8px auto 0;max-width:760px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
     .footer-line:first-child{margin-top:12px}
@@ -134,7 +134,7 @@
           </template>
           <div class="line">
             <div class="item"><span class="lbl">Noches:</span><span class="val short" id="travelNights">0</span></div>
-            <div class="item"><span class="lbl">Das:</span><span class="val short" id="travelDays">0</span></div>
+            <div class="item"><span class="lbl">Días:</span><span class="val short" id="travelDays">0</span></div>
             <div class="item"><span class="lbl">Pasajeros:</span><span class="val" id="passengerTotals">ADT(0), CHD(0), INF(0)</span></div>
           </div>
           <div class="separator"></div>
@@ -196,7 +196,7 @@
             </tr>
           </thead>
           <tbody id="paymentsBody">
-            <tr><td colspan="4" class="text-center">No hay informacin de pagos.</td></tr>
+            <tr><td colspan="4" class="text-center">No hay información de pagos.</td></tr>
           </tbody>
         </table>
         <div class="totals">
@@ -249,9 +249,7 @@
         <div id="footerTerms"></div>
         <div id="footerNote"></div>
         <div style="margin-top:8px;margin-bottom:8px;">
-          La emisión de esta factura confirma la aceptación de los siguientes términos y condiciones por parte del cliente, en relación con la(s) reserva(s) detallada(s).<br/>
-          Group VC SAS<br/>
-          ESTA FACTURA DE VENTA SE ASIMILA EN TODOS SUS EFECTOS A UNA LETRA DE CAMBIO SEGN ART.774 DEL C. DE CIO.
+          ESTA FACTURA DE VENTA SE ASIMILA EN TODOS SUS EFECTOS A UNA LETRA DE CAMBIO SEGÚN ART.774 DEL C. DE CIO.
         </div>
         <div id="contractSection" class="contract-section" style="display:none">
           <span class="sect-title">Contrato de viaje</span>
@@ -781,7 +779,7 @@
       if (pickupText) parts.push(pickupText);
       if (dropoffText) parts.push(dropoffText);
 
-      return parts.join(' · ') || typeLabel || 'Traslado';
+      return parts.join(' • ') || typeLabel || 'Traslado';
     };
 
     const groupTransfersBySegment=(details=[])=>{
@@ -837,7 +835,7 @@
       if(typePart) parts.push(typePart);
       additionalDetails.forEach(detail=>parts.push(detail));
 
-      return parts.join(' · ');
+      return parts.join(' • ');
     };
 
     const renderTravelSection = (travel = {}, extraSegments = []) => {
@@ -1087,7 +1085,7 @@
       applyAgencyLogo(agency);
       setText('agencyName', agency.name || 'Dream Vacation');
       setText('agencyLegalName', agency.legalName || 'Agencia Mayorista de Viajes y Turismo');
-      setText('agencyLegalExtra', agency.legalExtra || 'GROUP VC SAS NIT. 901704831-4 Responsables de iva Registro nacional de turismo no. 96518');
+      setText('agencyLegalExtra', agency.legalExtra || 'NIT. 901704831-4 Responsables de iva Registro nacional de turismo no. 96518');
       setText('invoiceNumber', invoice.number || 'N/A');
       setText('invoiceDate', formatDate(invoice.issueDate));
       setText('invoiceAdvisor', invoice.advisorId || invoice.advisor_id || 'N/A');
@@ -1161,7 +1159,7 @@
       const toursBox = document.getElementById('toursContent');
       toursBox.innerHTML = toursRows.length ? '<ul style="margin:2px 0 2px 16px">'+toursRows.map(x=>`<li>${x}</li>`).join('')+'</ul>' : 'No hay tours o servicios adicionales registrados.';
       const rows = Array.isArray(payments.lineItems) ? payments.lineItems.map(li=>[ li.quantity??0, li.label||li.code||'Concepto', formatCurrency(li.unitPrice, payments.currency||'COP'), formatCurrency(li.amount, payments.currency||'COP') ]) : [];
-      fillTable('paymentsBody', rows, 4, 'No hay informacin de pagos.');
+      fillTable('paymentsBody', rows, 4, 'No hay información de pagos.');
       setText('paymentsSubtotal', formatCurrency(payments.subtotal||0, payments.currency||'COP'));
       setText('paymentsSurcharge', formatCurrency(payments.surcharge||0, payments.currency||'COP'));
       setText('paymentsTotal', formatCurrency(payments.total||0, payments.currency||'COP'));
@@ -1243,9 +1241,21 @@
         if(contractSection){ contractSection.style.display='none'; }
         if(contractSignatureSection){ contractSignatureSection.style.display='none'; }
       }
-      document.getElementById('invoiceMessage').textContent = footer.invoiceMessage||'';
-      document.getElementById('footerTerms').textContent = footer.terms||'';
-      document.getElementById('footerNote').textContent = footer.footerNote||footer.contractMessage||'';
+      const invoiceMessageEl=document.getElementById('invoiceMessage');
+      if(invoiceMessageEl){
+        invoiceMessageEl.textContent=footer.invoiceMessage||'';
+      }
+      const footerTermsEl=document.getElementById('footerTerms');
+      if(footerTermsEl){
+        const defaultTermsHtml='La emisi&oacute;n de esta factura confirma la aceptaci&oacute;n de los siguientes t&eacute;rminos y condiciones por parte del cliente, en relaci&oacute;n con la(s) reserva(s) detallada(s).<br/>Group VC SAS';
+        const rawTerms=(footer.terms&&footer.terms.trim())?footer.terms.trim():defaultTermsHtml;
+        const looksLikeHtml=/<[^>]+>/.test(rawTerms);
+        footerTermsEl.innerHTML=looksLikeHtml?rawTerms:rawTerms.replace(/\r?\n/g,'<br/>');
+      }
+      const footerNoteEl=document.getElementById('footerNote');
+      if(footerNoteEl){
+        footerNoteEl.textContent=footer.footerNote||footer.contractMessage||'';
+      }
     };
 
     window.renderInvoice = renderInvoice;
@@ -1323,3 +1333,5 @@
   </script>
 </body>
 </html>
+
+

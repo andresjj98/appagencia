@@ -16,7 +16,7 @@ import {
   HeartPulse,
   Info
 } from 'lucide-react';
-import { RESERVATION_STATUS, PAYMENT_STATUS, filterReservationsByRole, canEditReservation } from '../utils/constants';
+import { RESERVATION_STATUS, PAYMENT_STATUS, filterReservationsByRole, canEditReservation, canApproveReservation } from '../utils/constants';
 import ReservationManagementPanel from '../components/Gestion/ReservationManagementPanel';
 import RejectReservationModal from '../components/Gestion/RejectReservationModal';
 import { useSettings } from '../utils/SettingsContext';
@@ -314,6 +314,9 @@ const Gestion = () => {
                   const paymentStatusKey = reservation.paymentStatus ?? reservation.payment_status ?? reservation._original?.payment_status;
                   const paymentConfig = paymentStatusKey ? PAYMENT_STATUS[paymentStatusKey] : null;
 
+                  // Verificar si el usuario puede aprobar/rechazar esta reserva
+                  const canApprove = canApproveReservation(currentUser, reservation);
+
                   return (
                     <motion.div
                       key={reservation.id}
@@ -419,7 +422,7 @@ const Gestion = () => {
                         </div>
 
                         <div className="flex flex-wrap justify-end gap-2">
-                          {reservation.status === 'pending' && (
+                          {reservation.status === 'pending' && canApprove && (
                             <>
                               <motion.button
                                 onClick={() => handleApprove(reservation.id)}
