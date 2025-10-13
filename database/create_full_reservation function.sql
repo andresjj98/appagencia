@@ -87,50 +87,53 @@ BEGIN
         segment_index := segment_index + 1;
     END LOOP;
 
-    -- Paso 3.5: Insertar TRASLADOS (NUEVO)
-    -- Los traslados vienen en el payload con un campo 'segmentIndex'
+    -- Paso 3.5: Insertar TRASLADOS (SIMPLIFICADO)
+    -- Los traslados vienen como checkboxes: { "0": { "hasIn": true, "hasOut": false }, "1": {...} }
+    -- Solo guardamos si tiene traslado IN (arrival) o OUT (departure) por segmento
     IF payload ? 'transfers' THEN
-        FOR transfer IN SELECT * FROM jsonb_array_elements(payload->'transfers')
-        LOOP
-            -- El segmentIndex del frontend es 0-based, lo usamos para obtener el segment_id correcto
-            DECLARE
-                target_segment_index INT;
-                target_segment_id BIGINT;
-            BEGIN
-                target_segment_index := (transfer->>'segmentIndex')::INT;
+        DECLARE
+            transfers_obj JSONB;
+            segment_idx_iter INT := 0;
+            transfer_info JSONB;
+            has_in BOOLEAN;
+            has_out BOOLEAN;
+            target_segment_id BIGINT;
+        BEGIN
+            transfers_obj := payload->'transfers';
 
-                -- Obtener el segment_id del array usando el índice (array_position es 1-based)
-                IF target_segment_index >= 0 AND target_segment_index < array_length(segment_ids, 1) THEN
-                    target_segment_id := segment_ids[target_segment_index + 1];
-
-                    INSERT INTO public.reservation_transfers (
-                        reservation_id,
-                        segment_id,
-                        transfer_type,
-                        pickup_location,
-                        dropoff_location,
-                        transfer_date,
-                        transfer_time,
-                        cost,
-                        include_cost,
-                        vehicle_type,
-                        notes
-                    ) VALUES (
-                        new_reservation_id,
-                        target_segment_id,
-                        transfer->>'transferType',
-                        transfer->>'pickupLocation',
-                        transfer->>'dropoffLocation',
-                        (transfer->>'transferDate')::DATE,
-                        (transfer->>'transferTime')::TIME,
-                        COALESCE((transfer->>'cost')::NUMERIC, 0),
-                        COALESCE((transfer->>'includeCost')::BOOLEAN, FALSE),
-                        transfer->>'vehicleType',
-                        transfer->>'notes'
-                    );
+            -- Iterar sobre cada segmento creado
+            FOREACH target_segment_id IN ARRAY segment_ids
+            LOOP
+                -- Obtener info de traslados para este segmento (puede ser objeto o array)
+                IF jsonb_typeof(transfers_obj) = 'object' THEN
+                    transfer_info := transfers_obj->segment_idx_iter::TEXT;
+                ELSIF jsonb_typeof(transfers_obj) = 'array' THEN
+                    transfer_info := transfers_obj->segment_idx_iter;
+                ELSE
+                    transfer_info := NULL;
                 END IF;
-            END;
-        END LOOP;
+
+                -- Si hay información de traslados para este segmento
+                IF transfer_info IS NOT NULL AND jsonb_typeof(transfer_info) <> 'null' THEN
+                    has_in := COALESCE((transfer_info->>'hasIn')::BOOLEAN, false);
+                    has_out := COALESCE((transfer_info->>'hasOut')::BOOLEAN, false);
+
+                    -- Insertar traslado IN (arrival) si está marcado
+                    IF has_in THEN
+                        INSERT INTO public.reservation_transfers (reservation_id, segment_id, transfer_type)
+                        VALUES (new_reservation_id, target_segment_id, 'arrival');
+                    END IF;
+
+                    -- Insertar traslado OUT (departure) si está marcado
+                    IF has_out THEN
+                        INSERT INTO public.reservation_transfers (reservation_id, segment_id, transfer_type)
+                        VALUES (new_reservation_id, target_segment_id, 'departure');
+                    END IF;
+                END IF;
+
+                segment_idx_iter := segment_idx_iter + 1;
+            END LOOP;
+        END;
     END IF;
 
     -- Paso 4: Vuelos e Itinerarios

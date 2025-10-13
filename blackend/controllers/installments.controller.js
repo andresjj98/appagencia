@@ -48,14 +48,71 @@ const updateInstallmentStatus = async (req, res) => {
     }
 
     try {
+        // Primero obtener la cuota para saber a qué reserva pertenece
+        const { data: installmentData, error: fetchError } = await supabaseAdmin
+            .from('reservation_installments')
+            .select('reservation_id')
+            .eq('id', installment_id)
+            .single();
+
+        if (fetchError || !installmentData) {
+            console.error('Error fetching installment:', fetchError);
+            return res.status(404).json({ message: 'Installment not found.' });
+        }
+
+        const reservationId = installmentData.reservation_id;
+
+        // Obtener la información de la reserva
+        const { data: reservationData, error: reservationFetchError } = await supabaseAdmin
+            .from('reservations')
+            .select('payment_option')
+            .eq('id', reservationId)
+            .single();
+
+        if (reservationFetchError) {
+            console.error('Error fetching reservation:', reservationFetchError);
+        }
+
+        // Actualizar el estado de la cuota
+        const updateData = { status: status };
+
+        // Si se marca como pagado, agregar la fecha de pago
+        if (status === 'paid') {
+            updateData.payment_date = new Date().toISOString();
+        }
+
         const { data, error } = await supabaseAdmin
             .from('reservation_installments')
-            .update({ status: status })
+            .update(updateData)
             .eq('id', installment_id)
             .select();
 
         if (error) {
             throw error;
+        }
+
+        // Si la reserva es de pago completo, actualizar el payment_status de la reserva
+        if (reservationData && reservationData.payment_option === 'full_payment') {
+            const reservationUpdateData = {
+                payment_status: status
+            };
+
+            // Si se marca como pagado, actualizar también la fecha de pago de la reserva
+            if (status === 'paid') {
+                reservationUpdateData.payment_date = new Date().toISOString();
+            }
+
+            const { error: reservationError } = await supabaseAdmin
+                .from('reservations')
+                .update(reservationUpdateData)
+                .eq('id', reservationId);
+
+            if (reservationError) {
+                console.error('Error updating reservation payment status:', reservationError);
+                // No lanzamos error aquí para no fallar la actualización de la cuota
+            } else {
+                console.log(`Payment status updated for reservation ${reservationId}: ${status}`);
+            }
         }
 
         res.status(200).json({ message: 'Installment status updated successfully.', data });

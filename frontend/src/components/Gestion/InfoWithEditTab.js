@@ -63,6 +63,9 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false, editingSecti
         delete cleanedReservation.reservation_installments;
       }
 
+      // Los transfers se envían normalmente (checkboxes: { hasIn, hasOut })
+      // El backend los procesa correctamente ahora
+
       console.log('Enviando actualización de reserva:', {
         reservationId,
         payload: cleanedReservation

@@ -285,51 +285,47 @@ BEGIN
         segment_index := segment_index + 1;
     END LOOP;
 
+    -- Procesar traslados (checkboxes simplificados)
+    -- transfers_json viene como array de objetos: [{"hasIn": true, "hasOut": false}, ...]
     IF jsonb_array_length(transfers_json) > 0 THEN
-        FOR transfer IN SELECT * FROM jsonb_array_elements(transfers_json)
-        LOOP
-            DECLARE
-                target_segment_index INT;
-                target_segment_id BIGINT;
-            BEGIN
-                target_segment_index := (NULLIF(transfer->>'segmentIndex',''))::INT;
-                IF target_segment_index IS NOT NULL
-                   AND target_segment_index >= 0
-                   AND target_segment_index < COALESCE(array_length(segment_ids, 1), 0) THEN
-                    target_segment_id := segment_ids[target_segment_index + 1];
+        DECLARE
+            segment_idx_iter INT := 0;
+            transfer_info JSONB;
+            has_in BOOLEAN;
+            has_out BOOLEAN;
+            target_segment_id BIGINT;
+        BEGIN
+            -- Iterar sobre cada segmento creado
+            FOREACH target_segment_id IN ARRAY segment_ids
+            LOOP
+                -- Obtener info de traslados para este segmento
+                IF segment_idx_iter < jsonb_array_length(transfers_json) THEN
+                    transfer_info := transfers_json->segment_idx_iter;
                 ELSE
-                    target_segment_id := NULL;
+                    transfer_info := NULL;
                 END IF;
 
-                IF target_segment_id IS NOT NULL THEN
-                    INSERT INTO public.reservation_transfers (
-                        reservation_id,
-                        segment_id,
-                        transfer_type,
-                        pickup_location,
-                        dropoff_location,
-                        transfer_date,
-                        transfer_time,
-                        cost,
-                        include_cost,
-                        vehicle_type,                        
-                        notes
-                    ) VALUES (
-                        reservation_id_input,
-                        target_segment_id,
-                        transfer->>'transferType',
-                        transfer->>'pickupLocation',
-                        transfer->>'dropoffLocation',
-                        (NULLIF(transfer->>'transferDate',''))::DATE,
-                        (NULLIF(transfer->>'transferTime',''))::TIME,
-                        COALESCE((NULLIF(transfer->>'cost',''))::NUMERIC, 0),
-                        COALESCE((NULLIF(transfer->>'includeCost',''))::BOOLEAN, FALSE),
-                        transfer->>'vehicleType',                      
-                        transfer->>'notes'
-                    );
+                -- Si hay información de traslados para este segmento
+                IF transfer_info IS NOT NULL AND jsonb_typeof(transfer_info) <> 'null' THEN
+                    has_in := COALESCE((transfer_info->>'hasIn')::BOOLEAN, false);
+                    has_out := COALESCE((transfer_info->>'hasOut')::BOOLEAN, false);
+
+                    -- Insertar traslado IN (arrival) si está marcado
+                    IF has_in THEN
+                        INSERT INTO public.reservation_transfers (reservation_id, segment_id, transfer_type)
+                        VALUES (reservation_id_input, target_segment_id, 'arrival');
+                    END IF;
+
+                    -- Insertar traslado OUT (departure) si está marcado
+                    IF has_out THEN
+                        INSERT INTO public.reservation_transfers (reservation_id, segment_id, transfer_type)
+                        VALUES (reservation_id_input, target_segment_id, 'departure');
+                    END IF;
                 END IF;
-            END;
-        END LOOP;
+
+                segment_idx_iter := segment_idx_iter + 1;
+            END LOOP;
+        END;
     END IF;
 
     FOR flight IN SELECT * FROM jsonb_array_elements(flights_json)

@@ -114,6 +114,17 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
       };
       payloadForSql.updateContext = payloadForSql.updateContext || 'general';
 
+      // ⚠️ IMPORTANTE: Eliminar installments para preservar estados de pago
+      // Las cuotas solo deben actualizarse desde el módulo de Finanzas
+      if (payloadForSql.installments) {
+        delete payloadForSql.installments;
+      }
+      if (payloadForSql.reservation_installments) {
+        delete payloadForSql.reservation_installments;
+      }
+
+      // Los transfers se envían normalmente ahora (el backend los procesa correctamente)
+
       const response = await fetch(`/api/reservations/${reservation.id}`, {
         method: 'PUT',
         headers,

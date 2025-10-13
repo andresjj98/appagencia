@@ -235,30 +235,8 @@ const Reservations = () => {
       : 'http://localhost:4000/api/reservations';
     const method = editingReservation ? 'PUT' : 'POST';
 
-    // Convert transfers object to array format for backend
+    // Ya no necesitamos transformar transfers - el backend maneja el formato de objeto directamente
     const dataToSend = { ...reservationData };
-    if (dataToSend.transfers && typeof dataToSend.transfers === 'object' && !Array.isArray(dataToSend.transfers)) {
-      const transfersArray = [];
-      Object.keys(dataToSend.transfers).forEach(segmentIndex => {
-        const segmentTransfers = dataToSend.transfers[segmentIndex];
-        const idx = parseInt(segmentIndex);
-
-        if (segmentTransfers.hasIn) {
-          transfersArray.push({
-            segmentIndex: idx,
-            transferType: 'arrival'
-          });
-        }
-
-        if (segmentTransfers.hasOut) {
-          transfersArray.push({
-            segmentIndex: idx,
-            transferType: 'departure'
-          });
-        }
-      });
-      dataToSend.transfers = transfersArray;
-    }
 
     if (method === 'PUT' && !dataToSend.updateContext) {
       dataToSend.updateContext = 'general';

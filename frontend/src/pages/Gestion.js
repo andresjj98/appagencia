@@ -377,6 +377,9 @@ const Gestion = () => {
       // Las cuotas solo deben actualizarse desde el módulo de Finanzas
       delete payload.reservation_installments;
       delete payload.installments;
+
+      // Los transfers se envían normalmente ahora (el backend los procesa correctamente)
+
       payload.updateContext = payload.updateContext || 'general';
 
       const response = await fetch(`http://localhost:4000/api/reservations/${updatedReservation.id}`,

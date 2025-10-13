@@ -237,24 +237,36 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
       )}
 
       <div className="space-y-4">
+        {payments.length === 0 && !isEditing && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className='text-sm text-blue-800 font-medium'>
+              Esta reserva no tiene un plan de pagos por cuotas definido.
+              {reservation.status === 'pending' && ' Haz clic en "Editar Plan" para crear un plan de pagos.'}
+            </p>
+          </div>
+        )}
         {payments.map((payment, index) => {
           const effectiveStatus = getEffectiveStatus(payment);
+          const paymentLabel = reservation._original?.payment_option === 'full_payment'
+            ? 'Pago Total'
+            : `Cuota #${index + 1}`;
+
           return (
             <div key={payment.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center p-4 bg-white rounded-lg border border-gray-200">
               <div className="md:col-span-1 space-y-1">
-                <p className="text-sm font-medium text-gray-800">Cuota #{index + 1}</p>
+                <p className="text-sm font-medium text-gray-800">{paymentLabel}</p>
                 {isEditing ? (
                   <div className='flex flex-col gap-2'>
-                    <input 
-                      type="number" 
-                      value={payment.amount} 
-                      onChange={(e) => handleInstallmentChange(index, 'amount', e.target.value)} 
+                    <input
+                      type="number"
+                      value={payment.amount}
+                      onChange={(e) => handleInstallmentChange(index, 'amount', e.target.value)}
                       className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
                     />
-                    <input 
-                      type="date" 
-                      value={payment.due_date.split('T')[0]} 
-                      onChange={(e) => handleInstallmentChange(index, 'due_date', e.target.value)} 
+                    <input
+                      type="date"
+                      value={payment.due_date.split('T')[0]}
+                      onChange={(e) => handleInstallmentChange(index, 'due_date', e.target.value)}
                       className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
                     />
                   </div>
@@ -269,7 +281,7 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
                 )}
               </div>
               <div className="md:col-span-1">
-                <select 
+                <select
                   value={effectiveStatus}
                   onChange={(e) => handleStatusChange(payment.id, e.target.value)}
                   disabled={isEditing}
@@ -287,10 +299,10 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
                   </a>
                 ) : (
                   <div className="flex items-center">
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       id={`file-upload-${payment.id}`}
-                      className="hidden" 
+                      className="hidden"
                       disabled={isEditing}
                       onChange={(e) => handleFileSelect(payment.id, e.target.files[0])}
                     />
@@ -309,7 +321,6 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
             </div>
           )
         })}
-        {payments.length === 0 && !isEditing && <p className='text-sm text-gray-500'>No hay cuotas definidas para esta reserva.</p>}
         
         {isEditing && (
           <button onClick={addInstallment} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium mt-2">

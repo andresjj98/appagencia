@@ -428,21 +428,51 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
     const paymentOption = reservation._original.payment_option;
     const installments = reservation._original.installments || reservation._original.reservation_installments || [];
     const totalInstallmentsAmount = installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
-    const paidAmount = paymentOption === 'full_payment'
-        ? (reservation._original.payment_status === 'paid' ? reservation._original.total_amount : 0)
-        : installments.filter(inst => inst.status === 'paid').reduce((sum, inst) => sum + (inst.amount || 0), 0);
+
+    // Calcular el monto pagado basado en las cuotas (funciona tanto para pago total como cuotas)
+    const paidAmountFromInstallments = installments
+        .filter(inst => inst.status === 'paid')
+        .reduce((sum, inst) => sum + (inst.amount || 0), 0);
+
+    // Para pagos completos, verificar múltiples estados posibles
+    let paidAmount = 0;
+    if (paymentOption === 'full_payment') {
+        const paymentStatus = reservation._original.payment_status;
+
+        // Primero verificar el estado desde las cuotas (más confiable)
+        if (installments.length > 0) {
+            paidAmount = paidAmountFromInstallments;
+        }
+        // Si no hay cuotas, verificar el payment_status de la reserva
+        else if (paymentStatus === 'paid' || paymentStatus === 'completed' || paymentStatus === 'confirmed') {
+            paidAmount = reservation._original.total_amount;
+        }
+        // Si está pendiente o no tiene estado, verificar si hay una fecha de pago
+        else if (paymentStatus === 'pending' || !paymentStatus) {
+            if (reservation._original.payment_date) {
+                paidAmount = reservation._original.total_amount;
+            }
+        }
+    } else {
+        paidAmount = paidAmountFromInstallments;
+    }
+
     const totalAmount = paymentOption === 'full_payment' ? reservation._original.total_amount : totalInstallmentsAmount;
     const progress = totalAmount ? Math.round((paidAmount / totalAmount) * 100) : 0;
 
     const getStatusLabel = (status) => {
         switch (status) {
         case 'paid':
+        case 'completed':
+        case 'confirmed':
             return 'Pagada';
         case 'overdue':
         case 'late':
             return 'Atrasada';
-        default:
+        case 'pending':
             return 'Pendiente';
+        default:
+            return status || 'Pendiente';
         }
     };
 
@@ -622,9 +652,12 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             <InfoSection id="plan-pagos" title="Plan de pagos (Cuotas)" icon={<ListChecks className="w-5 h-5 text-emerald-600" />}>
             {paymentOption === 'full_payment' ? (
                 <>
-                <InfoItem label="Fecha de pago" value={formatDate(reservation._original.payment_date || reservation._original.created_at)} />
+                <InfoItem label="Fecha de pago" value={formatDate(installments[0]?.due_date || reservation._original.payment_date || reservation._original.created_at)} />
                 <InfoItem label="Valor" value={formatCurrencyCOP(reservation._original.total_amount)} />
-                <InfoItem label="Estado" value={getStatusLabel(reservation._original.payment_status)} />
+                <InfoItem label="Estado" value={getStatusLabel(installments[0]?.status || reservation._original.payment_status)} />
+                {installments[0]?.payment_date && (
+                    <InfoItem label="Fecha de pago confirmado" value={formatDate(installments[0].payment_date)} />
+                )}
                 </>
             ) : (
                 <div className="col-span-full overflow-x-auto">

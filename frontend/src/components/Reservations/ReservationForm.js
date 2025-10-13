@@ -613,8 +613,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
       });
     }
 
-    // Los transfers se envían tal cual para el preview
-    // Se convertirán al formato del backend justo antes de guardar
+    // Los transfers se envían tal cual (checkboxes: { hasIn, hasOut })
+    // El backend los procesa y crea los registros simplificados
     onSave(dataToSend);
   };
 
@@ -1781,8 +1781,8 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                 Indica si la reserva incluye traslados de llegada (IN) y/o salida (OUT). Los detalles de horarios se conocen a través de los itinerarios de vuelos.
               </p>
 
-              {formData.tripType === 'multi_city' ? (
-                // Modo múltiples ciudades: mostrar traslados por segmento
+              {formData.segments.length > 1 ? (
+                // Múltiples segmentos: mostrar traslados por cada trayecto
                 <div className="space-y-4">
                   {formData.segments.map((segment, index) => (
                     <div key={index} className="p-4 border border-gray-300 rounded-lg bg-gray-50">
@@ -1834,7 +1834,7 @@ const ReservationForm = ({ reservation = null, reservationType = 'all_inclusive'
                   ))}
                 </div>
               ) : (
-                // Modo ida y vuelta: un solo par de traslados
+                // Un solo segmento: mostrar traslados generales
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
                     <input
