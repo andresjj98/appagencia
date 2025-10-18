@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Upload, File, Trash2, Loader, Download, FileText, Eye } from 'lucide-react';
+import { Plus, Upload, File, Trash2, Loader, Download, FileText, Eye, FileDown } from 'lucide-react';
 import { generateInvoice, saveDocumentRecord, buildInvoicePayload } from '../../utils/documentGenerator';
+import { generateCustomReservationDocument } from '../../utils/reservationDocumentGenerator';
+import ReservationDocumentGenerator from './ReservationDocumentGenerator';
 import { useAuth } from '../../pages/AuthContext';
 
 const DocumentationTab = ({ reservation, onUpdate }) => {
@@ -11,6 +13,7 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [nextId, setNextId] = useState(0);
+  const [showCustomDocModal, setShowCustomDocModal] = useState(false);
 
   // Verificar permisos: solo admin y superadmin pueden generar documentos
   const canGenerateDocuments = currentUser?.role === 'administrador' || currentUser?.role === 'superadmin';
@@ -128,6 +131,16 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
     generateInvoice(reservation._original);
   };
 
+  const handleGenerateCustomDocument = async (selectedSections) => {
+    try {
+      await generateCustomReservationDocument(reservation, selectedSections);
+      setShowCustomDocModal(false);
+    } catch (error) {
+      console.error('Error generating custom document:', error);
+      throw error;
+    }
+  };
+
   const hasChanges = newAttachments.length > 0 || attachments.length !== (reservation._original.reservation_attachments || []).length;
 
   return (
@@ -174,10 +187,18 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
                 <Download className="w-4 h-4" />
                 Generar Voucher
               </button>
+              <button
+                onClick={() => setShowCustomDocModal(true)}
+                disabled={generating}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                <FileDown className="w-4 h-4" />
+                Documento Personalizado
+              </button>
             </div>
             {!reservation._original.invoice_number && (
               <p className="text-sm text-amber-600 mt-3 flex items-center gap-1">
-                ⚠️ La reserva debe estar aprobada para generar documentos oficiales
+                ⚠️ La reserva debe estar aprobada para generar documentos oficiales (factura y voucher)
               </p>
             )}
           </div>
@@ -248,7 +269,7 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
 
       {hasChanges && (
         <div className="pt-6 border-t flex justify-end">
-          <button 
+          <button
             onClick={handleSave}
             disabled={isUploading}
             className="w-48 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-400 transition-all"
@@ -256,6 +277,15 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
             {isUploading ? <Loader className="animate-spin w-5 h-5" /> : 'Guardar Cambios'}
           </button>
         </div>
+      )}
+
+      {/* Modal para generación de documento personalizado */}
+      {showCustomDocModal && (
+        <ReservationDocumentGenerator
+          reservation={reservation}
+          onClose={() => setShowCustomDocModal(false)}
+          onGenerate={handleGenerateCustomDocument}
+        />
       )}
     </div>
   );
