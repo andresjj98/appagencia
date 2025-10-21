@@ -51,95 +51,130 @@ const paymentOptionLabels = {
     installments: 'Pago a Cuotas',
 };
 
-const InstallmentManager = ({ reservation, onStatusChange, onFileSelect, onFileRemove, selectedFiles, hasPendingChanges, onSave, onCancel }) => (
-  <div className="px-6 py-5 border-t border-gray-100 bg-gradient-to-b from-gray-50 to-white">
-    {hasPendingChanges && (
-      <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 p-4 rounded-xl flex justify-between items-center mb-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Info className="w-5 h-5 text-amber-600" />
-          <p className="text-sm font-semibold text-amber-800">Tienes cambios de estado sin guardar.</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => onSave(reservation.id)} className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg hover:from-emerald-700 hover:to-green-700 shadow-md transition-all">
-            Guardar Estados
-          </button>
-          <button onClick={() => onCancel(reservation.id)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 shadow-sm transition-all">
-            Cancelar
-          </button>
-        </div>
-      </div>
-    )}
+const InstallmentManager = ({ reservation, onStatusChange, onFileSelect, onFileRemove, selectedFiles, hasPendingChanges, onSave, onCancel, currentUserRole, originalReservation }) => {
+  // Función para obtener el estado ORIGINAL de la BD (no el del formulario)
+  const getOriginalPayment = (paymentId) => {
+    return originalReservation?.payments?.find(p => p.id === paymentId);
+  };
 
-    <div className="space-y-3">
-      {reservation.payments.map((payment, index) => {
-        const effectiveStatus = getEffectiveStatus(payment);
-        return (
-          <div key={payment.id} className={`border-2 ${statusColors[effectiveStatus]} rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow`}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <div className="md:col-span-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${statusBadgeColors[effectiveStatus]}`}>
-                    Cuota #{index + 1}
-                  </span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">${Number(payment.amount || 0).toLocaleString('es-CO')}</p>
-                <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                  <Calendar className="w-4 h-4" />
-                  Vence: {formatDate(payment.due_date)}
-                </p>
-              </div>
-              <div className="md:col-span-1">
-                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Estado</label>
-                <select
-                  value={effectiveStatus}
-                  onChange={(e) => onStatusChange(reservation.id, payment.id, e.target.value)}
-                  className={`w-full px-4 py-2.5 text-sm font-semibold border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-all ${statusColors[effectiveStatus]}`}>
-                  <option value="pending">⏱️ Pendiente</option>
-                  <option value="paid">✅ Pagado</option>
-                  <option value="overdue">⚠️ Vencido</option>
-                </select>
-              </div>
-              <div className="md:col-span-1">
-                <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Comprobante</label>
-                {payment.receipt_url ? (
-                  <a href={payment.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-700 bg-blue-50 border-2 border-blue-200 rounded-lg hover:bg-blue-100 transition-all">
-                    <FileIcon size={18} />
-                    Ver Comprobante
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      id={`file-upload-${payment.id}`}
-                      className="hidden"
-                      onChange={(e) => onFileSelect(payment.id, e.target.files[0])}
-                    />
-                    <label htmlFor={`file-upload-${payment.id}`} className="cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all flex-1">
-                      <Upload size={18} /> Adjuntar
-                    </label>
-                    {selectedFiles[payment.id] && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                        <span className="text-xs text-green-700 font-medium truncate max-w-[100px]">{selectedFiles[payment.id].name}</span>
-                        <button onClick={() => onFileRemove(payment.id)} className="p-1 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors">
-                          <X size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+  const isPaidInDatabase = (payment) => {
+    const originalPayment = getOriginalPayment(payment.id);
+    return originalPayment?.status === 'paid';
+  };
+
+  const canEdit = (payment) => {
+    // Superadmin puede editar todo
+    if (currentUserRole === 'superadmin') return true;
+    // Otros roles no pueden editar cuotas que YA ESTABAN pagadas en la BD
+    return !isPaidInDatabase(payment);
+  };
+
+  return (
+    <div className="px-6 py-5 border-t border-gray-100 bg-gradient-to-b from-gray-50 to-white">
+      {hasPendingChanges && (
+        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 p-4 rounded-xl flex justify-between items-center mb-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Info className="w-5 h-5 text-amber-600" />
+            <p className="text-sm font-semibold text-amber-800">Tienes cambios de estado sin guardar.</p>
           </div>
-        )
-      })}
-      {reservation.payments.length === 0 && (
-        <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-          <p className='text-sm text-gray-500 font-medium'>No hay cuotas definidas para esta reserva.</p>
+          <div className="flex gap-2">
+            <button onClick={() => onSave(reservation.id)} className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg hover:from-emerald-700 hover:to-green-700 shadow-md transition-all">
+              Guardar Estados
+            </button>
+            <button onClick={() => onCancel(reservation.id)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 shadow-sm transition-all">
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
+
+      <div className="space-y-3">
+        {reservation.payments.map((payment, index) => {
+          const effectiveStatus = getEffectiveStatus(payment);
+          const isEditable = canEdit(payment);
+          const paidAndLocked = isPaidInDatabase(payment) && currentUserRole !== 'superadmin';
+
+          return (
+            <div key={payment.id} className={`border-2 ${statusColors[effectiveStatus]} rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow ${paidAndLocked ? 'opacity-75' : ''}`}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <div className="md:col-span-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${statusBadgeColors[effectiveStatus]}`}>
+                      Cuota #{index + 1}
+                    </span>
+                    {paidAndLocked && (
+                      <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600">
+                        🔒 Bloqueado
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">${Number(payment.amount || 0).toLocaleString('es-CO')}</p>
+                  <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                    <Calendar className="w-4 h-4" />
+                    Vence: {formatDate(payment.due_date)}
+                  </p>
+                  {payment.payment_date && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                      ✓ Pagado: {formatDate(payment.payment_date)}
+                    </p>
+                  )}
+                </div>
+                <div className="md:col-span-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Estado</label>
+                  <select
+                    value={effectiveStatus}
+                    onChange={(e) => onStatusChange(reservation.id, payment.id, e.target.value)}
+                    disabled={!isEditable}
+                    className={`w-full px-4 py-2.5 text-sm font-semibold border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-all ${statusColors[effectiveStatus]} ${!isEditable ? 'cursor-not-allowed opacity-60' : ''}`}
+                    title={!isEditable ? 'Solo superadministradores pueden modificar cuotas pagadas' : ''}
+                  >
+                    <option value="pending">⏱️ Pendiente</option>
+                    <option value="paid">✅ Pagado</option>
+                    <option value="overdue">⚠️ Vencido</option>
+                  </select>
+                </div>
+                <div className="md:col-span-1">
+                  <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Comprobante</label>
+                  {payment.receipt_url ? (
+                    <a href={payment.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-700 bg-blue-50 border-2 border-blue-200 rounded-lg hover:bg-blue-100 transition-all">
+                      <FileIcon size={18} />
+                      Ver Comprobante
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id={`file-upload-${payment.id}`}
+                        className="hidden"
+                        onChange={(e) => onFileSelect(payment.id, e.target.files[0])}
+                      />
+                      <label htmlFor={`file-upload-${payment.id}`} className="cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all flex-1">
+                        <Upload size={18} /> Adjuntar
+                      </label>
+                      {selectedFiles[payment.id] && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                          <span className="text-xs text-green-700 font-medium truncate max-w-[100px]">{selectedFiles[payment.id].name}</span>
+                          <button onClick={() => onFileRemove(payment.id)} className="p-1 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+        {reservation.payments.length === 0 && (
+          <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+            <p className='text-sm text-gray-500 font-medium'>No hay cuotas definidas para esta reserva.</p>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const FinanceDetailModal = ({ reservation, onClose, children }) => {
     if (!reservation) return null;
@@ -381,6 +416,10 @@ const FinancePanel = () => {
         try {
           await api.put(`/installments/${p.id}/status`, { status: pendingStatusChanges[p.id] });
         } catch (error) {
+          // Mensaje específico si es error de permisos
+          if (error.response?.status === 403) {
+            throw new Error(`No tienes permisos para modificar la cuota #${p.id}. ${error.response?.data?.message || 'Solo superadministradores pueden editar cuotas pagadas.'}`);
+          }
           throw new Error(`Error al actualizar el estado para la cuota #${p.id}: ${error.response?.data?.message || error.message}`);
         }
       });
@@ -439,6 +478,9 @@ const FinancePanel = () => {
 
   const activeModalReservation = modalReservation
     ? reservations.find(r => r.id === modalReservation.id) || modalReservation
+    : null;
+  const activeModalOriginalReservation = modalReservation
+    ? originalReservations.find(r => r.id === modalReservation.id) || modalReservation
     : null;
   const activeModalHasPendingChanges = !!activeModalReservation?.payments?.some(
     (p) => pendingStatusChanges[p.id]
@@ -592,15 +634,17 @@ const FinancePanel = () => {
 
       {activeModalReservation && (
         <FinanceDetailModal reservation={activeModalReservation} onClose={() => setModalReservation(null)}>
-            <InstallmentManager 
-                reservation={activeModalReservation} 
-                onStatusChange={handleStatusChange} 
-                onFileSelect={handleFileSelect} 
+            <InstallmentManager
+                reservation={activeModalReservation}
+                originalReservation={activeModalOriginalReservation}
+                onStatusChange={handleStatusChange}
+                onFileSelect={handleFileSelect}
                 onFileRemove={handleFileRemove}
-                selectedFiles={selectedFiles} 
+                selectedFiles={selectedFiles}
                 hasPendingChanges={activeModalHasPendingChanges}
                 onSave={handleSaveStatusChanges}
                 onCancel={handleCancelStatusChanges}
+                currentUserRole={currentUser?.role}
             />
         </FinanceDetailModal>
       )}

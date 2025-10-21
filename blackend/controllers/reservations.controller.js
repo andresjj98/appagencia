@@ -49,13 +49,16 @@ const getAllReservations = async (req, res) => {
 
     // Filtrar por rol y permisos
     if (userRole === 'asesor' && userId) {
+      // Asesores solo ven sus propias reservas
       query = query.eq('advisor_id', userId);
-    } else if ((userRole === 'administrador' || userRole === 'gestor') && officeId) {
-      // Administradores y gestores solo ven las reservas de su oficina
+    } else if (userRole === 'administrador' && officeId) {
+      // Administradores solo ven las reservas de su oficina
       query = query.eq('office_id', officeId);
+    } else if (userRole === 'gestor') {
+      // Gestores ven todas las reservas de todas las oficinas
+      // No se aplica filtro de oficina
     }
-    // Nota: Si no es ninguno de los roles anteriores (o es un superadmin sin officeId),
-    // no se aplica filtro de oficina, por lo que verá todo.
+    // Nota: Superadmins ven todas las reservas (sin filtro de oficina)
 
     if (reservation_type) {
       query = query.eq('reservation_type', reservation_type);

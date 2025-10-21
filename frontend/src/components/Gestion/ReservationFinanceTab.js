@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, File as FileIcon, Loader, Edit, Save, X, PlusCircle, MinusCircle } from 'lucide-react';
+import { useAuth } from '../../pages/AuthContext';
 import api from '../../utils/api';
 
 const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) => {
+  const { currentUser } = useAuth();
   const safeInitialReservation = {
     ...(initialReservation || {}),
     payments: (initialReservation?.reservation_installments || []).sort((a, b) => new Date(a.due_date) - new Date(b.due_date)),
@@ -53,7 +55,32 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
 
   }, [initialReservation]);
 
+  // Función para obtener el estado ORIGINAL de la BD (no el del formulario)
+  const getOriginalPayment = (paymentId) => {
+    return originalReservation?.payments?.find(p => p.id === paymentId);
+  };
+
+  const isPaidInDatabase = (payment) => {
+    const originalPayment = getOriginalPayment(payment.id);
+    return originalPayment?.status === 'paid';
+  };
+
+  const canEditStatus = (payment) => {
+    // Superadmin puede editar todo
+    if (currentUser?.role === 'superadmin') return true;
+    // Otros roles no pueden editar cuotas que YA ESTABAN pagadas en la BD
+    return !isPaidInDatabase(payment);
+  };
+
   const handleStatusChange = (paymentId, newStatus) => {
+    const payment = reservation.payments.find(p => p.id === paymentId);
+
+    // Validar permisos antes de cambiar (usando el estado original de la BD)
+    if (!canEditStatus(payment)) {
+      alert('No tienes permisos para modificar una cuota que ya ha sido pagada. Solo los superadministradores pueden realizar esta acción.');
+      return;
+    }
+
     const updatedPayments = (reservation.payments || []).map(pay =>
       pay.id === paymentId ? { ...pay, status: newStatus } : pay
     );
@@ -82,7 +109,7 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
         .map(async (p) => {
           const formData = new FormData();
           formData.append('receipt', selectedFiles[p.id]);
-          const response = await api.post(`/api/installments/${p.id}/receipt`, formData, {
+          const response = await api.post(`/installments/${p.id}/receipt`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
           return response.data;
@@ -90,9 +117,17 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
 
       await Promise.all(uploadPromises);
 
-      const statusUpdatePromises = paymentsToChange.map(p =>
-        api.put(`/api/installments/${p.id}/status`, { status: p.status })
-      );
+      const statusUpdatePromises = paymentsToChange.map(async (p) => {
+        try {
+          await api.put(`/installments/${p.id}/status`, { status: p.status });
+        } catch (error) {
+          // Mensaje específico si es error de permisos
+          if (error.response?.status === 403) {
+            throw new Error(`No tienes permisos para modificar la cuota. ${error.response?.data?.message || 'Solo superadministradores pueden editar cuotas pagadas.'}`);
+          }
+          throw new Error(`Error al actualizar el estado: ${error.response?.data?.message || error.message}`);
+        }
+      });
 
       await Promise.all(statusUpdatePromises);
 
@@ -102,7 +137,7 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
       setSelectedFiles({});
 
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || 'Error al guardar los cambios';
+      const errorMessage = err.message || err.response?.data?.message || 'Error al guardar los cambios';
       alert(`Error al guardar los cambios: ${errorMessage}`);
     } finally {
       setIsSaving(false);
@@ -236,11 +271,20 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
           const paymentLabel = reservation._original?.payment_option === 'full_payment'
             ? 'Pago Total'
             : `Cuota #${index + 1}`;
+          const isEditable = canEditStatus(payment);
+          const paidAndLocked = isPaidInDatabase(payment) && currentUser?.role !== 'superadmin';
 
           return (
-            <div key={payment.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center p-4 bg-white rounded-lg border border-gray-200">
+            <div key={payment.id} className={`grid grid-cols-1 md:grid-cols-3 gap-4 items-center p-4 bg-white rounded-lg border border-gray-200 ${paidAndLocked ? 'opacity-75' : ''}`}>
               <div className="md:col-span-1 space-y-1">
-                <p className="text-sm font-medium text-gray-800">{paymentLabel}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-800">{paymentLabel}</p>
+                  {paidAndLocked && (
+                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-600">
+                      🔒 Bloqueado
+                    </span>
+                  )}
+                </div>
                 {isEditing ? (
                   <div className='flex flex-col gap-2'>
                     <input
@@ -263,6 +307,14 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
                       const [year, month, day] = payment.due_date.split('T')[0].split('-');
                       return new Date(year, month - 1, day).toLocaleDateString('es-CO');
                     })()}</p>
+                    {payment.payment_date && (
+                      <p className="text-xs text-green-600">
+                        ✓ Pagado: {(() => {
+                          const [year, month, day] = payment.payment_date.split('T')[0].split('-');
+                          return new Date(year, month - 1, day).toLocaleDateString('es-CO');
+                        })()}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -270,8 +322,10 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
                 <select
                   value={effectiveStatus}
                   onChange={(e) => handleStatusChange(payment.id, e.target.value)}
-                  disabled={isEditing}
-                  className={`w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md ${statusColors[effectiveStatus] || ''} ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
+                  disabled={isEditing || !isEditable}
+                  className={`w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md ${statusColors[effectiveStatus] || ''} ${(isEditing || !isEditable) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  title={!isEditable ? 'Solo superadministradores pueden modificar cuotas pagadas' : ''}
+                >
                   <option value="pending">Pendiente</option>
                   <option value="paid">Pagado</option>
                   <option value="overdue">Vencido</option>

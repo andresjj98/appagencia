@@ -22,9 +22,14 @@ const getAllDocuments = async (req, res) => {
 
     // Filtrar por rol y permisos (similar a reservations)
     if (userRole === 'asesor' && userId) {
+      // Asesores solo ven documentos de sus propias reservas
       query = query.eq('reservations.advisor_id', userId);
-    } else if ((userRole === 'administrador' || userRole === 'gestor') && officeId) {
+    } else if (userRole === 'administrador' && officeId) {
+      // Administradores solo ven documentos de su oficina
       query = query.eq('reservations.office_id', officeId);
+    } else if (userRole === 'gestor') {
+      // Gestores ven documentos de todas las oficinas
+      // No se aplica filtro de oficina
     }
 
     // Filtros adicionales

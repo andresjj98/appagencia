@@ -86,7 +86,7 @@ export const saveDocumentRecord = async (reservationId, documentType, documentDa
       }
     }
 
-    const response = await api.post('/api/documents', {
+    const response = await api.post('/documents', {
       reservation_id: reservationId,
       type: documentType,
       data_snapshot: snapshot,

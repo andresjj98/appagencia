@@ -31,11 +31,11 @@ router.post('/', authenticateToken, createReservation);
 // PUT to update a reservation
 router.put('/:id', authenticateToken, updateReservation);
 
-// POST to approve a reservation - solo administradores y gestores
-router.post('/:id/approve', authenticateToken, requireRole('administrador', 'gestor'), approveReservation);
+// POST to approve a reservation - solo administradores
+router.post('/:id/approve', authenticateToken, requireRole('administrador'), approveReservation);
 
-// POST to reject a reservation - solo administradores y gestores
-router.post('/:id/reject', authenticateToken, requireRole('administrador', 'gestor'), rejectReservation);
+// POST to reject a reservation - solo administradores
+router.post('/:id/reject', authenticateToken, requireRole('administrador'), rejectReservation);
 
 // POST to confirm a service - solo administradores y gestores
 router.post('/:id/confirm-service', authenticateToken, requireRole('administrador', 'gestor'), confirmService);

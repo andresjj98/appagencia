@@ -11,7 +11,7 @@ import api from './api';
 export const generateCustomReservationDocument = async (reservation, selectedSections) => {
   try {
     // Obtener datos completos de la reserva
-    const response = await api.get(`/api/reservations/${reservation._original.id}`);
+    const response = await api.get(`/reservations/${reservation._original.id}`);
 
     const fullReservationData = response.data;
 
@@ -80,25 +80,28 @@ const createDocumentHTML = (reservation, selectedSections) => {
     position: absolute;
     left: -9999px;
     top: 0;
-    width: 210mm;
+    width: 900px;
     background: white;
-    padding: 20mm;
-    font-family: Arial, sans-serif;
-    color: #333;
+    padding: 0;
+    font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica', Arial, sans-serif;
+    color: #123b48;
+    font-size: 12px;
   `;
 
   let html = '';
 
-  // Header con logo y datos de la agencia
+  // Header con diseño mejorado (similar a la factura)
   html += generateHeader(reservation);
 
-  // Título del documento
+  // Título del documento con diseño compacto
   html += `
-    <div style="text-align: center; margin: 20px 0 30px 0; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px;">
-      <h1 style="margin: 0; font-size: 24px; font-weight: bold;">INFORMACIÓN DE RESERVA</h1>
-      <p style="margin: 5px 0 0 0; font-size: 14px;">Factura N°: ${reservation.invoice_number || 'N/A'}</p>
+    <div style="margin: 0; padding: 10px 14px; background: linear-gradient(135deg, #00a6c7 0%, #49c8de 70%, #eaf7fb 70%);">
+      <div style="color: white; text-align: center;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">DOCUMENTO DE RESERVA</h2>
+        ${reservation.invoice_number ? `<p style="margin: 4px 0 0 0; font-size: 11px; opacity: 0.95; font-weight: 600;">Factura N°: ${reservation.invoice_number}</p>` : ''}
+      </div>
     </div>
-  `;
+    <div style="padding: 10px 12px 14px;">`;
 
   // Secciones seleccionadas
   if (selectedSections.titular) {
@@ -137,6 +140,9 @@ const createDocumentHTML = (reservation, selectedSections) => {
     html += generatePaymentsSection(reservation);
   }
 
+  // Cerrar el contenedor de contenido
+  html += '</div>';
+
   // Footer
   html += generateFooter(reservation);
 
@@ -147,18 +153,35 @@ const createDocumentHTML = (reservation, selectedSections) => {
 const generateHeader = (reservation) => {
   const settings = reservation.business_settings || {};
   const contactInfo = settings.contact_info || {};
+  const advisor = reservation.advisor || {};
 
   return `
-    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
-      <div>
-        <h2 style="margin: 0; font-size: 20px; color: #667eea; font-weight: bold;">${settings.agency_name || 'Agencia de Viajes'}</h2>
-        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">${settings.legal_name || ''}</p>
-        <p style="margin: 3px 0 0 0; font-size: 11px; color: #666;">NIT: ${settings.tax_id_number || 'N/A'}</p>
-      </div>
-      <div style="text-align: right;">
-        <p style="margin: 0; font-size: 11px; color: #666;">${contactInfo.email || ''}</p>
-        <p style="margin: 3px 0 0 0; font-size: 11px; color: #666;">${contactInfo.phone || contactInfo.mobile || ''}</p>
-        <p style="margin: 3px 0 0 0; font-size: 11px; color: #666;">${contactInfo.website || ''}</p>
+    <div style="background: linear-gradient(135deg, #00a6c7 0%, #49c8de 70%, #eaf7fb 70%); padding: 10px 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; color: white;">
+          ${settings.logo_url ? `
+            <div style="width: 96px; height: 64px; border-radius: 8px; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(0,0,0,0.06);">
+              <img src="${settings.logo_url}" style="width: 100%; height: 100%; object-fit: contain;" alt="Logo" />
+            </div>
+          ` : `
+            <div style="width: 96px; height: 64px; border-radius: 8px; background: linear-gradient(140deg, #00a6c7 0%, #008bb5 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase;">
+              ${(settings.agency_name || 'AG').substring(0, 2)}
+            </div>
+          `}
+          <div>
+            <h1 style="margin: 0; font-size: 26px; line-height: 1; font-weight: 800; letter-spacing: 0.3px;">${settings.agency_name || 'Agencia de Viajes'}</h1>
+            <small style="display: block; margin-top: 2px; opacity: 0.95; font-weight: 600; letter-spacing: 0.06em;">${settings.legal_name || ''}</small>
+            ${settings.tax_id_number ? `<small style="display: block; margin-top: 1px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.05em; opacity: 0.88; text-transform: uppercase;">NIT: ${settings.tax_id_number}</small>` : ''}
+          </div>
+        </div>
+        <div style="background: white; color: #123b48; border: 1px solid #d9e6ea; border-radius: 8px; padding: 8px 10px; min-width: 240px;">
+          <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #008bb5; border-bottom: 2px solid #00a6c7; padding-bottom: 4px; margin-bottom: 6px;">Información del Documento</div>
+          <div style="display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 11px;">
+            ${reservation.invoice_number ? `<div>Factura:</div><div style="font-weight: 800;">${reservation.invoice_number}</div>` : ''}
+            <div>Fecha:</div><div style="font-weight: 800;">${new Date().toLocaleDateString('es-CO')}</div>
+            ${advisor.id_card ? `<div>Asesor:</div><div style="font-weight: 800;">${advisor.id_card}</div>` : ''}
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -168,17 +191,44 @@ const generateTitularSection = (reservation) => {
   const client = reservation.clients || {};
 
   return `
-    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #667eea; border-radius: 4px;">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #667eea; font-weight: bold;">👤 INFORMACIÓN DEL TITULAR</h3>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
-        <div><strong>Nombre Completo:</strong> ${client.name || ''} ${client.last_name || ''}</div>
-        <div><strong>Documento:</strong> ${client.document_type || 'CC'} ${client.id_card || 'N/A'}</div>
-        <div><strong>Email:</strong> ${client.email || 'N/A'}</div>
-        <div><strong>Teléfono:</strong> ${client.phone || 'N/A'}</div>
-        <div style="grid-column: 1 / -1;"><strong>Dirección:</strong> ${client.address || 'N/A'}</div>
+    <div style="margin-bottom: 8px;">
+      <span style="background: #008bb5; color: white; padding: 4px 8px; border-radius: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; display: inline-block; margin: 4px 0 6px; font-weight: 800;">Datos del Titular</span>
+      <div style="border: 1px solid #d9e6ea; background: #f1f7f9; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Nombre:</span>
+            <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${client.name || ''} ${client.last_name || ''}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Documento:</span>
+            <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${client.document_type || 'CC'} ${client.id_card || 'N/A'}</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Correo:</span>
+            <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${client.email || 'N/A'}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Teléfono:</span>
+            <span style="min-width: 80px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${client.phone || 'N/A'}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+            <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Dirección:</span>
+            <span style="flex: 1; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${client.address || 'N/A'}</span>
+          </div>
+        </div>
         ${client.emergency_contact_name ? `
-          <div style="grid-column: 1 / -1; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
-            <strong>Contacto de Emergencia:</strong> ${client.emergency_contact_name} - ${client.emergency_contact_phone || 'N/A'}
+          <div style="height: 1px; background: #d9e6ea; margin: 6px 0;"></div>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+            <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+              <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Contacto de Emergencia:</span>
+              <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${client.emergency_contact_name}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+              <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Celular:</span>
+              <span style="min-width: 80px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${client.emergency_contact_phone || 'N/A'}</span>
+            </div>
           </div>
         ` : ''}
       </div>
@@ -486,12 +536,25 @@ const generatePaymentsSection = (reservation) => {
 
 const generateFooter = (reservation) => {
   const settings = reservation.business_settings || {};
+  const contactInfo = settings.contact_info || {};
 
   return `
-    <div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid #667eea; text-align: center; font-size: 10px; color: #666;">
-      <p style="margin: 0;">Este documento ha sido generado automáticamente desde el sistema de gestión.</p>
-      <p style="margin: 5px 0 0 0;">Fecha de generación: ${new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-      ${settings.invoice_message ? `<p style="margin: 10px 0 0 0; font-style: italic;">${settings.invoice_message}</p>` : ''}
+    <div style="margin-top: 10px; padding: 10px 12px; background: #f8f9fa; border-top: 1px solid #d9e6ea;">
+      <div style="text-align: center; font-size: 10px; color: #00a6c7; line-height: 1.55; font-weight: 600;">
+        ${contactInfo.email || contactInfo.phone || contactInfo.website ? `
+          <div style="margin: 12px auto 0; max-width: 760px; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;">
+            ${contactInfo.email ? `<span>${contactInfo.email}</span>` : ''}
+            ${contactInfo.email && (contactInfo.phone || contactInfo.website) ? '<span style="color: rgba(0,166,199,0.55);">•</span>' : ''}
+            ${contactInfo.phone ? `<span>${contactInfo.phone}</span>` : ''}
+            ${contactInfo.phone && contactInfo.website ? '<span style="color: rgba(0,166,199,0.55);">•</span>' : ''}
+            ${contactInfo.website ? `<span>${contactInfo.website}</span>` : ''}
+          </div>
+        ` : ''}
+        <div style="margin: 8px 0; font-size: 9px; color: #6c757d;">
+          <p style="margin: 0;">Documento generado automáticamente el ${new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          ${settings.invoice_message ? `<p style="margin: 4px 0 0 0; font-style: italic;">${settings.invoice_message}</p>` : ''}
+        </div>
+      </div>
     </div>
   `;
 };

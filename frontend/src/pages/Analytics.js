@@ -60,7 +60,7 @@ const Analytics = () => {
         return;
     }
     try {
-      const reservationsResponse = await api.get('/api/reservations', {
+      const reservationsResponse = await api.get('/reservations', {
         params: {
           userId: currentUser.id,
           userRole: currentUser.role
@@ -68,7 +68,7 @@ const Analytics = () => {
       });
 
       // Users data is not used for now, but could be in the future
-      // const usersResponse = await api.get('/api/usuarios');
+      // const usersResponse = await api.get('/usuarios');
 
       const generatedData = generateChartData(reservationsResponse.data, []);
       setChartData(generatedData);

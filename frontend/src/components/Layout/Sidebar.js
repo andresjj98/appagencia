@@ -9,7 +9,6 @@ import {
   Plane,
   LogOut,
   User,
-  FileText,
   DollarSign,
   ClipboardList,
   Bell
@@ -26,7 +25,6 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'reservations', label: 'Reservas', icon: Calendar },
     { id: 'gestion', label: 'Gestión', icon: Users },
-    { id: 'documentation', label: 'Documentación', icon: FileText },
     { id: 'finance', label: 'Finanzas', icon: DollarSign },
     { id: 'reports', label: 'Reportes', icon: ClipboardList },
     { id: 'analytics', label: 'Análisis', icon: BarChart3 },
@@ -44,7 +42,7 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
     if (!currentUser) return;
 
     try {
-      const response = await api.get(`/api/notifications/user/${currentUser.id}/unread-count`);
+      const response = await api.get(`/notifications/user/${currentUser.id}/unread-count`);
       setUnreadCount(response.data.count || 0);
     } catch (error) {
       console.error('Error fetching unread count:', error);

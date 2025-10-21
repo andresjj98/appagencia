@@ -16,7 +16,7 @@ const MyChangeRequestsPanel = ({ reservationId }) => {
     try {
       console.log('Fetching change requests for reservation:', reservationId);
 
-      const response = await api.get('/api/change-requests/my-requests');
+      const response = await api.get('/change-requests/my-requests');
 
       console.log('Response data:', response.data);
       console.log('All my requests:', response.data.requests);

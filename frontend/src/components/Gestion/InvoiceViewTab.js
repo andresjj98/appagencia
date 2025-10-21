@@ -47,7 +47,7 @@ const InvoiceViewTab = ({ reservation }) => {
     const hydrateReservation = async () => {
       try {
         setHydrating(true);
-        const response = await api.get(`/api/reservations/${baseReservation.id}`, {
+        const response = await api.get(`/reservations/${baseReservation.id}`, {
           signal: controller.signal,
         });
 
@@ -66,7 +66,7 @@ const InvoiceViewTab = ({ reservation }) => {
         // Si el advisor no tiene documento asociado, hacer fetch del usuario completo
         if (fullReservation.advisor_id && !currentAdvisorDocument) {
           try {
-            const advisorResponse = await api.get(`/api/users/${fullReservation.advisor_id}`, {
+            const advisorResponse = await api.get(`/users/${fullReservation.advisor_id}`, {
               signal: controller.signal,
             });
 

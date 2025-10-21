@@ -16,7 +16,7 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await api.get('/api/business-settings');
+        const response = await api.get('/business-settings');
         setSettings(response.data);
       } catch (error) {
         console.error("Failed to fetch business settings:", error.response?.data?.message || error.message);

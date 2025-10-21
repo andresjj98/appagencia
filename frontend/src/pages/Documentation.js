@@ -15,7 +15,7 @@ const Documentation = () => {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/documents');
+      const response = await api.get('/documents');
       setDocuments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching documents:', error.response?.data?.message || error.message);

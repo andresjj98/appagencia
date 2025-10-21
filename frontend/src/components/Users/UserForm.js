@@ -27,7 +27,7 @@ const UserForm = ({ user = null, onSave, onClose }) => {
     // Fetch offices
     const fetchOffices = async () => {
       try {
-        const response = await api.get('/api/offices');
+        const response = await api.get('/offices');
         setOffices(response.data);
         console.log('Offices loaded:', response.data);
       } catch (error) {

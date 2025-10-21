@@ -34,7 +34,6 @@ export const MODULE_PERMISSIONS = {
   dashboard: ['administrador', 'gestor', 'asesor'],
   reservations: ['asesor'], // Solo asesores pueden crear reservas
   gestion: ['administrador', 'gestor'], // Solo admin y gestor pueden ver todas las reservas
-  documentation: ['administrador', 'gestor', 'asesor'],
   finance: ['administrador'], // Solo administradores
   reports: ['administrador', 'gestor'],
   analytics: ['administrador', 'gestor'],
@@ -78,12 +77,10 @@ export const canEditReservation = (user, reservation) => {
     return !user.officeId || reservation.office_id === user.officeId;
   }
 
-  // Gestor solo puede editar reservas que ya están confirmadas
-  // y que pertenecen a su oficina (si tiene una asignada)
-  // NO puede editar reservas pendientes (esas las aprueba el admin)
+  // Gestor puede editar cualquier reserva de todas las oficinas
+  // Tiene permisos de gestión completos sobre todas las reservas
   if (user.role === 'gestor') {
-    const canAccess = !user.officeId || reservation.office_id === user.officeId;
-    return canAccess && reservation.status === 'confirmed';
+    return true;
   }
 
   // Asesor solo puede editar sus propias reservas pendientes o rechazadas
@@ -107,11 +104,12 @@ export const canApproveReservation = (user, reservation) => {
   // Super admin puede aprobar todo
   if (user.isSuperAdmin) return true;
 
-  // Gestores NO pueden aprobar NUNCA, solo ver
-  if (user.role === 'gestor') return false;
+  // Gestores NO pueden aprobar/rechazar reservas (solo administradores)
+  if (user.role === 'gestor') {
+    return false;
+  }
 
-  // Solo administradores pueden aprobar/rechazar
-  // Y solo las reservas de su oficina
+  // Solo administradores pueden aprobar/rechazar reservas de su oficina
   if (user.role === 'administrador') {
     // Si el admin no tiene oficina asignada, puede aprobar todas
     if (!user.officeId) return true;
@@ -131,6 +129,11 @@ export const canAccessOffice = (user, officeId) => {
   // Super admin tiene acceso a todas las oficinas
   if (user.isSuperAdmin) return true;
 
+  // Gestor tiene acceso a todas las oficinas
+  if (user.role === 'gestor') {
+    return true;
+  }
+
   // Administrador solo tiene acceso a su oficina asignada
   if (user.role === 'administrador') {
     return !user.officeId || user.officeId === officeId;
@@ -138,11 +141,6 @@ export const canAccessOffice = (user, officeId) => {
 
   // Asesor solo tiene acceso a su oficina
   if (user.role === 'asesor') {
-    return !user.officeId || user.officeId === officeId;
-  }
-
-  // Gestor solo tiene acceso a su oficina asignada
-  if (user.role === 'gestor') {
     return !user.officeId || user.officeId === officeId;
   }
 
@@ -156,10 +154,9 @@ export const filterReservationsByRole = (reservations, user) => {
   // Super admin ve todas las reservas
   if (user.isSuperAdmin) return reservations;
 
-  // Gestor ve todas las reservas de su oficina
+  // Gestor ve todas las reservas de todas las oficinas
   if (user.role === 'gestor') {
-    if (!user.officeId) return reservations; // Si no tiene oficina, ve todo
-    return reservations.filter(r => r.office_id === user.officeId);
+    return reservations;
   }
 
   // Administrador ve todas las reservas de su oficina
