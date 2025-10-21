@@ -246,20 +246,34 @@ const generateTravelSection = (reservation) => {
   let segmentsHTML = '';
   segments.forEach((segment, index) => {
     segmentsHTML += `
-      <div style="background: white; padding: 10px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #e0e0e0;">
-        <strong style="color: #667eea;">Tramo ${index + 1}:</strong> ${segment.origin || 'N/A'} → ${segment.destination || 'N/A'}
-        <br/>
-        <span style="font-size: 11px; color: #666;">
-          Salida: ${formatDate(segment.departure_date)} • Regreso: ${formatDate(segment.return_date)}
-        </span>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Origen:</span>
+          <span style="min-width: 80px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${segment.origin || 'N/A'}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Destino:</span>
+          <span style="min-width: 80px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${segment.destination || 'N/A'}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Ida:</span>
+          <span style="min-width: 80px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${formatDate(segment.departure_date)}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Regreso:</span>
+          <span style="min-width: 80px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${formatDate(segment.return_date)}</span>
+        </div>
       </div>
+      ${index < segments.length - 1 ? '<div style="height: 1px; background: #d9e6ea; margin: 6px 0;"></div>' : ''}
     `;
   });
 
   return `
-    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #28a745; border-radius: 4px;">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #28a745; font-weight: bold;">✈️ INFORMACIÓN DEL VIAJE</h3>
-      ${segmentsHTML}
+    <div style="margin-bottom: 8px;">
+      <span style="background: #008bb5; color: white; padding: 4px 8px; border-radius: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; display: inline-block; margin: 4px 0 6px; font-weight: 800;">Datos de la Reserva</span>
+      <div style="border: 1px solid #d9e6ea; background: #f1f7f9; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+        ${segmentsHTML}
+      </div>
     </div>
   `;
 };
@@ -277,33 +291,44 @@ const generateHotelSection = (reservation) => {
     let accomHTML = '';
 
     if (accommodations.length > 0) {
-      accomHTML = '<div style="margin-top: 8px; font-size: 11px; color: #666;">';
-      accomHTML += '<strong>Acomodaciones:</strong><br/>';
       accommodations.forEach((acc) => {
-        accomHTML += `• ${acc.rooms || 1} habitación(es): ${acc.adt || 0} adultos, ${acc.chd || 0} niños, ${acc.inf || 0} infantes<br/>`;
+        accomHTML += `
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+              <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">(N habitaciones / ADT / CHD / INF):</span>
+              <span style="border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${acc.rooms || 1} / ${acc.adt || 0} / ${acc.chd || 0} / ${acc.inf || 0}</span>
+            </div>
+          </div>
+        `;
       });
-      accomHTML += '</div>';
     }
 
     hotelsHTML += `
-      <div style="background: white; padding: 12px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #e0e0e0;">
-        <strong style="color: #764ba2; font-size: 14px;">${hotel.name || 'Hotel N/A'}</strong>
-        <div style="font-size: 12px; margin-top: 5px;">
-          <strong>Categoría:</strong> ${hotel.room_category || 'N/A'} •
-          <strong>Plan:</strong> ${hotel.meal_plan || 'N/A'}
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Hotel:</span>
+          <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${hotel.name || 'N/A'}</span>
         </div>
-        <div style="font-size: 12px; margin-top: 3px; color: #666;">
-          Check-in: ${formatDate(hotel.check_in)} • Check-out: ${formatDate(hotel.check_out)}
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Habitación:</span>
+          <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${hotel.room_category || 'N/A'}</span>
         </div>
-        ${accomHTML}
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Plan de alimentación:</span>
+          <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${hotel.meal_plan || 'N/A'}</span>
+        </div>
       </div>
+      ${accomHTML}
+      ${index < hotels.length - 1 ? '<div style="height: 1px; background: #d9e6ea; margin: 6px 0;"></div>' : ''}
     `;
   });
 
   return `
-    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #764ba2; border-radius: 4px;">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #764ba2; font-weight: bold;">🏨 HOTEL Y ALOJAMIENTO</h3>
-      ${hotelsHTML}
+    <div style="margin-bottom: 8px;">
+      <span style="background: #008bb5; color: white; padding: 4px 8px; border-radius: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; display: inline-block; margin: 4px 0 6px; font-weight: 800;">Hotel y Alojamiento</span>
+      <div style="border: 1px solid #d9e6ea; background: #f1f7f9; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+        ${hotelsHTML}
+      </div>
     </div>
   `;
 };
@@ -320,36 +345,46 @@ const generateFlightsSection = (reservation) => {
     const itineraries = flight.reservation_flight_itineraries || [];
     let itineraryHTML = '';
 
+    // Crear el "ciclo de vuelo" concatenando todos los itinerarios
+    let cycleParts = [];
     if (itineraries.length > 0) {
-      itineraryHTML = '<div style="margin-top: 8px;">';
       itineraries.forEach((itinerary) => {
-        itineraryHTML += `
-          <div style="font-size: 11px; padding: 6px; background: #f0f0f0; margin-bottom: 4px; border-radius: 3px;">
-            <strong>Vuelo ${itinerary.flight_number || 'N/A'}:</strong> ${itinerary.origin || 'N/A'} → ${itinerary.destination || 'N/A'}<br/>
-            Salida: ${formatTime(itinerary.departure_time)} • Llegada: ${formatTime(itinerary.arrival_time)}
-          </div>
-        `;
+        cycleParts.push(`${itinerary.origin || 'N/A'} → ${itinerary.destination || 'N/A'}`);
       });
-      itineraryHTML += '</div>';
     }
+    const cycleText = cycleParts.length > 0 ? cycleParts.join(' • ') : 'N/A';
 
     flightsHTML += `
-      <div style="background: white; padding: 12px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #e0e0e0;">
-        <strong style="color: #17a2b8; font-size: 14px;">Vuelo ${index + 1}</strong>
-        <div style="font-size: 12px; margin-top: 5px;">
-          <strong>Aerolínea:</strong> ${flight.airline || 'N/A'} •
-          <strong>Clase:</strong> ${flight.flight_class || 'N/A'} •
-          <strong>PNR:</strong> ${flight.pnr || 'N/A'}
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Aerolínea:</span>
+          <span style="flex: 1; min-width: 120px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${flight.airline || 'N/A'}</span>
         </div>
-        ${itineraryHTML}
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Plan:</span>
+          <span style="min-width: 80px; border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${flight.flight_class || 'N/A'}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Equipaje:</span>
+          <span style="border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${flight.baggage_allowance || '-'}</span>
+        </div>
       </div>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 2px 0;">
+        <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+          <span style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #0b5163;">Ciclo de vuelo:</span>
+          <span style="border-bottom: 1px dashed #d9e6ea; padding: 2px 4px 1px 4px; color: #3e525a;">${cycleText}</span>
+        </div>
+      </div>
+      ${index < flights.length - 1 ? '<div style="height: 1px; background: #d9e6ea; margin: 6px 0;"></div>' : ''}
     `;
   });
 
   return `
-    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #17a2b8; border-radius: 4px;">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #17a2b8; font-weight: bold;">✈️ VUELOS E ITINERARIOS</h3>
-      ${flightsHTML}
+    <div style="margin-bottom: 8px;">
+      <span style="background: #008bb5; color: white; padding: 4px 8px; border-radius: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; display: inline-block; margin: 4px 0 6px; font-weight: 800;">Vuelos e Itinerarios</span>
+      <div style="border: 1px solid #d9e6ea; background: #f1f7f9; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+        ${flightsHTML}
+      </div>
     </div>
   `;
 };
@@ -370,19 +405,48 @@ const generateTransfersSection = (reservation) => {
       : transfer.transfer_type || 'N/A';
 
     transfersHTML += `
-      <div style="background: white; padding: 10px; margin-bottom: 6px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px;">
-        <strong style="color: #ffc107;">Traslado ${typeLabel}</strong><br/>
-        ${transfer.transfer_date ? `Fecha: ${formatDate(transfer.transfer_date)} ${transfer.transfer_time ? `• Hora: ${transfer.transfer_time}` : ''}` : ''}<br/>
-        ${transfer.pickup_location ? `Origen: ${transfer.pickup_location}` : ''} ${transfer.dropoff_location ? `• Destino: ${transfer.dropoff_location}` : ''}<br/>
-        ${transfer.vehicle_type ? `Vehículo: ${transfer.vehicle_type}` : ''}
+      <div style="font-size: 11.5px; color: #3e525a; margin: 4px 0;">
+        <strong style="color: #008bb5;">• ${typeLabel}${transfer.transfer_date ? ` (${formatDate(transfer.transfer_date)}${transfer.transfer_time ? ` - ${transfer.transfer_time}` : ''})` : ''}</strong>
+        ${transfer.pickup_location && transfer.dropoff_location ? `<br/>&nbsp;&nbsp;${transfer.pickup_location} → ${transfer.dropoff_location}` : ''}
+        ${transfer.vehicle_type ? `<br/>&nbsp;&nbsp;Vehículo: ${transfer.vehicle_type}` : ''}
       </div>
     `;
   });
 
   return `
-    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #ffc107; border-radius: 4px;">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #ffc107; font-weight: bold;">🚗 TRASLADOS</h3>
-      ${transfersHTML}
+    <div style="margin-bottom: 8px;">
+      <span style="background: #008bb5; color: white; padding: 4px 8px; border-radius: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; display: inline-block; margin: 4px 0 6px; font-weight: 800;">Traslados</span>
+      <div style="border: 1px solid #d9e6ea; background: #f1f7f9; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+        ${transfersHTML || '<div style="font-size: 11.5px; color: #3e525a;">No hay traslados registrados.</div>'}
+      </div>
+    </div>
+  `;
+};
+
+const generateToursSection = (reservation) => {
+  const tours = reservation.reservation_tours || [];
+
+  if (tours.length === 0) {
+    return '';
+  }
+
+  let toursHTML = '';
+  tours.forEach((tour, index) => {
+    toursHTML += `
+      <div style="font-size: 11.5px; color: #3e525a; margin: 4px 0;">
+        <strong style="color: #008bb5;">• ${tour.name || tour.tour_name || 'Tour N/A'}</strong>
+        ${tour.date || tour.service_date ? ` (${formatDate(tour.date || tour.service_date)})` : ''}
+        ${tour.cost ? `<br/>&nbsp;&nbsp;Costo: ${formatCurrency(tour.cost)}` : ''}
+      </div>
+    `;
+  });
+
+  return `
+    <div style="margin-bottom: 8px;">
+      <span style="background: #008bb5; color: white; padding: 4px 8px; border-radius: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; display: inline-block; margin: 4px 0 6px; font-weight: 800;">Tours y Actividades</span>
+      <div style="border: 1px solid #d9e6ea; background: #f1f7f9; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+        ${toursHTML || '<div style="font-size: 11.5px; color: #3e525a;">No hay tours o servicios adicionales registrados.</div>'}
+      </div>
     </div>
   `;
 };

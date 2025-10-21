@@ -4,6 +4,7 @@ const { supabaseAdmin } = require('../supabase');
 
 const login = async (req, res) => {
   const { email, password } = req.body;
+
   if (!email || !password) {
     return res.status(400).json({ message: 'Faltan credenciales' });
   }
@@ -16,32 +17,45 @@ const login = async (req, res) => {
       .single();
 
     if (error || !user) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
+      return res.status(401).json({ message: 'Credenciales invalidas' });
     }
 
     const match = await comparePassword(password, user.password);
 
     if (!match) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
+      return res.status(401).json({ message: 'Credenciales invalidas' });
     }
 
-    // Generar JWT token
+    const isSuperAdmin = Boolean(user.is_super_admin);
+    const effectiveRole = isSuperAdmin ? 'superadmin' : user.role;
+    const officeId = user.office_id ?? null;
+
     const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
     const token = jwt.sign(
       {
         id: user.id,
         email: user.email,
-        role: user.role,
-        officeId: user.office_id
+        role: effectiveRole,
+        officeId,
+        isSuperAdmin
       },
       secret,
-      { expiresIn: '24h' } // Token válido por 24 horas
+      { expiresIn: '24h' }
     );
 
-    delete user.password;
-    res.json({ user, token });
-  } catch (error) {
-    console.error(error);
+    const { password: _, ...safeUser } = user;
+
+    res.json({
+      user: {
+        ...safeUser,
+        office_id: officeId,
+        is_super_admin: isSuperAdmin,
+        effective_role: effectiveRole
+      },
+      token
+    });
+  } catch (err) {
+    console.error('Error in login controller:', err);
     res.status(500).json({ message: 'Error del servidor' });
   }
 };

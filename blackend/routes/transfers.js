@@ -1,41 +1,56 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../supabase');
+const { authenticateToken } = require('../middleware/auth');
+const { ensureReservationAccess } = require('../utils/accessControl');
+
+const handleAccessError = (res, error, fallbackMessage) => {
+  if (error?.statusCode) {
+    return res.status(error.statusCode).json({ message: error.message });
+  }
+  console.error(fallbackMessage, error);
+  return res.status(500).json({ message: fallbackMessage });
+};
 
 // GET - Obtener todos los traslados de una reserva
-router.get('/:reservation_id/transfers', async (req, res) => {
+router.get('/:reservation_id/transfers', authenticateToken, async (req, res) => {
+  const { reservation_id } = req.params;
   try {
-    const { reservation_id } = req.params;
+    await ensureReservationAccess(reservation_id, req.user);
 
     const { data, error } = await supabaseAdmin
       .from('reservation_transfers')
       .select('*')
-      .eq('reservation_id', reservation_id)
+      .eq('reservation_id', Number(reservation_id))
       .order('segment_id', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching transfers:', error);
+      return res.status(500).json({ message: 'Error al obtener los traslados', error: error.message });
+    }
 
     res.json(data || []);
   } catch (error) {
-    console.error('Error fetching transfers:', error);
-    res.status(500).json({ message: 'Error al obtener los traslados', error: error.message });
+    handleAccessError(res, error, 'Error al validar permisos para obtener traslados.');
   }
 });
 
 // POST - Crear traslados para una reserva
-router.post('/:reservation_id/transfers', async (req, res) => {
+router.post('/:reservation_id/transfers', authenticateToken, async (req, res) => {
+  const { reservation_id } = req.params;
+  const { transfers } = req.body;
+
   try {
-    const { reservation_id } = req.params;
-    const { transfers } = req.body;
+    await ensureReservationAccess(reservation_id, req.user);
 
     if (!transfers || !Array.isArray(transfers)) {
       return res.status(400).json({ message: 'Se requiere un array de traslados' });
     }
 
-    // Agregar reservation_id a cada traslado
+    const reservationId = Number(reservation_id);
     const transfersWithReservation = transfers.map(transfer => ({
       ...transfer,
-      reservation_id
+      reservation_id: reservationId
     }));
 
     const { data, error } = await supabaseAdmin
@@ -43,22 +58,25 @@ router.post('/:reservation_id/transfers', async (req, res) => {
       .insert(transfersWithReservation)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating transfers:', error);
+      return res.status(500).json({ message: 'Error al crear los traslados', error: error.message });
+    }
 
     res.status(201).json(data);
   } catch (error) {
-    console.error('Error creating transfers:', error);
-    res.status(500).json({ message: 'Error al crear los traslados', error: error.message });
+    handleAccessError(res, error, 'Error al validar permisos para crear traslados.');
   }
 });
 
-// PUT - Actualizar un traslado específico
-router.put('/:reservation_id/transfers/:transfer_id', async (req, res) => {
-  try {
-    const { transfer_id } = req.params;
-    const transferData = req.body;
+// PUT - Actualizar un traslado especifico
+router.put('/:reservation_id/transfers/:transfer_id', authenticateToken, async (req, res) => {
+  const { reservation_id, transfer_id } = req.params;
+  const transferData = { ...req.body };
 
-    // Remover campos que no deben actualizarse
+  try {
+    await ensureReservationAccess(reservation_id, req.user);
+
     delete transferData.id;
     delete transferData.reservation_id;
     delete transferData.created_at;
@@ -67,10 +85,13 @@ router.put('/:reservation_id/transfers/:transfer_id', async (req, res) => {
     const { data, error } = await supabaseAdmin
       .from('reservation_transfers')
       .update(transferData)
-      .eq('id', transfer_id)
+      .eq('id', Number(transfer_id))
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating transfer:', error);
+      return res.status(500).json({ message: 'Error al actualizar el traslado', error: error.message });
+    }
 
     if (!data || data.length === 0) {
       return res.status(404).json({ message: 'Traslado no encontrado' });
@@ -78,72 +99,84 @@ router.put('/:reservation_id/transfers/:transfer_id', async (req, res) => {
 
     res.json(data[0]);
   } catch (error) {
-    console.error('Error updating transfer:', error);
-    res.status(500).json({ message: 'Error al actualizar el traslado', error: error.message });
+    handleAccessError(res, error, 'Error al validar permisos para actualizar el traslado.');
   }
 });
 
 // DELETE - Eliminar un traslado
-router.delete('/:reservation_id/transfers/:transfer_id', async (req, res) => {
+router.delete('/:reservation_id/transfers/:transfer_id', authenticateToken, async (req, res) => {
+  const { reservation_id, transfer_id } = req.params;
+
   try {
-    const { transfer_id } = req.params;
+    await ensureReservationAccess(reservation_id, req.user);
 
     const { error } = await supabaseAdmin
       .from('reservation_transfers')
       .delete()
-      .eq('id', transfer_id);
+      .eq('id', Number(transfer_id));
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error deleting transfer:', error);
+      return res.status(500).json({ message: 'Error al eliminar el traslado', error: error.message });
+    }
 
     res.json({ message: 'Traslado eliminado exitosamente' });
   } catch (error) {
-    console.error('Error deleting transfer:', error);
-    res.status(500).json({ message: 'Error al eliminar el traslado', error: error.message });
+    handleAccessError(res, error, 'Error al validar permisos para eliminar el traslado.');
   }
 });
 
 // PUT - Actualizar todos los traslados de una reserva (upsert)
-router.put('/:reservation_id/transfers', async (req, res) => {
+router.put('/:reservation_id/transfers', authenticateToken, async (req, res) => {
+  const { reservation_id } = req.params;
+  const { transfers } = req.body;
+
   try {
-    const { reservation_id } = req.params;
-    const { transfers } = req.body;
+    await ensureReservationAccess(reservation_id, req.user);
 
     if (!transfers || !Array.isArray(transfers)) {
       return res.status(400).json({ message: 'Se requiere un array de traslados' });
     }
 
-    // Primero, eliminar todos los traslados existentes de esta reserva
-    await supabaseAdmin
+    const reservationId = Number(reservation_id);
+
+    const { error: deleteError } = await supabaseAdmin
       .from('reservation_transfers')
       .delete()
-      .eq('reservation_id', reservation_id);
+      .eq('reservation_id', reservationId);
 
-    // Luego, insertar los nuevos traslados
-    if (transfers.length > 0) {
-      const transfersWithReservation = transfers.map(transfer => {
-        // Remover id si existe (para evitar conflictos)
-        const { id, created_at, updated_at, ...cleanTransfer } = transfer;
-        return {
-          ...cleanTransfer,
-          reservation_id
-        };
-      });
-
-      const { data, error } = await supabaseAdmin
-        .from('reservation_transfers')
-        .insert(transfersWithReservation)
-        .select();
-
-      if (error) throw error;
-
-      res.json(data);
-    } else {
-      res.json([]);
+    if (deleteError) {
+      console.error('Error deleting existing transfers:', deleteError);
+      return res.status(500).json({ message: 'Error al limpiar traslados anteriores', error: deleteError.message });
     }
+
+    if (transfers.length === 0) {
+      return res.json([]);
+    }
+
+    const transfersWithReservation = transfers.map(transfer => {
+      const { id, created_at, updated_at, ...cleanTransfer } = transfer;
+      return {
+        ...cleanTransfer,
+        reservation_id: reservationId
+      };
+    });
+
+    const { data, error } = await supabaseAdmin
+      .from('reservation_transfers')
+      .insert(transfersWithReservation)
+      .select();
+
+    if (error) {
+      console.error('Error upserting transfers:', error);
+      return res.status(500).json({ message: 'Error al actualizar los traslados', error: error.message });
+    }
+
+    res.json(data);
   } catch (error) {
-    console.error('Error upserting transfers:', error);
-    res.status(500).json({ message: 'Error al actualizar los traslados', error: error.message });
+    handleAccessError(res, error, 'Error al validar permisos para actualizar los traslados.');
   }
 });
 
 module.exports = router;
+
