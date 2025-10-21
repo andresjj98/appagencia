@@ -99,32 +99,24 @@ const getReservationById = async (req, res) => {
       .select('*')
       .single();
 
-    console.log('=== DEBUG BUSINESS SETTINGS ===');
-    console.log('Settings Error:', settingsError);
-    console.log('Business Settings:', businessSettings);
-    console.log('Logo URL original:', businessSettings?.logo_url);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[getReservationById] Business settings loaded');
+    }
 
     if (!settingsError && businessSettings) {
       // Si logo_url es una ruta de Supabase Storage, generar URL pública
       if (businessSettings.logo_url && !businessSettings.logo_url.startsWith('http')) {
-        console.log('Logo URL es ruta relativa, generando URL pública...');
         const { data: publicUrlData } = supabaseAdmin
           .storage
           .from('logos') // Ajusta el nombre del bucket según tu configuración
           .getPublicUrl(businessSettings.logo_url);
 
         if (publicUrlData?.publicUrl) {
-          console.log('URL pública generada:', publicUrlData.publicUrl);
           businessSettings.logo_url = publicUrlData.publicUrl;
         }
-      } else {
-        console.log('Logo URL ya es absoluta o está vacía');
       }
 
-      console.log('Logo URL final:', businessSettings.logo_url);
       data.business_settings = businessSettings;
-    } else {
-      console.log('No se pudieron obtener business_settings');
     }
 
     res.json(data);
@@ -373,7 +365,43 @@ const rejectReservation = async (req, res) => {
 
 const deleteReservation = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user.id;
+  const userRole = req.user.role;
+
   try {
+    // Primero, obtener la reserva para verificar permisos
+    const { data: reservation, error: fetchError } = await supabaseAdmin
+      .from('reservations')
+      .select('id, advisor_id, status')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !reservation) {
+      return res.status(404).json({ message: 'Reserva no encontrada' });
+    }
+
+    // Verificar permisos:
+    // 1. Administradores pueden eliminar cualquier reserva
+    // 2. Gestores y asesores solo pueden eliminar sus propias reservas no aprobadas
+    const isAdmin = userRole === 'administrador';
+    const isOwner = reservation.advisor_id === userId;
+    const isNotApproved = reservation.status !== 'confirmed';
+
+    if (!isAdmin) {
+      if (!isOwner) {
+        return res.status(403).json({
+          message: 'No tienes permisos para eliminar esta reserva. Solo puedes eliminar tus propias reservas.'
+        });
+      }
+
+      if (!isNotApproved) {
+        return res.status(403).json({
+          message: 'No puedes eliminar una reserva que ya ha sido aprobada/confirmada. Contacta a un administrador.'
+        });
+      }
+    }
+
+    // Si llegamos aquí, el usuario tiene permiso para eliminar
     const { error } = await supabaseAdmin.rpc('delete_full_reservation', {
       reservation_id_input: id
     });
@@ -495,12 +523,9 @@ const updatePassengers = async (req, res) => {
   const { id } = req.params;
   const passengers = req.body.passengers || req.body.reservation_passengers || [];
 
-  console.log('=== UPDATE PASSENGERS DEBUG ===');
-  console.log('Reservation ID:', id);
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
-  console.log('Passengers array:', JSON.stringify(passengers, null, 2));
-  console.log('Passengers count:', passengers.length);
-  console.log('Is array?', Array.isArray(passengers));
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[updatePassengers] Updating passengers for reservation:', id);
+  }
 
   try {
     // Validar que la reserva existe
@@ -515,18 +540,11 @@ const updatePassengers = async (req, res) => {
       return res.status(404).json({ message: 'Reserva no encontrada.' });
     }
 
-    console.log('Reservation found:', reservation);
-
     // Validar que passengers sea un array
     if (!Array.isArray(passengers)) {
       console.error('Passengers is not an array:', typeof passengers);
       return res.status(400).json({ message: 'El campo passengers debe ser un array.' });
     }
-
-    console.log('Calling RPC upsert_passengers with:', {
-      reservation_id_input: parseInt(id),
-      passengers_count: passengers.length
-    });
 
     // Llamar a la función RPC para actualizar pasajeros
     const { data, error } = await supabaseAdmin.rpc('upsert_passengers', {
@@ -534,12 +552,8 @@ const updatePassengers = async (req, res) => {
       passengers_payload: passengers
     });
 
-    console.log('RPC Response - Data:', JSON.stringify(data, null, 2));
-    console.log('RPC Response - Error:', error);
-
     if (error) {
       console.error('Error updating passengers via RPC:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       return res.status(500).json({
         message: 'Error al actualizar los pasajeros',
         details: error.message,
@@ -548,7 +562,10 @@ const updatePassengers = async (req, res) => {
       });
     }
 
-    console.log('Passengers updated successfully!');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[updatePassengers] Passengers updated successfully');
+    }
+
     res.status(200).json({
       message: 'Pasajeros actualizados exitosamente',
       result: data

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { USER_ROLES } from '../utils/constants';
 import UserForm from '../components/Users/UserForm'; // Import UserForm
+import api from '../utils/api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -24,9 +25,8 @@ const UserManagement = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/usuarios');
-        const data = await response.json();
-        setUsers(data);
+        const response = await api.get('/usuarios');
+        setUsers(response.data);
       } catch (error) {
         console.error('Error fetching users', error);
       }
@@ -55,12 +55,7 @@ const UserManagement = () => {
   const handleDeleteUser = async (userToDelete) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar a ${userToDelete.name} ${userToDelete.lastName}?`)) {
       try {
-        const response = await fetch(`http://localhost:4000/api/usuarios/${userToDelete.id}`, {
-          method: 'DELETE',
-        });
-        if (!response.ok) {
-          throw new Error('Error al eliminar usuario');
-        }
+        await api.delete(`/usuarios/${userToDelete.id}`);
         setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
       } catch (error) {
         console.error(error);
@@ -81,15 +76,8 @@ const UserManagement = () => {
       }
 
       try {
-        const response = await fetch(`http://localhost:4000/api/usuarios/${userData.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userData),
-        });
-        if (!response.ok) {
-          throw new Error('Error al actualizar usuario');
-        }
-        const updatedUser = await response.json();
+        const response = await api.put(`/usuarios/${userData.id}`, userData);
+        const updatedUser = response.data;
         setUsers(prevUsers =>
           prevUsers.map(user => (user.id === updatedUser.id ? updatedUser : user))
         );
@@ -98,15 +86,8 @@ const UserManagement = () => {
       }
     } else {
       try {
-        const response = await fetch('http://localhost:4000/api/usuarios', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userData),
-        });
-        if (!response.ok) {
-          throw new Error('Error al crear usuario');
-        }
-        const newUser = await response.json();
+        const response = await api.post('/usuarios', userData);
+        const newUser = response.data;
         setUsers(prevUsers => [...prevUsers, newUser]);
       } catch (error) {
         console.error(error);

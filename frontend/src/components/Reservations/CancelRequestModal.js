@@ -5,6 +5,7 @@ import { useAuth } from '../../pages/AuthContext';
 import { useSettings } from '../../utils/SettingsContext';
 import AirlineInput from '../common/AirlineInput';
 import supabase from '../../utils/supabaseClient';
+import api from '../../utils/api';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -901,26 +902,11 @@ const ChangeRequestModal = ({ reservation, onClose }) => {
 
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/change-requests`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          section: editingSection,
-          changes: formData,
-          reason: reason || `Solicitud de cambio en ${editingSection}`
-        })
+      await api.post(`/api/reservations/${reservation.id}/change-requests`, {
+        section: editingSection,
+        changes: formData,
+        reason: reason || `Solicitud de cambio en ${editingSection}`
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al enviar la solicitud');
-      }
 
       const message = editingSection === 'cancellation'
         ? 'Solicitud de cancelación enviada con éxito. Recibirás una notificación cuando sea revisada.'
@@ -930,7 +916,7 @@ const ChangeRequestModal = ({ reservation, onClose }) => {
       onClose();
     } catch (error) {
       console.error('Error sending change request:', error);
-      alert(`Error al enviar la solicitud: ${error.message}`);
+      alert(error.response?.data?.message || 'Error al enviar la solicitud');
     } finally {
       setIsSubmitting(false);
     }

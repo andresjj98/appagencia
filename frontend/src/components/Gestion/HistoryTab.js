@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, User, FileEdit, CheckCircle, XCircle, AlertCircle, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ChangeRequestManager from './ChangeRequestManager';
+import api from '../../utils/api';
 
 const HistoryTab = ({ reservation, onUpdate }) => {
   const { created_at, updated_at } = reservation._original;
@@ -15,17 +16,8 @@ const HistoryTab = ({ reservation, onUpdate }) => {
   const fetchActivities = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/activities`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setActivities(data.activities || []);
-      }
+      const response = await api.get(`/reservations/${reservation.id}/activities`);
+      setActivities(response.data.activities || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
     } finally {

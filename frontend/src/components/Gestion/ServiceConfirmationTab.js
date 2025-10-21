@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Plane, Hotel, Ticket, HeartPulse, Bus, Clock, MapPin, Users, Calendar, Edit } from 'lucide-react';
+import api from '../../utils/api';
 
 /**
  * Pestaña para confirmar servicios de la reserva
@@ -18,26 +19,11 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, onEditSection, readOnly
   const handleConfirmService = async (serviceType, serviceId) => {
     setIsConfirming(true);
     try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      };
-
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/confirm-service`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          serviceType,
-          serviceId,
-          confirmedBy: reservation.advisorId || reservation.advisor_id
-        })
+      await api.post(`/api/reservations/${reservation.id}/confirm-service`, {
+        serviceType,
+        serviceId,
+        confirmedBy: reservation.advisorId || reservation.advisor_id
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al confirmar el servicio');
-      }
 
       showAlert('Éxito', `${serviceType} confirmado exitosamente`);
 
@@ -46,7 +32,8 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, onEditSection, readOnly
       }
     } catch (error) {
       console.error('Error confirming service:', error);
-      showAlert('Error', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al confirmar el servicio';
+      showAlert('Error', errorMessage);
     } finally {
       setIsConfirming(false);
     }

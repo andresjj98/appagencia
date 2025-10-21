@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import api from './api';
 
 const SettingsContext = createContext();
 
@@ -15,13 +16,10 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/business-settings');
-        const data = await response.json();
-        if (response.ok) {
-          setSettings(data);
-        }
+        const response = await api.get('/api/business-settings');
+        setSettings(response.data);
       } catch (error) {
-        console.error("Failed to fetch business settings:", error);
+        console.error("Failed to fetch business settings:", error.response?.data?.message || error.message);
       } finally {
         setIsLoading(false);
       }

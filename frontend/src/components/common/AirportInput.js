@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Search } from 'lucide-react';
+import api from '../../utils/api';
 
 // Simple debounce function
 const debounce = (func, delay) => {
@@ -37,12 +38,10 @@ const AirportInput = ({ value, onSelect, placeholder }) => {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:4000/api/airports/search?q=${query}`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      setResults(data);
+      const response = await api.get('/airports/search', {
+        params: { q: query }
+      });
+      setResults(response.data);
       setIsDropdownVisible(true);
     } catch (error) {
       console.error("Failed to fetch airports:", error);

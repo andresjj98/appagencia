@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { buildInvoicePayload } from '../../utils/documentGenerator';
+import api from '../../utils/api';
 
 const InvoiceViewTab = ({ reservation }) => {
   const iframeRef = useRef(null);
@@ -46,18 +47,11 @@ const InvoiceViewTab = ({ reservation }) => {
     const hydrateReservation = async () => {
       try {
         setHydrating(true);
-        const response = await fetch(`http://localhost:4000/api/reservations/${baseReservation.id}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-          },
+        const response = await api.get(`/api/reservations/${baseReservation.id}`, {
           signal: controller.signal,
         });
 
-        if (!response.ok) {
-          throw new Error('No se pudo obtener la información completa de la reserva.');
-        }
-
-        const fullReservation = await response.json();
+        const fullReservation = response.data;
 
         const currentAdvisorDocument =
           fullReservation.advisor?.id_card ||
@@ -72,33 +66,28 @@ const InvoiceViewTab = ({ reservation }) => {
         // Si el advisor no tiene documento asociado, hacer fetch del usuario completo
         if (fullReservation.advisor_id && !currentAdvisorDocument) {
           try {
-            const advisorResponse = await fetch(`http://localhost:4000/api/users/${fullReservation.advisor_id}`, {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-              },
+            const advisorResponse = await api.get(`/api/users/${fullReservation.advisor_id}`, {
               signal: controller.signal,
             });
 
-            if (advisorResponse.ok) {
-              const advisorData = await advisorResponse.json();
-              const advisorDocument =
-                advisorData.idCard ||
-                advisorData.id_card ||
-                advisorData.documentNumber ||
-                advisorData.document_number ||
-                advisorData.cedula ||
-                advisorData.dni ||
-                advisorData.cc ||
-                null;
+            const advisorData = advisorResponse.data;
+            const advisorDocument =
+              advisorData.idCard ||
+              advisorData.id_card ||
+              advisorData.documentNumber ||
+              advisorData.document_number ||
+              advisorData.cedula ||
+              advisorData.dni ||
+              advisorData.cc ||
+              null;
 
-              fullReservation.advisor = {
-                ...advisorData,
-                idCard: advisorData.idCard ?? advisorDocument ?? null,
-                id_card: advisorData.id_card ?? advisorDocument ?? null,
-                document_number: advisorData.document_number ?? advisorDocument ?? null,
-                documentNumber: advisorData.documentNumber ?? advisorDocument ?? null,
-              };
-            }
+            fullReservation.advisor = {
+              ...advisorData,
+              idCard: advisorData.idCard ?? advisorDocument ?? null,
+              id_card: advisorData.id_card ?? advisorDocument ?? null,
+              document_number: advisorData.document_number ?? advisorDocument ?? null,
+              documentNumber: advisorData.documentNumber ?? advisorDocument ?? null,
+            };
           } catch (advisorError) {
             console.warn('Could not fetch full advisor data:', advisorError);
           }
@@ -113,7 +102,8 @@ const InvoiceViewTab = ({ reservation }) => {
         }
         console.error('Error fetching full reservation for invoice:', fetchError);
         if (!didCancel) {
-          setHydrationError(fetchError.message || 'No se pudo obtener la información completa de la reserva.');
+          const errorMessage = fetchError.response?.data?.message || fetchError.message || 'No se pudo obtener la información completa de la reserva.';
+          setHydrationError(errorMessage);
         }
       } finally {
         if (!didCancel) {

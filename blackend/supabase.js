@@ -1,11 +1,10 @@
 // Primero, carga las variables de entorno del archivo .env
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
-console.log('[ENV CHECK]', {
-  url: process.env.SUPABASE_URL,
-  anonLen: process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY.length,
-  svcLen: process.env.SUPABASE_SERVICE_ROLE && process.env.SUPABASE_SERVICE_ROLE.length,
-});
+// Solo mostrar información de debug en desarrollo
+if (process.env.NODE_ENV === 'development') {
+  console.log('[Supabase] Configuración cargada correctamente');
+}
 
 const { createClient } = require('@supabase/supabase-js');
 

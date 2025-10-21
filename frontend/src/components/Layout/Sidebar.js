@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../pages/AuthContext';
 import { USER_ROLES, canAccessModule } from '../../utils/constants';
 import { formatUserName } from '../../utils/nameFormatter';
+import api from '../../utils/api';
 
 const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
   const { currentUser } = useAuth();
@@ -43,12 +44,8 @@ const Sidebar = ({ activeSection, onSectionChange, onLogout }) => {
     if (!currentUser) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/notifications/user/${currentUser.id}/unread-count`);
-      const data = await response.json();
-
-      if (response.ok) {
-        setUnreadCount(data.count || 0);
-      }
+      const response = await api.get(`/api/notifications/user/${currentUser.id}/unread-count`);
+      setUnreadCount(response.data.count || 0);
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }

@@ -4,6 +4,8 @@
  * en el formato que la plantilla espera.
  */
 
+import api from './api';
+
 const INVOICE_TEMPLATE_VERSION = '2024.06';
 
 export const generateInvoice = (rawData) => {
@@ -84,25 +86,14 @@ export const saveDocumentRecord = async (reservationId, documentType, documentDa
       }
     }
 
-    const response = await fetch('http://localhost:4000/api/documents', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({
-        reservation_id: reservationId,
-        type: documentType,
-        data_snapshot: snapshot,
-        generated_at: new Date().toISOString(),
-      }),
+    const response = await api.post('/api/documents', {
+      reservation_id: reservationId,
+      type: documentType,
+      data_snapshot: snapshot,
+      generated_at: new Date().toISOString(),
     });
 
-    if (!response.ok) {
-      throw new Error('Error al guardar registro del documento');
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
     console.error('Error saving document record:', error);
     throw error;

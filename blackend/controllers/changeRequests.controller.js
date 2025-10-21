@@ -1112,17 +1112,16 @@ const getPendingChangeRequests = async (req, res) => {
 const getMyChangeRequests = async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log('getMyChangeRequests - User ID:', userId);
-    console.log('getMyChangeRequests - User info:', req.user);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[getMyChangeRequests] Fetching requests for user:', userId);
+    }
 
     const { data, error } = await supabaseAdmin
       .from('v_change_requests_detailed')
       .select('*')
       .eq('requested_by_id', userId)
       .order('created_at', { ascending: false });
-
-    console.log('getMyChangeRequests - Query result:', { data, error });
-    console.log('getMyChangeRequests - Number of requests found:', data?.length || 0);
 
     if (error) {
       console.error('Error fetching user requests:', error);

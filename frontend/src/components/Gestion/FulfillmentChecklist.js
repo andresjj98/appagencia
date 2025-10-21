@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Loader, Hotel, Plane, Sun, HeartPulse } from 'lucide-react';
 import { useAuth } from '../../pages/AuthContext';
+import api from '../../utils/api';
 
 const FulfillmentChecklist = ({ reservation, onUpdate }) => {
   const [loadingItem, setLoadingItem] = useState(null);
@@ -10,20 +11,16 @@ const FulfillmentChecklist = ({ reservation, onUpdate }) => {
   const handleUpdateStatus = async (field) => {
     setLoadingItem(field);
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/update-fulfillment`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field, value: true, userRole: currentUser.role }),
+      await api.put(`/reservations/${reservation.id}/update-fulfillment`, {
+        field,
+        value: true,
+        userRole: currentUser.role
       });
-
-      if (!response.ok) {
-        throw new Error('Error al actualizar el estado');
-      }
       // Notify parent to refetch data
       onUpdate();
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      alert(error.response?.data?.message || error.message);
     } finally {
       setLoadingItem(null);
     }

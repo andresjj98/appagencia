@@ -8,6 +8,7 @@
       "dependencies": {
             "@supabase/supabase-js": "^2.57.2",
             "autoprefixer": "^10.0.0",
+            "axios": "^1.12.2",
             "bash": "^0.0.1",
             "framer-motion": "^12.23.12",
             "html2canvas": "^1.4.1",

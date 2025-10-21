@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Loader, Inbox, FileWarning, FileText, Download, ArrowRight, Code } from 'lucide-react';
 import supabase from '../../utils/supabaseClient';
+import api from '../../utils/api';
 
 const ChangeRequestManager = ({ reservation, onUpdate }) => {
   const [loadingRequest, setLoadingRequest] = useState(null);
@@ -18,27 +19,12 @@ const ChangeRequestManager = ({ reservation, onUpdate }) => {
     setLoadingRequest(requestId);
 
     try {
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(`http://localhost:4000/api/change-requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al aprobar la solicitud.');
-      }
-
+      await api.post(`/change-requests/${requestId}/approve`);
       alert('Solicitud aprobada y cambios aplicados exitosamente.');
       onUpdate(); // Refetch reservation data
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      alert(error.response?.data?.error || error.message || 'Error al aprobar la solicitud.');
     } finally {
       setLoadingRequest(null);
     }
@@ -53,22 +39,9 @@ const ChangeRequestManager = ({ reservation, onUpdate }) => {
     setLoadingRequest(requestId);
 
     try {
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(`http://localhost:4000/api/change-requests/${requestId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ rejectionReason: rejectReason })
+      await api.post(`/change-requests/${requestId}/reject`, {
+        rejectionReason: rejectReason
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al rechazar la solicitud.');
-      }
 
       alert('Solicitud rechazada exitosamente.');
       setShowRejectModal(null);
@@ -76,7 +49,7 @@ const ChangeRequestManager = ({ reservation, onUpdate }) => {
       onUpdate(); // Refetch reservation data
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      alert(error.response?.data?.error || error.message || 'Error al rechazar la solicitud.');
     } finally {
       setLoadingRequest(null);
     }
@@ -84,32 +57,16 @@ const ChangeRequestManager = ({ reservation, onUpdate }) => {
 
   const downloadDocument = async (filePath, fileName) => {
     try {
-      const token = localStorage.getItem('token');
-
-      // Get secure URL from backend
-      const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          path: filePath,
-          userId: reservation.advisor_id
-        })
+      // ✅ SEGURO: userId se obtiene automáticamente del token JWT
+      const response = await api.post('/files/get-secure-url', {
+        path: filePath
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Error al obtener la URL del archivo');
-      }
-
       // Open the signed URL in a new tab
-      window.open(data.signedUrl, '_blank');
+      window.open(response.data.signedUrl, '_blank');
     } catch (error) {
       console.error('Error downloading document:', error);
-      alert(`Error al descargar el documento: ${error.message}`);
+      alert(`Error al descargar el documento: ${error.response?.data?.message || error.message}`);
     }
   };
 

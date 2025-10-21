@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Save, User, Mail, Lock, Briefcase, IdCard, Eye, EyeOff, Building2, Shield } from 'lucide-react';
 import { USER_ROLES } from '../../utils/constants';
+import api from '../../utils/api';
 
 
 const UserForm = ({ user = null, onSave, onClose }) => {
@@ -26,12 +27,11 @@ const UserForm = ({ user = null, onSave, onClose }) => {
     // Fetch offices
     const fetchOffices = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/offices');
-        const data = await response.json();
-        setOffices(data);
-        console.log('Offices loaded:', data);
+        const response = await api.get('/api/offices');
+        setOffices(response.data);
+        console.log('Offices loaded:', response.data);
       } catch (error) {
-        console.error('Error fetching offices:', error);
+        console.error('Error fetching offices:', error.response?.data?.message || error.message);
       }
     };
     fetchOffices();

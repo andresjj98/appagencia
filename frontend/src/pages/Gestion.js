@@ -21,11 +21,7 @@ import RejectReservationModal from '../components/Gestion/RejectReservationModal
 import ReservationFilters from '../components/Gestion/ReservationFilters';
 import { useSettings } from '../utils/SettingsContext';
 import { useAuth } from './AuthContext';
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import api from '../utils/api';
 
 const getUrgency = (departureDate) => {
   if (!departureDate) return null;
@@ -159,41 +155,43 @@ const Gestion = () => {
       return;
     }
     try {
-      const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (response.ok) {
-        const normalizedData = Array.isArray(data) ? data : (data ? [data] : []);
-        // Filtrar reservas según el rol del usuario
-        const filteredData = filterReservationsByRole(normalizedData, currentUser);
-        const transformed = filteredData.map(transformReservationForGestion);
-        setReservations(transformed);
+      // ✅ Usar API centralizada con autenticación automática
+      const response = await api.get('/reservations', {
+        params: {
+          userId: currentUser.id,
+          userRole: currentUser.role
+        }
+      });
 
-        setSelectedReservation(prev => {
-          if (!prev) return prev;
-          const prevId = prev._original?.id ?? prev.id;
-          if (!prevId) return prev;
-          const updated = transformed.find(item => item.id === prevId);
-          if (!updated) return prev;
-          return { ...updated, _original: updated };
-        });
-      } else {
-        console.error('Error fetching reservations:', data.message);
-      }
+      const data = response.data;
+      const normalizedData = Array.isArray(data) ? data : (data ? [data] : []);
+
+      // Filtrar reservas según el rol del usuario
+      const filteredData = filterReservationsByRole(normalizedData, currentUser);
+      const transformed = filteredData.map(transformReservationForGestion);
+      setReservations(transformed);
+
+      setSelectedReservation(prev => {
+        if (!prev) return prev;
+        const prevId = prev._original?.id ?? prev.id;
+        if (!prevId) return prev;
+        const updated = transformed.find(item => item.id === prevId);
+        if (!updated) return prev;
+        return { ...updated, _original: updated };
+      });
     } catch (error) {
       console.error('Error fetching reservations:', error);
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada. Redirigiendo al login...');
+      }
     }
   }, [currentUser]);
 
   const fetchOffices = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/offices');
-      const data = await response.json();
-      if (response.ok) {
-        setOffices(data);
-      } else {
-        console.error('Error fetching offices:', data.message);
-      }
+      // ✅ Usar API centralizada con autenticación automática
+      const response = await api.get('/offices');
+      setOffices(response.data);
     } catch (error) {
       console.error('Error fetching offices:', error);
     }
@@ -317,19 +315,14 @@ const Gestion = () => {
   const handleApprove = async (reservationId) => {
     if (!currentUser) return;
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ managerId: currentUser.id })
+      // ✅ Usar API centralizada con autenticación automática
+      await api.post(`/reservations/${reservationId}/approve`, {
+        managerId: currentUser.id
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al aprobar la reserva');
-      }
       fetchReservations();
     } catch (error) {
       console.error('Error approving reservation:', error);
-      alert(error.message);
+      alert(error.response?.data?.message || error.message || 'Error al aprobar la reserva');
     }
   };
 
@@ -340,19 +333,11 @@ const Gestion = () => {
 
   const handleReject = async (reservationId, reason) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          reason,
-          rejectedBy: currentUser.id
-        })
+      // ✅ Usar API centralizada con autenticación automática
+      await api.post(`/reservations/${reservationId}/reject`, {
+        reason,
+        rejectedBy: currentUser.id
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al rechazar la reserva');
-      }
 
       // Cerrar modal y refrescar
       setShowRejectModal(false);
@@ -379,28 +364,17 @@ const Gestion = () => {
       delete payload.installments;
 
       // Los transfers se envían normalmente ahora (el backend los procesa correctamente)
-
       payload.updateContext = payload.updateContext || 'general';
 
-      const response = await fetch(`http://localhost:4000/api/reservations/${updatedReservation.id}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al actualizar la reserva');
-      }
+      // ✅ Usar API centralizada con autenticación automática
+      await api.put(`/reservations/${updatedReservation.id}`, payload);
 
       alert('Reserva actualizada con exito');
       fetchReservations();
       setSelectedReservation(updatedReservation);
     } catch (error) {
       console.error('Error updating reservation:', error);
-      alert(error.message);
+      alert(error.response?.data?.message || error.message || 'Error al actualizar la reserva');
     }
   };
 

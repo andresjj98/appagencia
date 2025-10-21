@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, File as FileIcon, Loader, Edit, Save, X, PlusCircle, MinusCircle } from 'lucide-react';
+import api from '../../utils/api';
 
 const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) => {
   const safeInitialReservation = {
@@ -81,24 +82,16 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
         .map(async (p) => {
           const formData = new FormData();
           formData.append('receipt', selectedFiles[p.id]);
-          const response = await fetch(`http://localhost:4000/api/installments/${p.id}/receipt`, {
-            method: 'POST',
-            body: formData,
+          const response = await api.post(`/api/installments/${p.id}/receipt`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
           });
-          if (!response.ok) throw new Error(`Error al subir el comprobante para la cuota #${p.id}`);
-          return response.json();
+          return response.data;
         });
 
       await Promise.all(uploadPromises);
 
       const statusUpdatePromises = paymentsToChange.map(p =>
-        fetch(`http://localhost:4000/api/installments/${p.id}/status`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: p.status })
-        }).then(res => {
-          if (!res.ok) throw new Error(`Error al actualizar el estado para la cuota #${p.id}`);
-        })
+        api.put(`/api/installments/${p.id}/status`, { status: p.status })
       );
 
       await Promise.all(statusUpdatePromises);
@@ -109,7 +102,8 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
       setSelectedFiles({});
 
     } catch (err) {
-      alert(`Error al guardar los cambios: ${err.message}`);
+      const errorMessage = err.response?.data?.message || err.message || 'Error al guardar los cambios';
+      alert(`Error al guardar los cambios: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
@@ -173,23 +167,15 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
         status: p.status
       }));
 
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/installments/upsert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(installmentsToSave),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al guardar el plan de pagos.');
-      }
+      await api.post(`/api/reservations/${reservation.id}/installments/upsert`, installmentsToSave);
 
       alert('¡Plan de pagos actualizado con éxito!');
       setIsEditing(false);
       onUpdate(); // Refresh data from parent
 
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      const errorMessage = err.response?.data?.message || err.message || 'Error al guardar el plan de pagos';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }

@@ -5,10 +5,74 @@ const cors = require('cors');
 const multer = require('multer');
 const { hashPassword, comparePassword } = require('./passwordUtils');
 const { supabaseAdmin } = require('./supabase');
+const { apiLimiter, uploadLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
-app.use(cors());
+
+// ========================================
+// CORS Configuration - Seguridad contra ataques cross-origin
+// ========================================
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : ['http://localhost:3000'];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (como mobile apps, Postman, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      // Origen permitido
+      callback(null, true);
+    } else {
+      // Origen bloqueado
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`⚠️  CORS bloqueó petición desde origen no autorizado: ${origin}`);
+      }
+      callback(new Error(`Origen no permitido por CORS: ${origin}`));
+    }
+  },
+  credentials: true, // Permite envío de cookies y headers de autenticación
+  optionsSuccessStatus: 200, // Para navegadores legacy
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos HTTP permitidos
+  allowedHeaders: ['Content-Type', 'Authorization'], // Headers permitidos
+  exposedHeaders: ['Content-Length', 'X-Request-Id'], // Headers expuestos al cliente
+  maxAge: 86400 // Cache de preflight requests (24 horas)
+};
+
+app.use(cors(corsOptions));
+
+// Logging de configuración CORS en desarrollo
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔒 CORS configurado con orígenes permitidos:', allowedOrigins);
+}
+
 app.use(express.json());
+
+// Middleware de debugging para CORS (solo en desarrollo)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      const isAllowed = allowedOrigins.includes(origin);
+      console.log(`📡 ${req.method} ${req.path} | Origen: ${origin} | ${isAllowed ? '✅ Permitido' : '❌ Bloqueado'}`);
+    }
+    next();
+  });
+}
+
+// ========================================
+// Rate Limiting - Protección contra abuso y fuerza bruta
+// ========================================
+// Rate limiter general para toda la API
+// Límite: 100 requests por 15 minutos por IP
+app.use('/api/', apiLimiter);
+
+if (process.env.NODE_ENV === 'development') {
+  console.log('🛡️  Rate limiting activado: 100 requests/15min (general), 5 intentos/15min (login)');
+}
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -49,7 +113,7 @@ app.use('/api', changeRequestsRoutes);
 
 // ... (POST /api/reservations, PUT /api/reservations/:id, etc. remain the same) ...
 
-app.post('/api/reservations/:reservation_id/attachments/upsert', upload.array('files'), async (req, res) => {
+app.post('/api/reservations/:reservation_id/attachments/upsert', uploadLimiter, upload.array('files'), async (req, res) => {
   const { reservation_id } = req.params;
   const metadataString = req.body.metadata;
   if (!metadataString) {
@@ -107,11 +171,18 @@ app.post('/api/reservations/:reservation_id/attachments/upsert', upload.array('f
 });
 
 // NEW SECURE URL ENDPOINT
-app.post('/api/files/get-secure-url', async (req, res) => {
-    const { path, userId } = req.body;
+// Importar middleware de autenticación
+const { authenticateToken } = require('./middleware/auth');
 
-    if (!path || !userId) {
-        return res.status(400).json({ message: 'File path and user ID are required.' });
+app.post('/api/files/get-secure-url', authenticateToken, async (req, res) => {
+    const { path } = req.body;
+
+    // Obtener userId del token JWT autenticado (NO del body)
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (!path) {
+        return res.status(400).json({ message: 'File path is required.' });
     }
 
     try {
@@ -122,25 +193,13 @@ app.post('/api/files/get-secure-url', async (req, res) => {
             cleanPath = path.substring(path.indexOf(bucketIdentifier) + bucketIdentifier.length);
         }
 
-        // 1. Get user role
-        const { data: userData, error: userError } = await supabaseAdmin
-            .from('usuarios')
-            .select('role')
-            .eq('id', userId)
-            .single();
-
-        if (userError || !userData) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
-
-        const userRole = userData.role;
         let hasPermission = false;
 
         // Admins and managers have automatic permission
         if (userRole === 'administrador' || userRole === 'gestor') {
             hasPermission = true;
         } else {
-            // 2. For other roles, check if they are the advisor on the reservation
+            // For other roles, check if they are the advisor on the reservation
             const reservationId = cleanPath.split('/')[0];
             if (reservationId && !isNaN(reservationId)) {
                 const { data: reservationData, error: reservationError } = await supabaseAdmin
@@ -155,7 +214,7 @@ app.post('/api/files/get-secure-url', async (req, res) => {
             }
         }
 
-        // 3. If permission is granted, create signed URL
+        // If permission is granted, create signed URL
         if (hasPermission) {
             const { data, error } = await supabaseAdmin
                 .storage

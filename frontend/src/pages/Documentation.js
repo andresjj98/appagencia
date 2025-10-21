@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DocumentList from '../components/Documentation/DocumentList';
+import api from '../utils/api';
 
 const Documentation = () => {
   const [documents, setDocuments] = useState([]);
@@ -14,15 +15,10 @@ const Documentation = () => {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:4000/api/documents', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      setDocuments(Array.isArray(data) ? data : []);
+      const response = await api.get('/api/documents');
+      setDocuments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error('Error fetching documents:', error.response?.data?.message || error.message);
       setDocuments([]);
     } finally {
       setLoading(false);

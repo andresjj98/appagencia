@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from '../utils/SettingsContext';
 import { useAuth } from './AuthContext';
+import api from '../utils/api';
 
 const generateChartData = (reservations, users) => {
   const salesByMonth = {};
@@ -59,22 +60,20 @@ const Analytics = () => {
         return;
     }
     try {
-      const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
-      const reservationsResponse = await fetch(url);
-      const reservations = await reservationsResponse.json();
+      const reservationsResponse = await api.get('/api/reservations', {
+        params: {
+          userId: currentUser.id,
+          userRole: currentUser.role
+        }
+      });
 
       // Users data is not used for now, but could be in the future
-      // const usersResponse = await fetch('http://localhost:4000/api/usuarios');
-      // const users = await usersResponse.json();
+      // const usersResponse = await api.get('/api/usuarios');
 
-      if (reservationsResponse.ok) {
-        const generatedData = generateChartData(reservations, []);
-        setChartData(generatedData);
-      } else {
-        console.error('Error fetching data');
-      }
+      const generatedData = generateChartData(reservationsResponse.data, []);
+      setChartData(generatedData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching data:', error.response?.data?.message || error.message);
     } finally {
       setIsLoading(false);
     }

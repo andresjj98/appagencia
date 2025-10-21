@@ -5,6 +5,7 @@ import StatsCard from '../components/Dashboard/StatsCard';
 import RecentReservations from '../components/Dashboard/RecentReservations';
 import { useSettings } from '../utils/SettingsContext';
 import { useAuth } from './AuthContext';
+import api from '../utils/api';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);
@@ -19,14 +20,13 @@ const Dashboard = () => {
       return;
     }
     try {
-      const url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (response.ok) {
-        setReservations(data);
-      } else {
-        console.error('Error fetching reservations:', data.message);
-      }
+      const response = await api.get('/reservations', {
+        params: {
+          userId: currentUser.id,
+          userRole: currentUser.role
+        }
+      });
+      setReservations(response.data);
     } catch (error) {
       console.error('Error fetching reservations:', error);
     } finally {

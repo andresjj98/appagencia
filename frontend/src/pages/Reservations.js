@@ -10,22 +10,13 @@ import ReservationTypeSelector from '../components/Reservations/ReservationTypeS
 import ReservationFullDetail from '../components/Reservations/ReservationFullDetail';
 import CancelRequestModal from '../components/Reservations/CancelRequestModal';
 import ConfirmationModal from '../components/common/ConfirmationModal';
-import LoadingOverlay from '../components/common/LoadingOverlay'; // Import the new component
+import LoadingOverlay from '../components/common/LoadingOverlay';
+import api from '../utils/api';
 
 import { useAuth } from './AuthContext';
 import { filterReservationsByRole, canEditReservation } from '../utils/constants';
 // The `ChangeRequestModal` component is incorrectly located in the `CancelRequestModal.js` file.
 const ChangeRequestModal = CancelRequestModal;
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-const buildJsonHeaders = () => ({
-  'Content-Type': 'application/json',
-  ...getAuthHeaders(),
-});
 
 const getPaymentStatus = (reservation) => {
     const installments = reservation.reservation_installments || [];
@@ -175,30 +166,35 @@ const Reservations = () => {
     }
 
     try {
-      let url = `http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}`;
-      if (filterType !== 'all') {
-        url += `&reservation_type=${filterType}`;
-      }
-      const response = await fetch(url);
-      const data = await response.json();
+      // ✅ Usar API centralizada con autenticación automática
+      const params = {
+        userId: currentUser.id,
+        userRole: currentUser.role
+      };
 
-      if (response.ok) {
-        const transformedData = transformReservationData(data);
-        // Filtrar reservas según el rol del usuario
-        const filteredData = filterReservationsByRole(transformedData.map(r => r._original), currentUser);
-        const finalData = transformedData.filter(r =>
-          filteredData.some(fr => fr.id === r.id)
-        );
-        setReservations(finalData);
-      } else {
-        console.error('Error fetching reservations:', data.message);
+      if (filterType !== 'all') {
+        params.reservation_type = filterType;
       }
+
+      const response = await api.get('/reservations', { params });
+      const data = response.data;
+
+      const transformedData = transformReservationData(data);
+      // Filtrar reservas según el rol del usuario
+      const filteredData = filterReservationsByRole(transformedData.map(r => r._original), currentUser);
+      const finalData = transformedData.filter(r =>
+        filteredData.some(fr => fr.id === r.id)
+      );
+      setReservations(finalData);
     } catch (error) {
       console.error('Error fetching reservations:', error);
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada. Redirigiendo al login...');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, filterType]); // Add filterType to dependency array
+  }, [currentUser, filterType]);
 
   useEffect(() => {
     fetchReservations();
@@ -230,39 +226,29 @@ const Reservations = () => {
 
   const handleFinalSaveReservation = async (reservationData) => {
     setIsSaving(true); // Show loading overlay
-    const url = editingReservation
-      ? `http://localhost:4000/api/reservations/${editingReservation.id}`
-      : 'http://localhost:4000/api/reservations';
-    const method = editingReservation ? 'PUT' : 'POST';
 
     // Ya no necesitamos transformar transfers - el backend maneja el formato de objeto directamente
     const dataToSend = { ...reservationData };
 
-    if (method === 'PUT' && !dataToSend.updateContext) {
+    if (editingReservation && !dataToSend.updateContext) {
       dataToSend.updateContext = 'general';
     }
 
     try {
-      const response = await fetch(url, {
-        method,
-        headers: buildJsonHeaders(),
-        body: JSON.stringify(dataToSend),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setShowForm(false);
-        setEditingReservation(null);
-        setSelectedReservationType(null);
-        fetchReservations(); // Refetch all reservations
+      // ✅ Usar API centralizada con autenticación automática
+      if (editingReservation) {
+        await api.put(`/reservations/${editingReservation.id}`, dataToSend);
       } else {
-        console.error('Error saving reservation:', result.message);
-        alert(`Error: ${result.message}`);
+        await api.post('/reservations', dataToSend);
       }
+
+      setShowForm(false);
+      setEditingReservation(null);
+      setSelectedReservationType(null);
+      fetchReservations(); // Refetch all reservations
     } catch (error) {
       console.error('Error saving reservation:', error);
-      alert('An unexpected error occurred.');
+      alert(error.response?.data?.message || error.message || 'An unexpected error occurred.');
     } finally {
       setIsSaving(false); // Hide loading overlay
     }
@@ -303,21 +289,12 @@ const Reservations = () => {
     if (!reservationToDelete) return;
     setIsSaving(true); // Show loading overlay for delete
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservationToDelete.id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
-        fetchReservations();
-      } else {
-        const result = await response.json();
-        console.error('Error deleting reservation:', result.message);
-        alert(`Error: ${result.message}`);
-      }
+      // ✅ Usar API centralizada con autenticación automática
+      await api.delete(`/reservations/${reservationToDelete.id}`);
+      fetchReservations();
     } catch (error) {
       console.error('Error deleting reservation:', error);
-      alert('An unexpected error occurred.');
+      alert(error.response?.data?.message || error.message || 'An unexpected error occurred.');
     } finally {
       setReservationToDelete(null);
       setShowDeleteConfirm(false);

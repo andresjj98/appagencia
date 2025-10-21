@@ -1,0 +1,80 @@
+# ========================================
+# BACKEND .gitignore
+# ========================================
+# Protege archivos sensibles del backend
+
+# ========================================
+# ARCHIVOS DE ENTORNO (CRÍTICO)
+# ========================================
+# Estos archivos contienen credenciales y NUNCA deben subirse a Git
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# ========================================
+# NODE MODULES
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ========================================
+# LOGS
+# ========================================
+logs/
+*.log
+combined.log
+error.log
+
+# ========================================
+# ARCHIVOS TEMPORALES
+# ========================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========================================
+# COBERTURA DE TESTS
+# ========================================
+coverage/
+.nyc_output/
+
+# ========================================
+# IDE / EDITOR
+# ========================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ========================================
+# ARCHIVOS DE BUILD
+# ========================================
+dist/
+build/
+*.tsbuildinfo
+
+# ========================================
+# CERTIFICADOS Y CLAVES (EXTRA SEGURIDAD)
+# ========================================
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+# ========================================
+# BACKUPS DE BASE DE DATOS
+# ========================================
+*.sql
+*.dump
+*.bak

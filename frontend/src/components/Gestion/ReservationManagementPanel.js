@@ -10,6 +10,7 @@ import HistoryTab from './HistoryTab';
 import InvoiceViewTab from './InvoiceViewTab';
 import { useAuth } from '../../pages/AuthContext';
 import { canEditReservation, canApproveReservation } from '../../utils/constants';
+import api from '../../utils/api';
 
 const panelContainerClasses = 'w-full max-w-7xl mx-auto bg-white rounded-3xl shadow-2xl border border-gray-100 flex overflow-hidden';
 const sidebarClasses = 'w-72 bg-gradient-to-b from-blue-600 via-blue-700 to-purple-700 text-white p-6 flex flex-col';
@@ -43,12 +44,6 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
     setIsSaving(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      };
-
       // Si el payload contiene reservation_passengers, usar endpoint específico
       if (updatedPayload.reservation_passengers) {
         console.log('Using passengers endpoint');
@@ -62,23 +57,9 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
         console.log('Fetching:', url);
         console.log('Body:', body);
 
-        const response = await fetch(url, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(body),
-        });
+        const response = await api.put(url, body);
 
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(errorData.message || 'Failed to update passengers');
-        }
-
-        const successData = await response.json();
-        console.log('Success response:', successData);
+        console.log('Success response:', response.data);
 
         if(onUpdate) {
           onUpdate();
@@ -125,16 +106,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
       // Los transfers se envían normalmente ahora (el backend los procesa correctamente)
 
-      const response = await fetch(`/api/reservations/${reservation.id}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(payloadForSql),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update reservation');
-      }
+      await api.put(`/api/reservations/${reservation.id}`, payloadForSql);
 
       if(onUpdate) {
         onUpdate();
@@ -144,7 +116,8 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update reservation';
+      alert(errorMessage);
     } finally {
       setIsSaving(false);
     }

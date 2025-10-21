@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Edit, X, CheckCircle, Plane, Hotel, Ticket, HeartPulse, Bus } from 'lucide-react';
 import ReservationForm from '../Reservations/ReservationForm';
 import ReservationDetailContent from '../Reservations/ReservationDetailContent';
+import api from '../../utils/api';
 
 /**
  * Componente para gestionar reservas en el módulo de Gestión
@@ -38,27 +39,11 @@ const ReservationEditTab = ({ reservation, onUpdate, readOnly = false }) => {
   const handleConfirmService = async (serviceType, serviceId) => {
     setIsConfirming(true);
     try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      };
-
-      // Llamar API para confirmar servicio
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/confirm-service`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          serviceType,
-          serviceId,
-          confirmedBy: reservation.advisorId || reservation.advisor_id
-        })
+      await api.post(`/api/reservations/${reservation.id}/confirm-service`, {
+        serviceType,
+        serviceId,
+        confirmedBy: reservation.advisorId || reservation.advisor_id
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al confirmar el servicio');
-      }
 
       showAlert('Éxito', `${serviceType} confirmado exitosamente`);
 
@@ -67,7 +52,8 @@ const ReservationEditTab = ({ reservation, onUpdate, readOnly = false }) => {
       }
     } catch (error) {
       console.error('Error confirming service:', error);
-      showAlert('Error', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al confirmar el servicio';
+      showAlert('Error', errorMessage);
     } finally {
       setIsConfirming(false);
     }

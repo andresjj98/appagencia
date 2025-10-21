@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { authenticateToken, requireRole } = require('../middleware/auth');
 const {
   getAllDocuments,
   getDocumentById,
@@ -8,19 +9,19 @@ const {
   deleteDocument
 } = require('../controllers/documents.controller');
 
-// GET all documents (con filtros)
-router.get('/', getAllDocuments);
+// GET all documents (con filtros) - requiere autenticación
+router.get('/', authenticateToken, getAllDocuments);
 
-// GET a single document by ID
-router.get('/:id', getDocumentById);
+// GET a single document by ID - requiere autenticación
+router.get('/:id', authenticateToken, getDocumentById);
 
-// GET documents by reservation ID
-router.get('/reservation/:reservation_id', getDocumentsByReservation);
+// GET documents by reservation ID - requiere autenticación
+router.get('/reservation/:reservation_id', authenticateToken, getDocumentsByReservation);
 
-// POST a new document
-router.post('/', createDocument);
+// POST a new document - requiere autenticación
+router.post('/', authenticateToken, createDocument);
 
-// DELETE a document
-router.delete('/:id', deleteDocument);
+// DELETE a document - solo administradores y gestores
+router.delete('/:id', authenticateToken, requireRole('administrador', 'gestor'), deleteDocument);
 
 module.exports = router;

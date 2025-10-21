@@ -3,6 +3,7 @@ import { useAuth } from '../../pages/AuthContext';
 import { Upload, File as FileIcon, Loader, Info, X, DollarSign, Calendar, MapPin, User, Hash, Phone, Mail, FileText, CreditCard, Search } from 'lucide-react';
 import { filterReservationsByRole, canAccessOffice } from '../../utils/constants';
 import { formatUserName } from '../../utils/nameFormatter';
+import api from '../../utils/api';
 
 const statusColors = {
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -245,21 +246,21 @@ const FinancePanel = () => {
     setLoading(true);
     setError(null);
     try {
-      const officeIdParam = currentUser.officeId ? `&officeId=${currentUser.officeId}` : '';
-      const [reservationsResponse, airportsResponse] = await Promise.all([
-        fetch(`http://localhost:4000/api/reservations?userId=${currentUser.id}&userRole=${currentUser.role}${officeIdParam}`),
-        fetch('http://localhost:4000/api/airports')
-      ]);
-
-      if (!reservationsResponse.ok) throw new Error('Error al cargar las reservaciones.');
-      if (!airportsResponse.ok) {
-        const errorData = await airportsResponse.json().catch(() => ({ message: 'Error desconocido' }));
-        const errorMessage = `Error al cargar los aeropuertos: ${errorData.message || 'Error desconocido'}. ${errorData.details ? `Detalle: ${errorData.details}` : ''}`;
-        throw new Error(errorMessage);
+      const params = {
+        userId: currentUser.id,
+        userRole: currentUser.role
+      };
+      if (currentUser.officeId) {
+        params.officeId = currentUser.officeId;
       }
 
-      const reservationsData = await reservationsResponse.json();
-      const airportsData = await airportsResponse.json();
+      const [reservationsResponse, airportsResponse] = await Promise.all([
+        api.get('/reservations', { params }),
+        api.get('/airports')
+      ]);
+
+      const reservationsData = reservationsResponse.data;
+      const airportsData = airportsResponse.data;
 
       const airportsMap = airportsData.reduce((acc, airport) => {
           acc[airport.iata_code] = airport.city;
@@ -362,31 +363,27 @@ const FinancePanel = () => {
         .map(async (p) => {
           const formData = new FormData();
           formData.append('receipt', selectedFiles[p.id]);
-          const response = await fetch(`http://localhost:4000/api/installments/${p.id}/receipt`, {
-            method: 'POST',
-            body: formData,
-          });
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
-            throw new Error(`Error al subir el comprobante para la cuota #${p.id}: ${errorData.message}`);
+          try {
+            const response = await api.post(`/installments/${p.id}/receipt`, formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+            return response.data;
+          } catch (error) {
+            throw new Error(`Error al subir el comprobante para la cuota #${p.id}: ${error.response?.data?.message || error.message}`);
           }
-          return response.json();
         });
 
       await Promise.all(uploadPromises);
 
-      const statusUpdatePromises = paymentsToChange.map(p =>
-        fetch(`http://localhost:4000/api/installments/${p.id}/status`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: pendingStatusChanges[p.id] })
-        }).then(res => {
-          if (!res.ok) {
-            const errorData = res.json().catch(() => ({ message: 'Error desconocido' }));
-            throw new Error(`Error al actualizar el estado para la cuota #${p.id}: ${errorData.message}`);
-          }
-        })
-      );
+      const statusUpdatePromises = paymentsToChange.map(async (p) => {
+        try {
+          await api.put(`/installments/${p.id}/status`, { status: pendingStatusChanges[p.id] });
+        } catch (error) {
+          throw new Error(`Error al actualizar el estado para la cuota #${p.id}: ${error.response?.data?.message || error.message}`);
+        }
+      });
 
       await Promise.all(statusUpdatePromises);
 

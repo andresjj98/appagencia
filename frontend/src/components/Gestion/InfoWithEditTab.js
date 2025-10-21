@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Edit, X } from 'lucide-react';
 import ReservationForm from '../Reservations/ReservationForm';
 import ReservationDetailContent from '../Reservations/ReservationDetailContent';
+import api from '../../utils/api';
 
 /**
  * Pestaña de Información General con capacidad de edición
@@ -73,22 +74,7 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false, editingSecti
 
       cleanedReservation.updateContext = cleanedReservation.updateContext || 'general';
 
-      const token = localStorage.getItem('token');
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      };
-
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservationId}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(cleanedReservation)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al actualizar la reserva');
-      }
+      const response = await api.put(`/api/reservations/${reservationId}`, cleanedReservation);
 
       setIsEditing(false);
 
@@ -105,7 +91,8 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false, editingSecti
       }
     } catch (error) {
       console.error('Error updating reservation:', error);
-      showAlert('Error', error.message || 'Error al actualizar la reserva');
+      const errorMessage = error.response?.data?.message || error.message || 'Error al actualizar la reserva';
+      showAlert('Error', errorMessage);
     }
   };
 

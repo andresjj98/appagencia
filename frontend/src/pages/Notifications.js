@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, MailOpen, Mail, Trash2, Eye, EyeOff, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import api from '../utils/api';
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -14,20 +15,14 @@ const Notifications = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:4000/api/notifications/user/${currentUser.id}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        // Transform dates from ISO strings to Date objects
-        const transformedData = data.map(n => ({
-          ...n,
-          date: new Date(n.created_at),
-          read: n.read
-        }));
-        setNotifications(transformedData);
-      } else {
-        console.error('Error fetching notifications:', data.message);
-      }
+      const response = await api.get(`/notifications/user/${currentUser.id}`);
+      // Transform dates from ISO strings to Date objects
+      const transformedData = response.data.map(n => ({
+        ...n,
+        date: new Date(n.created_at),
+        read: n.read
+      }));
+      setNotifications(transformedData);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -47,18 +42,13 @@ const Notifications = () => {
   const toggleReadStatus = async (id, currentReadStatus) => {
     try {
       const endpoint = currentReadStatus
-        ? `http://localhost:4000/api/notifications/${id}/unread`
-        : `http://localhost:4000/api/notifications/${id}/read`;
+        ? `/notifications/${id}/unread`
+        : `/notifications/${id}/read`;
 
-      const response = await fetch(endpoint, { method: 'PUT' });
-
-      if (response.ok) {
-        setNotifications(prev =>
-          prev.map(n => n.id === id ? { ...n, read: !currentReadStatus } : n)
-        );
-      } else {
-        console.error('Error toggling read status');
-      }
+      await api.put(endpoint);
+      setNotifications(prev =>
+        prev.map(n => n.id === id ? { ...n, read: !currentReadStatus } : n)
+      );
     } catch (error) {
       console.error('Error toggling read status:', error);
     }
@@ -68,16 +58,8 @@ const Notifications = () => {
     if (!currentUser) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:4000/api/notifications/user/${currentUser.id}/read-all`,
-        { method: 'PUT' }
-      );
-
-      if (response.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      } else {
-        console.error('Error marking all as read');
-      }
+      await api.put(`/notifications/user/${currentUser.id}/read-all`);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
@@ -85,15 +67,8 @@ const Notifications = () => {
 
   const deleteNotification = async (id) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/notifications/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-      } else {
-        console.error('Error deleting notification');
-      }
+      await api.delete(`/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
       console.error('Error deleting notification:', error);
     }

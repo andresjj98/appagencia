@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { DollarSign, Calendar, CheckCircle, Clock, AlertCircle, Eye, Download, Paperclip } from 'lucide-react';
 import { useAuth } from '../../pages/AuthContext';
+import api from '../../utils/api';
 
 /**
  * Pestaña de solo lectura para Finanzas y Pagos
@@ -77,16 +78,13 @@ const FinanceViewTab = ({ reservation }) => {
   };
 
   const getSecureUrl = async (path) => {
-    const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path, userId: currentUser.id })
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || 'No se pudo obtener el enlace seguro.');
+    try {
+      // ✅ SEGURO: userId se obtiene automáticamente del token JWT
+      const response = await api.post('/files/get-secure-url', { path });
+      return response.data.signedUrl;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'No se pudo obtener el enlace seguro.');
     }
-    return data.signedUrl;
   };
 
   const handleViewFile = async (path) => {

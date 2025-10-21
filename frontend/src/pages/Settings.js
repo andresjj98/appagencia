@@ -20,6 +20,7 @@ import { useAuth } from './AuthContext';
 import { hasPermission } from '../utils/constants';
 import UserManagement from './Users';
 import OfficeManagement from './Offices';
+import api from '../utils/api';
 
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General y Fiscal', title: 'Información General y Fiscal', icon: Building },
@@ -127,11 +128,8 @@ const BusinessSettings = ({ activeSection }) => {
       setIsLoading(true);
       setError('');
       try {
-        const response = await fetch('http://localhost:4000/api/business-settings');
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'Error al cargar la configuración.');
-        }
+        const response = await api.get('/business-settings');
+        const data = response.data;
 
         const sanitized = { ...DEFAULT_SETTINGS };
         Object.entries(data || {}).forEach(([key, value]) => {
@@ -149,7 +147,7 @@ const BusinessSettings = ({ activeSection }) => {
         setFormValues(sanitized);
       } catch (err) {
         console.error(err);
-        setError(err.message);
+        setError(err.response?.data?.message || err.message);
       } finally {
         setIsLoading(false);
       }
@@ -210,15 +208,8 @@ const BusinessSettings = ({ activeSection }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:4000/api/business-settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Error al guardar la configuración.');
-      }
+      const response = await api.put('/business-settings', payload);
+      const data = response.data;
 
       const sanitized = { ...DEFAULT_SETTINGS };
       Object.entries(data || {}).forEach(([key, value]) => {
@@ -238,7 +229,7 @@ const BusinessSettings = ({ activeSection }) => {
       setUpdateSuccess(true);
     } catch (err) {
       console.error(err);
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setIsSaving(false);
     }
@@ -269,24 +260,19 @@ const BusinessSettings = ({ activeSection }) => {
       const formData = new FormData();
       formData.append('logo', file);
 
-      console.log(`Uploading ${type} logo to:`, `http://localhost:4000/api/business-settings/logo/${type}`);
+      console.log(`Uploading ${type} logo`);
 
-      const response = await fetch(`http://localhost:4000/api/business-settings/logo/${type}`, {
-        method: 'PUT',
-        body: formData,
+      const response = await api.put(`/business-settings/logo/${type}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      console.log('Upload response status:', response.status);
-      const result = await response.json();
-      console.log('Upload result:', result);
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Error al subir logo');
-      }
+      console.log('Upload result:', response.data);
 
       // Actualizar settings con la respuesta
       const sanitized = { ...DEFAULT_SETTINGS };
-      Object.entries(result.settings || {}).forEach(([key, value]) => {
+      Object.entries(response.data.settings || {}).forEach(([key, value]) => {
         if (key === 'contactInfo' && value && typeof value === 'object') {
           sanitized[key] = JSON.stringify(value, null, 2);
           return;
@@ -296,10 +282,10 @@ const BusinessSettings = ({ activeSection }) => {
 
       setSettings(sanitized);
       setFormValues(sanitized);
-      setLogoUploadMessage({ text: result.message || '¡Logo actualizado con éxito!', type: 'success' });
+      setLogoUploadMessage({ text: response.data.message || '¡Logo actualizado con éxito!', type: 'success' });
     } catch (error) {
       console.error('Error uploading logo:', error);
-      setLogoUploadMessage({ text: error.message || 'Error al subir el logo', type: 'error' });
+      setLogoUploadMessage({ text: error.response?.data?.message || error.message || 'Error al subir el logo', type: 'error' });
     } finally {
       setIsUploadingLogo(false);
       setTimeout(() => setLogoUploadMessage({ text: '', type: '' }), 5000);
@@ -315,19 +301,11 @@ const BusinessSettings = ({ activeSection }) => {
     setLogoUploadMessage({ text: 'Eliminando logo...', type: 'info' });
 
     try {
-      const response = await fetch(`http://localhost:4000/api/business-settings/logo/${type}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Error al eliminar logo');
-      }
+      const response = await api.delete(`/business-settings/logo/${type}`);
 
       // Actualizar settings con la respuesta
       const sanitized = { ...DEFAULT_SETTINGS };
-      Object.entries(result.settings || {}).forEach(([key, value]) => {
+      Object.entries(response.data.settings || {}).forEach(([key, value]) => {
         if (key === 'contactInfo' && value && typeof value === 'object') {
           sanitized[key] = JSON.stringify(value, null, 2);
           return;
@@ -337,10 +315,10 @@ const BusinessSettings = ({ activeSection }) => {
 
       setSettings(sanitized);
       setFormValues(sanitized);
-      setLogoUploadMessage({ text: result.message || '¡Logo eliminado con éxito!', type: 'success' });
+      setLogoUploadMessage({ text: response.data.message || '¡Logo eliminado con éxito!', type: 'success' });
     } catch (error) {
       console.error('Error deleting logo:', error);
-      setLogoUploadMessage({ text: error.message || 'Error al eliminar el logo', type: 'error' });
+      setLogoUploadMessage({ text: error.response?.data?.message || error.message || 'Error al eliminar el logo', type: 'error' });
     } finally {
       setIsUploadingLogo(false);
       setTimeout(() => setLogoUploadMessage({ text: '', type: '' }), 5000);

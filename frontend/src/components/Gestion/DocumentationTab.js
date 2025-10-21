@@ -5,6 +5,7 @@ import { generateInvoice, saveDocumentRecord, buildInvoicePayload } from '../../
 import { generateCustomReservationDocument } from '../../utils/reservationDocumentGenerator';
 import ReservationDocumentGenerator from './ReservationDocumentGenerator';
 import { useAuth } from '../../pages/AuthContext';
+import api from '../../utils/api';
 
 const DocumentationTab = ({ reservation, onUpdate }) => {
   const { currentUser } = useAuth();
@@ -59,21 +60,18 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
     });
 
     try {
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation._original.id}/attachments/upsert`, {
-        method: 'POST',
-        body: formData,
+      await api.post(`/reservations/${reservation._original.id}/attachments/upsert`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-
-      if (!response.ok) {
-        throw new Error('Error al guardar los documentos.');
-      }
 
       alert('Documentación actualizada con éxito');
       onUpdate();
       setNewAttachments([]);
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      alert(error.response?.data?.message || error.message);
     } finally {
       setIsUploading(false);
     }
@@ -84,17 +82,8 @@ const DocumentationTab = ({ reservation, onUpdate }) => {
       setGenerating(true);
 
       // Obtener datos completos de la reserva incluyendo business_settings
-      const response = await fetch(`http://localhost:4000/api/reservations/${reservation._original.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al obtener datos de la reserva');
-      }
-
-      const fullReservationData = await response.json();
+      const response = await api.get(`/reservations/${reservation._original.id}`);
+      const fullReservationData = response.data;
       console.log('Datos completos de reserva:', fullReservationData);
 
       const invoicePayload = buildInvoicePayload(fullReservationData);

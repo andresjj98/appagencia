@@ -18,6 +18,7 @@ import { useSettings } from '../../utils/SettingsContext';
 import { useAuth } from '../../pages/AuthContext';
 import { formatUserName } from '../../utils/nameFormatter';
 import { generateInvoice, saveDocumentRecord, buildInvoicePayload } from '../../utils/documentGenerator';
+import api from '../../utils/api';
 
 // Read-only Section
 const InfoSection = ({ id, title, icon, children, gridColsClass = 'lg:grid-cols-3' }) => (
@@ -49,16 +50,13 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
     const formatCurrencyCOP = (value) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(value || 0));
 
     const getSecureUrl = async (path) => {
-        const response = await fetch('http://localhost:4000/api/files/get-secure-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path, userId: currentUser.id })
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || 'No se pudo obtener el enlace seguro.');
+        try {
+            // ✅ SEGURO: userId se obtiene automáticamente del token JWT
+            const response = await api.post('/files/get-secure-url', { path });
+            return response.data.signedUrl;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'No se pudo obtener el enlace seguro.');
         }
-        return data.signedUrl;
     };
 
     const handleViewFile = async (path) => {
@@ -382,11 +380,11 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
             const results = await Promise.all(
                 Array.from(codesToFetch).map(async (code) => {
                     try {
-                        const response = await fetch(`http://localhost:4000/api/airlines/search?q=${encodeURIComponent(code)}`);
-                        if (!response.ok) {
-                            return { code, name: null };
-                        }
-                        const data = await response.json();
+                        const response = await api.get('/airlines/search', {
+                            params: { q: code }
+                        });
+                        const data = response.data;
+
                         if (!Array.isArray(data)) {
                             return { code, name: null };
                         }

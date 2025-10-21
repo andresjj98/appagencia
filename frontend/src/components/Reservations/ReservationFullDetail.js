@@ -22,6 +22,7 @@ import {
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useSettings } from '../../utils/SettingsContext';
 import ReservationDetailContent from './ReservationDetailContent';
+import api from '../../utils/api';
 import { RESERVATION_STATUS } from '../../utils/constants';
 import LoadingOverlay from '../common/LoadingOverlay';
 import ConfirmationModal from '../common/ConfirmationModal';
@@ -194,43 +195,22 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
       // Si tiene pasajeros, usar endpoint específico
       if (updatedReservationPayload && updatedReservationPayload.reservation_passengers) {
         console.log('Using passengers endpoint');
-        const token = localStorage.getItem('token');
-        const headers = {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        };
 
-        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/passengers`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify({
-            passengers: updatedReservationPayload.reservation_passengers
-          }),
+        const response = await api.put(`/api/reservations/${reservation.id}/passengers`, {
+          passengers: updatedReservationPayload.reservation_passengers
         });
 
-        console.log('Response status:', response.status);
-        const result = await response.json();
-        console.log('Response data:', result);
-
-        if (!response.ok) {
-          throw new Error(result.message || 'Error al actualizar pasajeros');
-        }
+        console.log('Response data:', response.data);
 
         // Recargar los datos de la reserva para obtener los pasajeros actualizados
         console.log('Reloading reservation data...');
-        const reloadResponse = await fetch(`http://localhost:4000/api/reservations/${reservation.id}`, {
-          method: 'GET',
-          headers,
-        });
+        const reloadResponse = await api.get(`/api/reservations/${reservation.id}`);
 
-        if (reloadResponse.ok) {
-          const updatedReservationData = await reloadResponse.json();
-          console.log('Reloaded reservation with passengers:', updatedReservationData);
+        console.log('Reloaded reservation with passengers:', reloadResponse.data);
 
-          // Actualizar el estado llamando a onUpdateReservation con los datos frescos
-          if (onUpdateReservation) {
-            onUpdateReservation(updatedReservationData);
-          }
+        // Actualizar el estado llamando a onUpdateReservation con los datos frescos
+        if (onUpdateReservation) {
+          onUpdateReservation(reloadResponse.data);
         }
 
         setViewMode('view');
@@ -240,7 +220,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
       }
     } catch (error) {
       console.error('Error in handlePassengerSave:', error);
-      showAlert('Error al Guardar', error.message);
+      showAlert('Error al Guardar', error.response?.data?.message || error.message);
     } finally {
       setIsSaving(false);
     }
@@ -249,22 +229,17 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const handleAttachmentSave = async (formData) => {
     setIsSaving(true);
     try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:4000/api/reservations/${reservation.id}/attachments/upsert`, {
-            method: 'POST',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body: formData,
+        const response = await api.post(`/api/reservations/${reservation.id}/attachments/upsert`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
         });
-        const savedData = await response.json();
-        if (!response.ok) {
-            throw new Error(savedData.message || 'Error en el servidor');
-        }
-        setAttachmentData(savedData);
+        setAttachmentData(response.data);
         onUpdateReservation();
         setViewMode('view');
         showAlert('Éxito', 'Los adjuntos se han guardado correctamente.', 'success');
     } catch (error) {
-        showAlert('Error al Guardar', error.message);
+        showAlert('Error al Guardar', error.response?.data?.message || error.message);
     } finally {
         setIsSaving(false);
     }

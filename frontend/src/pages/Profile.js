@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { User, Save, Lock, Key, CheckCircle, XCircle, Upload, Trash2, Camera, Shield, Activity, Edit, X } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import api from '../utils/api';
 
 const Profile = () => {
   const { currentUser, login } = useAuth();
@@ -87,22 +88,17 @@ const Profile = () => {
       const formData = new FormData();
       formData.append('avatar', selectedFile);
 
-      const response = await fetch(`http://localhost:4000/api/usuarios/${currentUser.id}/avatar`, {
-        method: 'PUT',
-        body: formData,
+      const response = await api.put(`/api/usuarios/${currentUser.id}/avatar`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Error al subir avatar');
-      }
-
-      login(result.user);
+      login(response.data.user);
       setSelectedFile(null);
       setAvatarMessage({ text: '¡Avatar actualizado con éxito!', type: 'success' });
     } catch (error) {
-      setAvatarMessage({ text: error.message, type: 'error' });
+      setAvatarMessage({ text: error.response?.data?.message || error.message, type: 'error' });
     } finally {
       setIsUploadingAvatar(false);
       setTimeout(() => setAvatarMessage({ text: '', type: '' }), 4000);
@@ -118,22 +114,14 @@ const Profile = () => {
     setAvatarMessage({ text: '', type: '' });
 
     try {
-      const response = await fetch(`http://localhost:4000/api/usuarios/${currentUser.id}/avatar`, {
-        method: 'DELETE',
-      });
+      const response = await api.delete(`/api/usuarios/${currentUser.id}/avatar`);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Error al eliminar avatar');
-      }
-
-      login(result.user);
+      login(response.data.user);
       setSelectedFile(null);
-      setAvatarPreview(result.user.avatar);
+      setAvatarPreview(response.data.user.avatar);
       setAvatarMessage({ text: '¡Avatar eliminado con éxito!', type: 'success' });
     } catch (error) {
-      setAvatarMessage({ text: error.message, type: 'error' });
+      setAvatarMessage({ text: error.response?.data?.message || error.message, type: 'error' });
     } finally {
       setIsUploadingAvatar(false);
       setTimeout(() => setAvatarMessage({ text: '', type: '' }), 4000);
@@ -146,30 +134,20 @@ const Profile = () => {
     setProfileMessage({ text: '', type: '' });
 
     try {
-      const response = await fetch(`http://localhost:4000/api/usuarios/${currentUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: profileData.name,
-          lastName: profileData.lastName,
-          idCard: profileData.idCard,
-          username: profileData.username,
-          email: profileData.email,
-          role: currentUser.role, // Mantener el rol actual
-        }),
+      const response = await api.put(`/api/usuarios/${currentUser.id}`, {
+        name: profileData.name,
+        lastName: profileData.lastName,
+        idCard: profileData.idCard,
+        username: profileData.username,
+        email: profileData.email,
+        role: currentUser.role, // Mantener el rol actual
       });
 
-      const updatedUser = await response.json();
-
-      if (!response.ok) {
-        throw new Error(updatedUser.message || 'Error al actualizar el perfil.');
-      }
-
-      login(updatedUser);
+      login(response.data);
       setProfileMessage({ text: '¡Perfil actualizado con éxito!', type: 'success' });
       setIsEditingProfile(false); // Cerrar el modo de edición
     } catch (error) {
-      setProfileMessage({ text: error.message, type: 'error' });
+      setProfileMessage({ text: error.response?.data?.message || error.message, type: 'error' });
     } finally {
       setIsSavingProfile(false);
       setTimeout(() => setProfileMessage({ text: '', type: '' }), 4000);
@@ -192,22 +170,14 @@ const Profile = () => {
 
     setIsSavingPassword(true);
     try {
-      const response = await fetch(`http://localhost:4000/api/usuarios/${currentUser.id}/change-password`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: profileData.newPassword }),
+      await api.put(`/api/usuarios/${currentUser.id}/change-password`, {
+        password: profileData.newPassword
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Error al cambiar la contraseña.');
-      }
 
       setProfileData((prev) => ({ ...prev, newPassword: '', confirmNewPassword: '' }));
       setPasswordMessage({ text: '¡Contraseña cambiada con éxito!', type: 'success' });
     } catch (error) {
-      setPasswordMessage({ text: error.message, type: 'error' });
+      setPasswordMessage({ text: error.response?.data?.message || error.message, type: 'error' });
     } finally {
       setIsSavingPassword(false);
       setTimeout(() => setPasswordMessage({ text: '', type: '' }), 4000);

@@ -1,22 +1,30 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { setCurrentUser as setMockUser } from '../mock/users';
+import api from '../utils/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Verificar si hay un token almacenado al cargar la app
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Aquí podrías hacer una petición para obtener el usuario actual
+      // Por ahora solo marcamos que terminó de cargar
+      setLoading(false);
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   const signIn = async ({ email, password }) => {
     try {
-      const response = await fetch('http://localhost:4000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Error en el inicio de sesión');
-      }
+      // Usar axios en lugar de fetch - este endpoint NO requiere token
+      const response = await api.post('/login', { email, password });
+      const data = response.data;
 
       // Guardar el token JWT en localStorage
       if (data.token) {
@@ -44,7 +52,8 @@ export const AuthProvider = ({ children }) => {
       setMockUser(mappedUser); // Keep mock in sync
       return { user: mappedUser, error: null };
     } catch (error) {
-      return { user: null, error };
+      const errorMessage = error.response?.data?.message || error.message || 'Error en el inicio de sesión';
+      return { user: null, error: new Error(errorMessage) };
     }
   };
 
@@ -59,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token'); // Limpiar el token JWT
   };
 
-  const value = { currentUser, setCurrentUser, signIn, login, logout };
+  const value = { currentUser, setCurrentUser, signIn, login, logout, loading };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

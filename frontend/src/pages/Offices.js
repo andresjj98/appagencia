@@ -12,6 +12,7 @@ import {
   Users
 } from 'lucide-react';
 import OfficeForm from '../components/Offices/OfficeForm';
+import api from '../utils/api';
 
 const OfficeManagement = () => {
   const [offices, setOffices] = useState([]);
@@ -22,9 +23,8 @@ const OfficeManagement = () => {
   useEffect(() => {
     const fetchOffices = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/offices');
-        const data = await response.json();
-        setOffices(data);
+        const response = await api.get('/offices');
+        setOffices(response.data);
       } catch (error) {
         console.error('Error fetching offices', error);
       }
@@ -55,20 +55,11 @@ const OfficeManagement = () => {
   const handleDeleteOffice = async (officeToDelete) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar la oficina ${officeToDelete.name}?`)) {
       try {
-        const response = await fetch(`http://localhost:4000/api/offices/${officeToDelete.id}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          alert(errorData.message || 'Error al eliminar oficina');
-          return;
-        }
-
+        await api.delete(`/offices/${officeToDelete.id}`);
         setOffices(prevOffices => prevOffices.filter(office => office.id !== officeToDelete.id));
       } catch (error) {
         console.error(error);
-        alert('Error al eliminar oficina');
+        alert(error.response?.data?.message || 'Error al eliminar oficina');
       }
     }
   };
@@ -84,30 +75,16 @@ const OfficeManagement = () => {
         return;
       }
       try {
-        const response = await fetch(`http://localhost:4000/api/offices/${officeData.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(officeData),
-        });
-        if (!response.ok) {
-          throw new Error('Error al actualizar oficina');
-        }
-        const updatedOffice = await response.json();
+        const response = await api.put(`/offices/${officeData.id}`, officeData);
+        const updatedOffice = response.data;
         setOffices(prevOffices => prevOffices.map(office => office.id === updatedOffice.id ? updatedOffice : office));
       } catch (error) {
         console.error(error);
       }
     } else {
       try {
-        const response = await fetch('http://localhost:4000/api/offices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(officeData),
-        });
-        if (!response.ok) {
-          throw new Error('Error al crear oficina');
-        }
-        const newOffice = await response.json();
+        const response = await api.post('/offices', officeData);
+        const newOffice = response.data;
         setOffices(prevOffices => [...prevOffices, newOffice]);
       } catch (error) {
         console.error(error);

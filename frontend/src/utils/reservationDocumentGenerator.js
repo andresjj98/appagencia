@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import api from './api';
 
 /**
  * Genera un documento PDF personalizado con las secciones seleccionadas de una reserva
@@ -10,17 +11,9 @@ import html2canvas from 'html2canvas';
 export const generateCustomReservationDocument = async (reservation, selectedSections) => {
   try {
     // Obtener datos completos de la reserva
-    const response = await fetch(`http://localhost:4000/api/reservations/${reservation._original.id}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    const response = await api.get(`/api/reservations/${reservation._original.id}`);
 
-    if (!response.ok) {
-      throw new Error('Error al obtener datos completos de la reserva');
-    }
-
-    const fullReservationData = await response.json();
+    const fullReservationData = response.data;
 
     // Crear elemento HTML temporal para el documento
     const documentElement = createDocumentHTML(fullReservationData, selectedSections);

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader, Plane, Building, Map, HeartPulse, Edit, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import api from '../../utils/api';
 
 const SERVICE_KEYS_BY_TYPE = {
   all_inclusive: ['flight_status_ok', 'hotel_status_ok', 'tours_status_ok', 'assistance_status_ok'],
@@ -804,58 +805,28 @@ const ServiceManagementTab = ({ reservation, onUpdate }) => {
     }
     setLoadingService(serviceKey);
     try {
-      const response = await fetch(
-        `http://localhost:4000/api/reservations/${res.id}/service-status`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ service: serviceKey, status: !currentStatus }),
-        }
+      await api.put(
+        `/api/reservations/${res.id}/service-status`,
+        { service: serviceKey, status: !currentStatus }
       );
-
-      if (!response.ok) {
-        let message = 'No se pudo actualizar el estado del servicio.';
-        try {
-          const body = await response.json();
-          if (body?.message) {
-            message = body.message;
-          }
-        } catch (error) {
-          // ignore parse errors
-        }
-        throw new Error(message);
-      }
 
       onUpdate?.();
     } catch (error) {
-      alert(error.message);
+      alert(error.response?.data?.message || 'No se pudo actualizar el estado del servicio.');
     } finally {
       setLoadingService(null);
     }
   };
 
   const handleSaveService = async (url, data) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
+    try {
+      await api.post(url, data);
 
-    if (!response.ok) {
-      let message = 'No se pudo actualizar la informacion del servicio.';
-      try {
-        const body = await response.json();
-        if (body?.message) {
-          message = body.message;
-        }
-      } catch (error) {
-        // ignore parse errors
-      }
-      throw new Error(message);
+      setEditingService(null);
+      onUpdate?.();
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'No se pudo actualizar la informacion del servicio.');
     }
-
-    setEditingService(null);
-    onUpdate?.();
   };
 
   if (!res) {

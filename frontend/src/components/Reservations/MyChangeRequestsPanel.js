@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, CheckCircle, XCircle, Loader, AlertCircle } from 'lucide-react';
+import api from '../../utils/api';
 
 const MyChangeRequestsPanel = ({ reservationId }) => {
   const [requests, setRequests] = useState([]);
@@ -13,42 +14,28 @@ const MyChangeRequestsPanel = ({ reservationId }) => {
   const fetchMyRequests = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       console.log('Fetching change requests for reservation:', reservationId);
-      console.log('Token:', token ? 'Present' : 'Missing');
 
-      const response = await fetch('http://localhost:4000/api/change-requests/my-requests', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await api.get('/api/change-requests/my-requests');
 
-      console.log('Response status:', response.status);
+      console.log('Response data:', response.data);
+      console.log('All my requests:', response.data.requests);
+      console.log('Number of requests:', response.data.requests?.length || 0);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Response data:', data);
-        console.log('All my requests:', data.requests);
-        console.log('Number of requests:', data.requests?.length || 0);
-
-        if (!data.requests || data.requests.length === 0) {
-          console.warn('No change requests found for current user');
-          setRequests([]);
-          return;
-        }
-
-        // Filtrar solo las solicitudes de esta reserva
-        const filtered = data.requests.filter(req => req.reservation_id === reservationId);
-        console.log('Filtered requests for this reservation:', filtered);
-        console.log('Reservation ID type:', typeof reservationId, reservationId);
-        console.log('Request reservation_id types:', data.requests.map(r => ({ id: r.reservation_id, type: typeof r.reservation_id })));
-        setRequests(filtered);
-      } else {
-        const errorText = await response.text();
-        console.error('Response not ok:', response.status, response.statusText, errorText);
+      if (!response.data.requests || response.data.requests.length === 0) {
+        console.warn('No change requests found for current user');
+        setRequests([]);
+        return;
       }
+
+      // Filtrar solo las solicitudes de esta reserva
+      const filtered = response.data.requests.filter(req => req.reservation_id === reservationId);
+      console.log('Filtered requests for this reservation:', filtered);
+      console.log('Reservation ID type:', typeof reservationId, reservationId);
+      console.log('Request reservation_id types:', response.data.requests.map(r => ({ id: r.reservation_id, type: typeof r.reservation_id })));
+      setRequests(filtered);
     } catch (error) {
-      console.error('Error fetching change requests:', error);
+      console.error('Error fetching change requests:', error.response?.data?.message || error.message);
     } finally {
       setLoading(false);
     }
