@@ -133,6 +133,16 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
     const assistanceData = reservation._original.reservation_medical_assistances || [];
     const attachmentData = reservation._original.reservation_attachments || [];
     const transferData = reservation._original.reservation_transfers || [];
+
+    // Obtener el tipo de reserva
+    const reservationType = reservation._original.reservation_type || 'all_inclusive';
+
+    // Determinar qué secciones mostrar según el tipo de reserva
+    const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
+    const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
+    const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
+    const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
+    const showTransfers = reservationType === 'all_inclusive' || reservationType === 'flights_only' || reservationType === 'hotel_only';
     
     const getAirlineCode = (flight) => {
         if (!flight) {
@@ -524,114 +534,124 @@ const ReservationDetailContent = ({ reservation, showAlert }) => {
                 </div>
             </InfoSection>
 
-            <InfoSection id="vuelos" title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
-                {(flightData || []).length > 0 ? (flightData || []).map((flight, index) => {
-                    const airlineName = getAirlineDisplayName(flight);
-                    const baggageInfo = formatBaggageInfo(flight.baggageAllowance || flight.baggage_allowance || flight.baggage);
-                    const flightCategory = formatLabelValue(flight.flightCategory || flight.flight_category);
-                    const flightCycle = flight.customFlightCycle || formatLabelValue(flight.flightCycle || flight.flight_cycle);
-                    const itineraries = flight.reservation_flight_itineraries || flight.itineraries || [];
-                    return (
-                        <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg space-y-3">
-                            <div className="grid gap-y-1 md:grid-cols-2 md:gap-x-6">
-                                <p><strong>Aerolinea:</strong> {airlineName}</p>
-                                <p><strong>PNR:</strong> {flight.pnr || flight.record_locator || 'No especificado'}</p>
-                                {flightCategory && <p><strong>Categoria:</strong> {flightCategory}</p>}
-                                {flightCycle && <p><strong>Ciclo del vuelo:</strong> {flightCycle}</p>}
-                                {baggageInfo && <p><strong>Equipaje:</strong> {baggageInfo}</p>}
+            {showFlights && (
+                <InfoSection id="vuelos" title="Itinerario y Vuelos" icon={<Plane className="w-5 h-5 text-indigo-600" />}>
+                    {(flightData || []).length > 0 ? (flightData || []).map((flight, index) => {
+                        const airlineName = getAirlineDisplayName(flight);
+                        const baggageInfo = formatBaggageInfo(flight.baggageAllowance || flight.baggage_allowance || flight.baggage);
+                        const flightCategory = formatLabelValue(flight.flightCategory || flight.flight_category);
+                        const flightCycle = flight.customFlightCycle || formatLabelValue(flight.flightCycle || flight.flight_cycle);
+                        const itineraries = flight.reservation_flight_itineraries || flight.itineraries || [];
+                        return (
+                            <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg space-y-3">
+                                <div className="grid gap-y-1 md:grid-cols-2 md:gap-x-6">
+                                    <p><strong>Aerolinea:</strong> {airlineName}</p>
+                                    <p><strong>PNR:</strong> {flight.pnr || flight.record_locator || 'No especificado'}</p>
+                                    {flightCategory && <p><strong>Categoria:</strong> {flightCategory}</p>}
+                                    {flightCycle && <p><strong>Ciclo del vuelo:</strong> {flightCycle}</p>}
+                                    {baggageInfo && <p><strong>Equipaje:</strong> {baggageInfo}</p>}
+                                </div>
+                                {itineraries.length > 0 && (
+                                    <div className="pt-2 border-t border-gray-200 space-y-2">
+                                        <p className="font-semibold text-gray-700">Itinerarios</p>
+                                        {itineraries.map((itinerary, itineraryIndex) => {
+                                            const { flightNumber, dateLabel, departureTimeLabel, arrivalTimeLabel } = getItineraryDetails(itinerary);
+                                            return (
+                                                <div key={itineraryIndex} className="pl-4 border-l border-gray-200 text-sm text-gray-700 space-y-1">
+                                                    <p><strong>Numero de vuelo:</strong> {flightNumber}</p>
+                                                    <p><strong>Fecha:</strong> {dateLabel || 'No especificada'}</p>
+                                                    <p><strong>Salida:</strong> {departureTimeLabel || 'No especificada'}</p>
+                                                    <p><strong>Llegada:</strong> {arrivalTimeLabel || 'No especificada'}</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
-                            {itineraries.length > 0 && (
-                                <div className="pt-2 border-t border-gray-200 space-y-2">
-                                    <p className="font-semibold text-gray-700">Itinerarios</p>
-                                    {itineraries.map((itinerary, itineraryIndex) => {
-                                        const { flightNumber, dateLabel, departureTimeLabel, arrivalTimeLabel } = getItineraryDetails(itinerary);
-                                        return (
-                                            <div key={itineraryIndex} className="pl-4 border-l border-gray-200 text-sm text-gray-700 space-y-1">
-                                                <p><strong>Numero de vuelo:</strong> {flightNumber}</p>
-                                                <p><strong>Fecha:</strong> {dateLabel || 'No especificada'}</p>
-                                                <p><strong>Salida:</strong> {departureTimeLabel || 'No especificada'}</p>
-                                                <p><strong>Llegada:</strong> {arrivalTimeLabel || 'No especificada'}</p>
-                                            </div>
-                                        );
-                                    })}
+                        );
+                    }) : <InfoItem label="Vuelos" value="No hay vuelos registrados." fullWidth />}
+                </InfoSection>
+            )}
+
+
+            {showHotels && (
+                <InfoSection id="hoteles" title="Hoteles" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
+                    {(hotelData || []).length > 0 ? (hotelData || []).map((hotel, index) => (
+                        <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg space-y-1">
+                            <p><strong>Nombre:</strong> {hotel.name}</p>
+                            {hotel.room_category && <p><strong>Categoría:</strong> {hotel.room_category}</p>}
+                            {hotel.meal_plan && <p><strong>Plan de Comidas:</strong> {hotel.meal_plan}</p>}
+                            {hotel.check_in_date && <p><strong>Check-in:</strong> {formatDate(hotel.check_in_date)}</p>}
+                            {hotel.check_out_date && <p><strong>Check-out:</strong> {formatDate(hotel.check_out_date)}</p>}
+                            {(hotel.accommodation || hotel.reservation_hotel_accommodations)?.length > 0 && (
+                                <div className="pl-4">
+                                    {((hotel.accommodation || hotel.reservation_hotel_accommodations) || []).map((acc, i) => (
+                                        <p key={i}>Habitaciones: {acc.rooms}, ADT {acc.adt}, CHD {acc.chd}, INF {acc.inf}</p>
+                                    ))}
                                 </div>
                             )}
+                            {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions)?.length > 0 && (
+                                <ul className="pl-6 list-disc">
+                                    {((hotel.hotelInclusions || hotel.reservation_hotel_inclusions) || []).map((inc, i) => (
+                                        <li key={i}>{typeof inc === 'string' ? inc : inc.inclusion}</li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
-                    );
-                }) : <InfoItem label="Vuelos" value="No hay vuelos registrados." fullWidth />}
-            </InfoSection>
+                    )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." fullWidth />}
+                </InfoSection>
+            )}
 
+            {showTransfers && (
+                <InfoSection id="traslados" title="Traslados" icon={<Bus className="w-5 h-5 text-teal-600" />}>
+                    {(transferData || []).length > 0 ? (
+                        <div className="col-span-full space-y-3">
+                            {segments.map((segment, segmentIndex) => {
+                                const segmentTransfers = transferData.filter(t => t.segment_id === segment.id);
+                                if (segmentTransfers.length === 0) return null;
 
-            <InfoSection id="hoteles" title="Hoteles" icon={<Hotel className="w-5 h-5 text-yellow-600" />}>
-                {(hotelData || []).length > 0 ? (hotelData || []).map((hotel, index) => (
-                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg space-y-1">
-                        <p><strong>Nombre:</strong> {hotel.name}</p>
-                        {hotel.room_category && <p><strong>Categoría:</strong> {hotel.room_category}</p>}
-                        {hotel.meal_plan && <p><strong>Plan de Comidas:</strong> {hotel.meal_plan}</p>}
-                        {hotel.check_in_date && <p><strong>Check-in:</strong> {formatDate(hotel.check_in_date)}</p>}
-                        {hotel.check_out_date && <p><strong>Check-out:</strong> {formatDate(hotel.check_out_date)}</p>}
-                        {(hotel.accommodation || hotel.reservation_hotel_accommodations)?.length > 0 && (
-                            <div className="pl-4">
-                                {((hotel.accommodation || hotel.reservation_hotel_accommodations) || []).map((acc, i) => (
-                                    <p key={i}>Habitaciones: {acc.rooms}, ADT {acc.adt}, CHD {acc.chd}, INF {acc.inf}</p>
-                                ))}
-                            </div>
-                        )}
-                        {(hotel.hotelInclusions || hotel.reservation_hotel_inclusions)?.length > 0 && (
-                            <ul className="pl-6 list-disc">
-                                {((hotel.hotelInclusions || hotel.reservation_hotel_inclusions) || []).map((inc, i) => (
-                                    <li key={i}>{typeof inc === 'string' ? inc : inc.inclusion}</li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                )) : <InfoItem label="Hoteles" value="No hay hoteles registrados." fullWidth />}
-            </InfoSection>
-
-            <InfoSection id="traslados" title="Traslados" icon={<Bus className="w-5 h-5 text-teal-600" />}>
-                {(transferData || []).length > 0 ? (
-                    <div className="col-span-full space-y-3">
-                        {segments.map((segment, segmentIndex) => {
-                            const segmentTransfers = transferData.filter(t => t.segment_id === segment.id);
-                            if (segmentTransfers.length === 0) return null;
-
-                            return (
-                                <div key={segmentIndex} className="text-base p-3 bg-gray-50 rounded-lg">
-                                    <p className="font-semibold text-gray-700 mb-2">
-                                        Tramo {segmentIndex + 1}: {segment.origin} - {segment.destination}
-                                    </p>
-                                    <div className="space-y-2 pl-4">
-                                        {segmentTransfers.map((transfer, idx) => (
-                                            <div key={idx} className="text-sm">
-                                                <p><strong>Tipo:</strong> {transfer.transfer_type === 'arrival' ? 'Llegada (In)' : 'Salida (Out)'}</p>
-                                            </div>
-                                        ))}
+                                return (
+                                    <div key={segmentIndex} className="text-base p-3 bg-gray-50 rounded-lg">
+                                        <p className="font-semibold text-gray-700 mb-2">
+                                            Tramo {segmentIndex + 1}: {segment.origin} - {segment.destination}
+                                        </p>
+                                        <div className="space-y-2 pl-4">
+                                            {segmentTransfers.map((transfer, idx) => (
+                                                <div key={idx} className="text-sm">
+                                                    <p><strong>Tipo:</strong> {transfer.transfer_type === 'arrival' ? 'Llegada (In)' : 'Salida (Out)'}</p>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : <InfoItem label="Traslados" value="No hay traslados registrados." fullWidth />}
-            </InfoSection>
+                                );
+                            })}
+                        </div>
+                    ) : <InfoItem label="Traslados" value="No hay traslados registrados." fullWidth />}
+                </InfoSection>
+            )}
 
-            <InfoSection id="tours" title="Servicios y Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
-                {(tourData || []).length > 0 ? (tourData || []).map((tour, index) => (
-                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
-                        <p><strong>Nombre:</strong> {tour.name}</p>
-                        {tour.date && <p><strong>Fecha:</strong> {formatDate(tour.date)}</p>}
-                        {tour.cost && <p><strong>Costo:</strong> {formatCurrency(tour.cost)}</p>}
-                    </div>
-                )) : <InfoItem label="Tours" value="No hay tours registrados." fullWidth />}
-            </InfoSection>
+            {showTours && (
+                <InfoSection id="tours" title="Servicios y Tours" icon={<Sun className="w-5 h-5 text-orange-600" />}>
+                    {(tourData || []).length > 0 ? (tourData || []).map((tour, index) => (
+                        <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
+                            <p><strong>Nombre:</strong> {tour.name}</p>
+                            {tour.date && <p><strong>Fecha:</strong> {formatDate(tour.date)}</p>}
+                            {tour.cost && <p><strong>Costo:</strong> {formatCurrency(tour.cost)}</p>}
+                        </div>
+                    )) : <InfoItem label="Tours" value="No hay tours registrados." fullWidth />}
+                </InfoSection>
+            )}
 
-            <InfoSection id="asistencias" title="Asistencias Médicas" icon={<HeartPulse className="w-5 h-5 text-red-600" />}>
-                {(assistanceData || []).length > 0 ? (assistanceData || []).map((med, index) => (
-                    <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
-                        <p><strong>Plan:</strong> {med.plan_type || med.planType}</p>
-                        <p><strong>Vigencia:</strong> {formatDate(med.start_date || med.startDate)} - {formatDate(med.end_date || med.endDate)}</p>
-                    </div>
-                )) : <InfoItem label="Asistencias" value="No hay asistencias médicas." fullWidth />}
-            </InfoSection>
+            {showMedical && (
+                <InfoSection id="asistencias" title="Asistencias Médicas" icon={<HeartPulse className="w-5 h-5 text-red-600" />}>
+                    {(assistanceData || []).length > 0 ? (assistanceData || []).map((med, index) => (
+                        <div key={index} className="col-span-full text-base p-3 bg-gray-50 rounded-lg">
+                            <p><strong>Plan:</strong> {med.plan_type || med.planType}</p>
+                            <p><strong>Vigencia:</strong> {formatDate(med.start_date || med.startDate)} - {formatDate(med.end_date || med.endDate)}</p>
+                        </div>
+                    )) : <InfoItem label="Asistencias" value="No hay asistencias médicas." fullWidth />}
+                </InfoSection>
+            )}
 
             <InfoSection id="pago" title="Pago" icon={<CreditCard className="w-5 h-5 text-purple-600" />}>
                 <InfoItem label="Precio ADT" value={formatCurrencyCOP(reservation._original.price_per_adt)} />

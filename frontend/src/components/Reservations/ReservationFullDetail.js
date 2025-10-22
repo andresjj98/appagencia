@@ -283,18 +283,28 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
 
   const statusConfig = RESERVATION_STATUS[reservation.status] || { label: reservation.status, bgColor: 'bg-gray-100', textColor: 'text-gray-800' };
 
+  // Obtener el tipo de reserva para determinar qué secciones están activas
+  const reservationType = reservation._original.reservation_type || 'all_inclusive';
+
+  // Determinar qué secciones están disponibles según el tipo de reserva
+  const showFlights = reservationType === 'all_inclusive' || reservationType === 'flights_only';
+  const showHotels = reservationType === 'all_inclusive' || reservationType === 'hotel_only';
+  const showTours = reservationType === 'all_inclusive' || reservationType === 'tours_only';
+  const showMedical = reservationType === 'all_inclusive' || reservationType === 'medical_assistance';
+  const showTransfers = reservationType === 'all_inclusive' || reservationType === 'flights_only' || reservationType === 'hotel_only';
+
   const menuItems = [
-    { id: 'info-basica', label: 'Información Básica', icon: FileText },
-    { id: 'pasajeros', label: 'Pasajeros', icon: Users },
-    { id: 'vuelos', label: 'Vuelos', icon: Plane },
-    { id: 'hoteles', label: 'Hoteles', icon: Hotel },
-    { id: 'traslados', label: 'Traslados', icon: Bus },
-    { id: 'tours', label: 'Servicios y Tours', icon: Sun },
-    { id: 'asistencias', label: 'Asistencia Médica', icon: HeartPulse },
-    { id: 'pago', label: 'Información de Pago', icon: CreditCard },
-    { id: 'plan-pagos', label: 'Plan de Pagos', icon: ListChecks },
-    { id: 'observaciones', label: 'Observaciones', icon: MessageSquare },
-    { id: 'adjuntos', label: 'Documentos Adjuntos', icon: Paperclip },
+    { id: 'info-basica', label: 'Información Básica', icon: FileText, enabled: true },
+    { id: 'pasajeros', label: 'Pasajeros', icon: Users, enabled: true },
+    { id: 'vuelos', label: 'Vuelos', icon: Plane, enabled: showFlights },
+    { id: 'hoteles', label: 'Hoteles', icon: Hotel, enabled: showHotels },
+    { id: 'traslados', label: 'Traslados', icon: Bus, enabled: showTransfers },
+    { id: 'tours', label: 'Servicios y Tours', icon: Sun, enabled: showTours },
+    { id: 'asistencias', label: 'Asistencia Médica', icon: HeartPulse, enabled: showMedical },
+    { id: 'pago', label: 'Información de Pago', icon: CreditCard, enabled: true },
+    { id: 'plan-pagos', label: 'Plan de Pagos', icon: ListChecks, enabled: true },
+    { id: 'observaciones', label: 'Observaciones', icon: MessageSquare, enabled: true },
+    { id: 'adjuntos', label: 'Documentos Adjuntos', icon: Paperclip, enabled: true },
   ];
 
   const SideMenu = () => (
@@ -303,12 +313,17 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
         <div className="overflow-y-auto pr-2 -mr-2">
             <nav className="space-y-2">
                 {menuItems.map(item => (
-                    <button 
-                        key={item.id} 
-                        onClick={() => handleScrollToSection(item.id)}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    <button
+                        key={item.id}
+                        onClick={() => item.enabled && handleScrollToSection(item.id)}
+                        disabled={!item.enabled}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          item.enabled
+                            ? 'text-gray-700 hover:bg-gray-200 cursor-pointer'
+                            : 'text-gray-400 bg-gray-100 cursor-not-allowed opacity-60'
+                        }`}
                     >
-                        <item.icon className="w-5 h-5 text-gray-600" />
+                        <item.icon className={`w-5 h-5 ${item.enabled ? 'text-gray-600' : 'text-gray-400'}`} />
                         <span>{item.label}</span>
                     </button>
                 ))}
