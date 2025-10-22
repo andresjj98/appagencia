@@ -81,16 +81,24 @@ const UserManagement = () => {
         setUsers(prevUsers =>
           prevUsers.map(user => (user.id === updatedUser.id ? updatedUser : user))
         );
+        alert('Usuario actualizado exitosamente');
       } catch (error) {
-        console.error(error);
+        console.error('Error al actualizar usuario:', error);
+        const errorMessage = error.response?.data?.message || 'Error al actualizar el usuario';
+        alert(errorMessage);
+        return; // No cerrar el formulario si hay error
       }
     } else {
       try {
         const response = await api.post('/usuarios', userData);
         const newUser = response.data;
         setUsers(prevUsers => [...prevUsers, newUser]);
+        alert('Usuario creado exitosamente con código: ' + newUser.username);
       } catch (error) {
-        console.error(error);
+        console.error('Error al crear usuario:', error);
+        const errorMessage = error.response?.data?.message || 'Error al crear el usuario';
+        alert(errorMessage);
+        return; // No cerrar el formulario si hay error
       }
     }
     setShowUserForm(false);

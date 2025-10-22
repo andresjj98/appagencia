@@ -88,7 +88,7 @@ const Profile = () => {
       const formData = new FormData();
       formData.append('avatar', selectedFile);
 
-      const response = await api.put(`/api/usuarios/${currentUser.id}/avatar`, formData, {
+      const response = await api.put(`/usuarios/${currentUser.id}/avatar`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -114,7 +114,7 @@ const Profile = () => {
     setAvatarMessage({ text: '', type: '' });
 
     try {
-      const response = await api.delete(`/api/usuarios/${currentUser.id}/avatar`);
+      const response = await api.delete(`/usuarios/${currentUser.id}/avatar`);
 
       login(response.data.user);
       setSelectedFile(null);
@@ -134,7 +134,7 @@ const Profile = () => {
     setProfileMessage({ text: '', type: '' });
 
     try {
-      const response = await api.put(`/api/usuarios/${currentUser.id}`, {
+      const response = await api.put(`/usuarios/${currentUser.id}`, {
         name: profileData.name,
         lastName: profileData.lastName,
         idCard: profileData.idCard,
@@ -170,7 +170,7 @@ const Profile = () => {
 
     setIsSavingPassword(true);
     try {
-      await api.put(`/api/usuarios/${currentUser.id}/change-password`, {
+      await api.put(`/usuarios/${currentUser.id}/change-password`, {
         password: profileData.newPassword
       });
 

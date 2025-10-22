@@ -106,7 +106,7 @@ const ReservationManagementPanel = ({ reservation, onBack, onUpdate, onApprove, 
 
       // Los transfers se envían normalmente ahora (el backend los procesa correctamente)
 
-      await api.put(`/api/reservations/${reservation.id}`, payloadForSql);
+      await api.put(`/reservations/${reservation.id}`, payloadForSql);
 
       if(onUpdate) {
         onUpdate();

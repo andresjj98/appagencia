@@ -192,7 +192,7 @@ const buildInvoicePayloadFromReservation = (reservation) => {
       status: reservation.status || '',
       advisorName: buildAdvisorName(advisor),
       advisorId: typeof advisor === 'object' && advisor !== null
-        ? (advisor.idCard || advisor.id_card || advisor.document_number || advisor.documentNumber || advisor.cedula || advisor.dni || advisor.cc || null)
+        ? (advisor.username || null)
         : null,
       currency,
       paymentOption: reservation.payment_option || '',

@@ -196,7 +196,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
       if (updatedReservationPayload && updatedReservationPayload.reservation_passengers) {
         console.log('Using passengers endpoint');
 
-        const response = await api.put(`/api/reservations/${reservation.id}/passengers`, {
+        const response = await api.put(`/reservations/${reservation.id}/passengers`, {
           passengers: updatedReservationPayload.reservation_passengers
         });
 
@@ -204,7 +204,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
 
         // Recargar los datos de la reserva para obtener los pasajeros actualizados
         console.log('Reloading reservation data...');
-        const reloadResponse = await api.get(`/api/reservations/${reservation.id}`);
+        const reloadResponse = await api.get(`/reservations/${reservation.id}`);
 
         console.log('Reloaded reservation with passengers:', reloadResponse.data);
 
@@ -229,7 +229,7 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
   const handleAttachmentSave = async (formData) => {
     setIsSaving(true);
     try {
-        const response = await api.post(`/api/reservations/${reservation.id}/attachments/upsert`, formData, {
+        const response = await api.post(`/reservations/${reservation.id}/attachments/upsert`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             }

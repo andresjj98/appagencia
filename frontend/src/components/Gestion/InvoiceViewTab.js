@@ -53,40 +53,20 @@ const InvoiceViewTab = ({ reservation }) => {
 
         const fullReservation = response.data;
 
-        const currentAdvisorDocument =
-          fullReservation.advisor?.id_card ||
-          fullReservation.advisor?.idCard ||
-          fullReservation.advisor?.document_number ||
-          fullReservation.advisor?.documentNumber ||
-          fullReservation.advisor?.cedula ||
-          fullReservation.advisor?.dni ||
-          fullReservation.advisor?.cc ||
-          null;
+        const currentAdvisorUsername = fullReservation.advisor?.username || null;
 
-        // Si el advisor no tiene documento asociado, hacer fetch del usuario completo
-        if (fullReservation.advisor_id && !currentAdvisorDocument) {
+        // Si el advisor no tiene username asociado, hacer fetch del usuario completo
+        if (fullReservation.advisor_id && !currentAdvisorUsername) {
           try {
             const advisorResponse = await api.get(`/users/${fullReservation.advisor_id}`, {
               signal: controller.signal,
             });
 
             const advisorData = advisorResponse.data;
-            const advisorDocument =
-              advisorData.idCard ||
-              advisorData.id_card ||
-              advisorData.documentNumber ||
-              advisorData.document_number ||
-              advisorData.cedula ||
-              advisorData.dni ||
-              advisorData.cc ||
-              null;
 
             fullReservation.advisor = {
               ...advisorData,
-              idCard: advisorData.idCard ?? advisorDocument ?? null,
-              id_card: advisorData.id_card ?? advisorDocument ?? null,
-              document_number: advisorData.document_number ?? advisorDocument ?? null,
-              documentNumber: advisorData.documentNumber ?? advisorDocument ?? null,
+              username: advisorData.username || null,
             };
           } catch (advisorError) {
             console.warn('Could not fetch full advisor data:', advisorError);

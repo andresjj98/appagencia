@@ -19,7 +19,7 @@ const ServiceConfirmationTab = ({ reservation, onUpdate, onEditSection, readOnly
   const handleConfirmService = async (serviceType, serviceId) => {
     setIsConfirming(true);
     try {
-      await api.post(`/api/reservations/${reservation.id}/confirm-service`, {
+      await api.post(`/reservations/${reservation.id}/confirm-service`, {
         serviceType,
         serviceId,
         confirmedBy: reservation.advisorId || reservation.advisor_id

@@ -172,7 +172,7 @@ const generateHeader = (reservation) => {
           <div style="display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 11px;">
             ${reservation.invoice_number ? `<div>Factura:</div><div style="font-weight: 800;">${reservation.invoice_number}</div>` : ''}
             <div>Fecha:</div><div style="font-weight: 800;">${new Date().toLocaleDateString('es-CO')}</div>
-            ${advisor.id_card ? `<div>Asesor:</div><div style="font-weight: 800;">${advisor.id_card}</div>` : ''}
+            ${advisor.username ? `<div>Asesor:</div><div style="font-weight: 800;">${advisor.username}</div>` : ''}
           </div>
         </div>
       </div>

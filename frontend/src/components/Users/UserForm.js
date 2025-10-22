@@ -73,7 +73,7 @@ const UserForm = ({ user = null, onSave, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (!user || formData.password) { // Validate password only if new user or password field is not empty for existing user
       const error = validatePassword(formData.password);
       if (error) {
@@ -87,6 +87,12 @@ const UserForm = ({ user = null, onSave, onClose }) => {
       ...formData,
       ...(user ? { id: user.id } : {}),
     };
+
+    // No enviar username al crear nuevo usuario (se auto-genera en backend)
+    if (!user) {
+      delete userData.username;
+    }
+
     onSave(userData);
   };
 
@@ -187,23 +193,26 @@ const UserForm = ({ user = null, onSave, onClose }) => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <div className="relative">
-              <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <input
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Nombre de usuario"
-              />
+          {/* Mostrar username solo en modo edición */}
+          {user && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Código de Asesor
+              </label>
+              <div className="relative">
+                <User className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  disabled
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  placeholder="Auto-generado"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Este código se genera automáticamente y no se puede modificar</p>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

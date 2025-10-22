@@ -92,7 +92,7 @@ const buildUserPayload = async (body, { hashPasswordIfNeeded = true } = {}) => {
   return payload;
 };
 
-const validateRequiredFields = (body, { isUpdate = false } = {}) => {
+const validateRequiredFields = (body, { isUpdate = false, skipUsername = false } = {}) => {
   const missing = [];
   const checkField = (key, label) => {
     if (!body[key] || !body[key].toString().trim()) {
@@ -102,7 +102,11 @@ const validateRequiredFields = (body, { isUpdate = false } = {}) => {
 
   checkField('name', 'name');
   checkField('email', 'email');
-  checkField('username', 'username');
+
+  if (!skipUsername) {
+    checkField('username', 'username');
+  }
+
   checkField('role', 'role');
 
   if (!isUpdate) {
@@ -164,12 +168,42 @@ const getUserById = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const missing = validateRequiredFields(req.body || {});
+    const missing = validateRequiredFields(req.body || {}, { skipUsername: true });
     if (missing.length > 0) {
       return res.status(400).json({ message: `Faltan campos obligatorios: ${missing.join(', ')}` });
     }
 
-    const payload = await buildUserPayload(req.body || {});
+    // Auto-generar username basado en el siguiente número disponible
+    const { data: allUsers, error: countError } = await supabaseAdmin
+      .from('usuarios')
+      .select('username');
+
+    if (countError) {
+      console.error('Error fetching users for username generation:', countError);
+      return res.status(500).json({ message: 'Error al generar código de asesor.' });
+    }
+
+    // Encontrar el número más alto usado
+    let maxNumber = 0;
+    if (allUsers && allUsers.length > 0) {
+      allUsers.forEach(user => {
+        const num = parseInt(user.username);
+        if (!isNaN(num) && num > maxNumber) {
+          maxNumber = num;
+        }
+      });
+    }
+
+    const nextNumber = maxNumber + 1;
+    const autoUsername = nextNumber.toString().padStart(3, '0');
+
+    // Crear payload sin incluir username del body
+    const bodyWithoutUsername = { ...req.body };
+    delete bodyWithoutUsername.username;
+
+    const payload = await buildUserPayload(bodyWithoutUsername);
+    payload.username = autoUsername;
+
     const { data, error } = await supabaseAdmin
       .from('usuarios')
       .insert(payload)

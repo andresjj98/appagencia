@@ -902,7 +902,7 @@ const ChangeRequestModal = ({ reservation, onClose }) => {
 
     setIsSubmitting(true);
     try {
-      await api.post(`/api/reservations/${reservation.id}/change-requests`, {
+      await api.post(`/reservations/${reservation.id}/change-requests`, {
         section: editingSection,
         changes: formData,
         reason: reason || `Solicitud de cambio en ${editingSection}`

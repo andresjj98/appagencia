@@ -202,7 +202,7 @@ const ReservationFinanceTab = ({ reservation: initialReservation, onUpdate }) =>
         status: p.status
       }));
 
-      await api.post(`/api/reservations/${reservation.id}/installments/upsert`, installmentsToSave);
+      await api.post(`/reservations/${reservation.id}/installments/upsert`, installmentsToSave);
 
       alert('¡Plan de pagos actualizado con éxito!');
       setIsEditing(false);

@@ -16,7 +16,7 @@ DECLARE
     transfer JSONB;
     segment_ids BIGINT[] := '{}';  -- Array para guardar IDs de segmentos
 BEGIN
-    -- Paso 1: Insertar o actualizar cliente (Upsert)
+    -- Paso 1: Insertar o actualizar cliente (Upsert basado en id_card)
     INSERT INTO public.clients (
         name, email, phone, id_card, address,
         emergency_contact_name, emergency_contact_phone, id_card_issued_place
@@ -27,11 +27,11 @@ BEGIN
         payload->'emergencyContact'->>'name', payload->'emergencyContact'->>'phone',
         payload->>'clientIdIssuedPlace'
     )
-    ON CONFLICT (email) DO UPDATE
+    ON CONFLICT (id_card) DO UPDATE
     SET
         name = EXCLUDED.name,
+        email = EXCLUDED.email,
         phone = EXCLUDED.phone,
-        id_card = EXCLUDED.id_card,
         address = EXCLUDED.address,
         emergency_contact_name = EXCLUDED.emergency_contact_name,
         emergency_contact_phone = EXCLUDED.emergency_contact_phone,

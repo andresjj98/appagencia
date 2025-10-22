@@ -74,7 +74,7 @@ const InfoWithEditTab = ({ reservation, onUpdate, readOnly = false, editingSecti
 
       cleanedReservation.updateContext = cleanedReservation.updateContext || 'general';
 
-      const response = await api.put(`/api/reservations/${reservationId}`, cleanedReservation);
+      const response = await api.put(`/reservations/${reservationId}`, cleanedReservation);
 
       setIsEditing(false);
 
