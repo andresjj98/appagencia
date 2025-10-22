@@ -83,25 +83,18 @@ const createDocumentHTML = (reservation, selectedSections) => {
     width: 900px;
     background: white;
     padding: 0;
-    font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica', Arial, sans-serif;
+    font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     color: #123b48;
     font-size: 12px;
   `;
 
   let html = '';
 
-  // Header con diseño mejorado (similar a la factura)
+  // Header con diseño mejorado (exactamente igual a la factura)
   html += generateHeader(reservation);
 
-  // Título del documento con diseño compacto
-  html += `
-    <div style="margin: 0; padding: 10px 14px; background: linear-gradient(135deg, #00a6c7 0%, #49c8de 70%, #eaf7fb 70%);">
-      <div style="color: white; text-align: center;">
-        <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">DOCUMENTO DE RESERVA</h2>
-        ${reservation.invoice_number ? `<p style="margin: 4px 0 0 0; font-size: 11px; opacity: 0.95; font-weight: 600;">Factura N°: ${reservation.invoice_number}</p>` : ''}
-      </div>
-    </div>
-    <div style="padding: 10px 12px 14px;">`;
+  // Contenido con padding igual a la factura
+  html += `<div style="padding: 10px 12px 14px;">`;
 
   // Secciones seleccionadas
   if (selectedSections.titular) {
@@ -447,31 +440,6 @@ const generateToursSection = (reservation) => {
       <div style="border: 1px solid #d9e6ea; background: #f1f7f9; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
         ${toursHTML || '<div style="font-size: 11.5px; color: #3e525a;">No hay tours o servicios adicionales registrados.</div>'}
       </div>
-    </div>
-  `;
-};
-
-const generateToursSection = (reservation) => {
-  const tours = reservation.reservation_tours || [];
-
-  if (tours.length === 0) {
-    return '';
-  }
-
-  let toursHTML = '';
-  tours.forEach((tour, index) => {
-    toursHTML += `
-      <div style="background: white; padding: 10px; margin-bottom: 6px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px;">
-        <strong>${tour.name || tour.tour_name || 'Tour N/A'}</strong><br/>
-        ${tour.date || tour.service_date ? `Fecha: ${formatDate(tour.date || tour.service_date)}` : ''} ${tour.cost ? `• Costo: ${formatCurrency(tour.cost)}` : ''}
-      </div>
-    `;
-  });
-
-  return `
-    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #fd7e14; border-radius: 4px;">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #fd7e14; font-weight: bold;">🎫 TOURS Y ACTIVIDADES</h3>
-      ${toursHTML}
     </div>
   `;
 };
