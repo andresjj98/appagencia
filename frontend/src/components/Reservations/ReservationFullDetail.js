@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -59,13 +59,18 @@ const DetailManagement = ({ title, icon, onBack, onSave, children }) => (
 // THE OLD, LOCAL PassengerForm COMPONENT IS REMOVED
 
 const AttachmentForm = ({ setViewMode, onSaveSuccess, showAlert, attachmentData }) => {
-  const { control, register, handleSubmit, setValue, watch } = useForm({
+  const { control, register, handleSubmit, setValue, watch, reset } = useForm({
     defaultValues: { attachments: attachmentData }
   });
   const { fields, append, remove } = useFieldArray({
     control,
     name: "attachments"
   });
+
+  // Actualizar el formulario cuando attachmentData cambie
+  useEffect(() => {
+    reset({ attachments: attachmentData });
+  }, [attachmentData, reset]);
 
   const onFileChange = (index, e) => {
     if (e.target.files.length) {
@@ -179,6 +184,13 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
 
   const [attachmentData, setAttachmentData] = useState(reservation._original.reservation_attachments || []);
 
+  // Sincronizar attachmentData cuando la reserva se actualice
+  useEffect(() => {
+    if (reservation._original?.reservation_attachments) {
+      setAttachmentData(reservation._original.reservation_attachments);
+    }
+  }, [reservation._original?.reservation_attachments]);
+
   const showAlert = (title, message, type = 'warning') => {
     setAlertInfo({ isOpen: true, title, message, type });
   };
@@ -234,11 +246,28 @@ const ReservationFullDetail = ({ reservation, onClose, onUpdateReservation, onEd
                 'Content-Type': 'multipart/form-data'
             }
         });
-        setAttachmentData(response.data);
-        onUpdateReservation();
+
+        console.log('Attachments saved, response:', response.data);
+
+        // Recargar los datos de la reserva para obtener los adjuntos actualizados
+        const reloadResponse = await api.get(`/reservations/${reservation.id}`);
+
+        console.log('Reloaded reservation with attachments:', reloadResponse.data);
+
+        // Actualizar el estado de attachmentData con los datos frescos
+        if (reloadResponse.data._original?.reservation_attachments) {
+            setAttachmentData(reloadResponse.data._original.reservation_attachments);
+        }
+
+        // Actualizar el estado llamando a onUpdateReservation con los datos frescos
+        if (onUpdateReservation) {
+            onUpdateReservation(reloadResponse.data);
+        }
+
         setViewMode('view');
         showAlert('Éxito', 'Los adjuntos se han guardado correctamente.', 'success');
     } catch (error) {
+        console.error('Error in handleAttachmentSave:', error);
         showAlert('Error al Guardar', error.response?.data?.message || error.message);
     } finally {
         setIsSaving(false);
